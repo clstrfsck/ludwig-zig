@@ -12,7 +12,7 @@
 {**********************************************************************}
 ```
 
-[![Check](https://github.com/clstrfsck/ludwig-go/actions/workflows/check.yml/badge.svg)](https://github.com/clstrfsck/ludwig-go/actions/workflows/check.yml)
+[![Check](https://github.com/clstrfsck/ludwig-zig/actions/workflows/check.yml/badge.svg)](https://github.com/clstrfsck/ludwig-zig/actions/workflows/check.yml)
 
 ## About
 
@@ -100,7 +100,7 @@ zig build system-test
 ```
 
 The intention is that the system tests are cloned into a subdirectory of
-the main `ludwig-go` project.  If you would like to arrange things differently,
+the main `ludwig-zig` project.  If you would like to arrange things differently,
 you can use the environment variable `LUDWIG_EXE` to point the tests to
 your executable.  Note that this path will need to be an absolute path.
 
