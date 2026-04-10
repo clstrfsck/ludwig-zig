@@ -27,10 +27,8 @@ but it is primarily an interactive screen editor.
 This repository now contains the Zig implementation of Ludwig. The original Pascal
 code is available here: [cjbarter/ludwig](https://github.com/cjbarter/ludwig).
 There is also a C++ port available here:
-[clstrfsck/ludwig-c](https://github.com/clstrfsck/ludwig-c).
-
-The in-repo Go implementation used during the migration has been removed after
-cutover, so this repository is now Zig-only.
+[clstrfsck/ludwig-c](https://github.com/clstrfsck/ludwig-c) and a Go port here:
+[clstrfsck/ludwig-go](https://github.com/clstrfsck/ludwig-go).
 
 ## Building
 
@@ -74,15 +72,6 @@ files respectively.
 
 Unit test coverage is quite low right now.  This is being worked on as
 refactoring and modernisation continues.
-
-```sh
-# Coverage-equivalent unit-test target
-zig build coverage
-```
-
-The current `coverage` step is a compatibility alias for the Zig unit-test run.
-Richer report generation can be added later once a stable reporting path is
-wired into the Zig build graph.
 
 ## System Tests
 
@@ -158,6 +147,6 @@ while using a native Zig codebase. Notable modernizations include:
 - The help files for both the old and new command sets are generated during
   `zig build` and embedded into the executable, making the default build
   self-contained.
-- The editor includes native Zig syntax highlighting, with both basic and
-  richer color paths depending on terminal capability.
-- The editor retains the option to set the width of tabstops on startup.
+- The editor includes syntax highlighting, with both basic and richer color
+  paths depending on terminal capability.
+- The editor has an option to set the width of tabstops on startup.

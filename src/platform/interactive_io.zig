@@ -461,11 +461,6 @@ fn showPromptAt(row: isize, prompt: []const u8, width: usize) usize {
     return visible_prompt.len;
 }
 
-fn renderPromptBuffer(prompt: []const u8, reply: []const u8) void {
-    const dims = detectDimensions();
-    renderPromptBufferAt(dims.height, prompt, reply, @intCast(@max(dims.width, 1)));
-}
-
 fn renderPromptBufferAt(row: isize, prompt: []const u8, reply: []const u8, width: usize) void {
     const prompt_len = showPromptAt(row, prompt, width);
     if (reply.len == 0 or prompt_len >= width) {

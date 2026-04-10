@@ -711,7 +711,7 @@ fn renderCommandIntroducerSummary(editor: *const state.Editor, allocator: std.me
     return std.fmt.allocPrint(allocator, "{d}", .{editor.CommandIntroducer});
 }
 
-fn renderGoStyleInt(allocator: std.mem.Allocator, value: isize, width: usize) ![]const u8 {
+fn renderInt(allocator: std.mem.Allocator, value: isize, width: usize) ![]const u8 {
     const text = if (value < 0)
         try std.fmt.allocPrint(allocator, "{d}", .{value})
     else
@@ -728,7 +728,7 @@ fn renderGoStyleInt(allocator: std.mem.Allocator, value: isize, width: usize) ![
     return out;
 }
 
-fn renderGoStyleName(allocator: std.mem.Allocator, name: []const u8, width: usize) ![]const u8 {
+fn renderName(allocator: std.mem.Allocator, name: []const u8, width: usize) ![]const u8 {
     if (name.len >= width) {
         return allocator.dupe(u8, name[0..width]);
     }
@@ -772,7 +772,7 @@ fn buildInteractiveParameterLines(
 ) !std.ArrayListUnmanaged([]const u8) {
     var lines: std.ArrayListUnmanaged([]const u8) = .{};
     const frame_name = if (frame.Span != null) frame.Span.?.Name else "";
-    const padded_frame_name = try renderGoStyleName(allocator, frame_name, types.NameLen);
+    const padded_frame_name = try renderName(allocator, frame_name, types.NameLen);
     const version_underline = try allocator.alloc(u8, 7 + types.LudwigVersion.len);
     @memset(version_underline, '=');
     const current_options = try renderOptionsSummary(allocator, frame.Options);
@@ -782,16 +782,16 @@ fn buildInteractiveParameterLines(
     const current_v_margins = try renderMarginsSummary(allocator, frame.MarginTop, frame.MarginBottom);
     const default_v_margins = try renderMarginsSummary(allocator, editor.InitialMarginTop, editor.InitialMarginBottom);
     const introducer = try renderCommandIntroducerSummary(editor, allocator);
-    const unused_memory = try renderGoStyleInt(allocator, frame.SpaceLeft, 9);
-    const line_count = try renderGoStyleInt(allocator, line_ops.LineToNumber(frame.LastGroup.?.LastLine.?) - 1, 9);
-    const input_count = try renderGoStyleInt(allocator, frame.InputCount, 9);
-    const current_line = try renderGoStyleInt(allocator, line_ops.LineToNumber(frame.Dot.?.Line), 9);
-    const current_space_limit = try renderGoStyleInt(allocator, frame.SpaceLimit, 9);
-    const default_space_limit = try renderGoStyleInt(allocator, editor.FileData.Space, 9);
-    const current_scr_height = try renderGoStyleInt(allocator, frame.ScrHeight, 9);
-    const default_scr_height = try renderGoStyleInt(allocator, editor.InitialScrHeight, 9);
-    const current_scr_width = try renderGoStyleInt(allocator, frame.ScrWidth, 9);
-    const default_scr_width = try renderGoStyleInt(allocator, editor.InitialScrWidth, 9);
+    const unused_memory = try renderInt(allocator, frame.SpaceLeft, 9);
+    const line_count = try renderInt(allocator, line_ops.LineToNumber(frame.LastGroup.?.LastLine.?) - 1, 9);
+    const input_count = try renderInt(allocator, frame.InputCount, 9);
+    const current_line = try renderInt(allocator, line_ops.LineToNumber(frame.Dot.?.Line), 9);
+    const current_space_limit = try renderInt(allocator, frame.SpaceLimit, 9);
+    const default_space_limit = try renderInt(allocator, editor.FileData.Space, 9);
+    const current_scr_height = try renderInt(allocator, frame.ScrHeight, 9);
+    const default_scr_height = try renderInt(allocator, editor.InitialScrHeight, 9);
+    const current_scr_width = try renderInt(allocator, frame.ScrWidth, 9);
+    const default_scr_width = try renderInt(allocator, editor.InitialScrWidth, 9);
 
     try lines.append(allocator, try joinWithIndent(
         allocator,

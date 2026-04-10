@@ -312,10 +312,6 @@ pub fn NewStrObjectCopy(
     return result;
 }
 
-pub fn EmptyStrObject(allocator: std.mem.Allocator) !*StrObject {
-    return NewBlankStrObject(allocator, 0);
-}
-
 test "blank string object contains blanks" {
     const allocator = std.testing.allocator;
     const s = try NewBlankStrObject(allocator, 8);
@@ -383,7 +379,7 @@ test "fill copy bytes truncates and pads" {
     try std.testing.expectEqualStrings("Hello---", s.String());
 }
 
-test "trimmed length and slice preserve Go semantics" {
+test "trimmed length and slice preserve semantics" {
     const allocator = std.testing.allocator;
     const s = try NewBlankStrObject(allocator, 12);
     defer s.destroy();

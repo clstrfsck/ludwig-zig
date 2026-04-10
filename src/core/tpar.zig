@@ -8,7 +8,7 @@ const str_object = @import("str_object.zig");
 const types = @import("types.zig");
 
 pub const EnquiryNumLen = 20;
-pub const SystemName = "Go/Linux";
+pub const SystemName = "Zig/Linux";
 
 const illegal_mark_number_message = "Illegal mark number.";
 const invalid_integer_message = "Trailing parameter integer is invalid.";

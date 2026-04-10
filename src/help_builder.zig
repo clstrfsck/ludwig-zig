@@ -182,7 +182,7 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
     std.process.exit(1);
 }
 
-test "matches a representative Go help-builder sample" {
+test "matches a representative help-builder sample" {
     const allocator = std.testing.allocator;
     const input =
         \\+CONTENTS

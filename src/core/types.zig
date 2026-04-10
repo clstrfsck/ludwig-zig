@@ -121,10 +121,6 @@ pub fn frameOptionsClear(value: *FrameOptions, option: FrameOptionsElts) void {
     value.* &= ~frameOptionMask(option);
 }
 
-pub fn frameOptionsToggle(value: *FrameOptions, option: FrameOptionsElts) void {
-    value.* ^= frameOptionMask(option);
-}
-
 pub const Commands = enum(u16) {
     CmdNoop,
     CmdUp,

@@ -1,10 +1,9 @@
 # Syntax Highlighting Assets
 
-The runtime syntax-highlighting implementation has been ported to Zig.
-This directory is retained only for source attribution and the bundled syntax
+The runtime syntax-highlighting implementation uses bundled syntax
 definition assets under `highlight/syntax/`.
 
-The removed Go implementation in this directory had been adopted from the
+The files have been adopted from the
 [micro text editor](https://micro-editor.github.io/).
 
 The micro editor source code is published under the following license:

@@ -10,8 +10,8 @@ fn configureLudwigExecutable(
     exe.root_module.addImport("generated_syntax_data", syntax_data_module);
     exe.root_module.addImport("syntax_data_types", syntax_data_types_module);
     exe.linkLibC();
-    exe.linkSystemLibrary("ncurses");
-    exe.linkSystemLibrary("pcre2-8");
+    exe.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
+    exe.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
 }
 
 pub fn build(b: *std.Build) void {
@@ -188,8 +188,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
     unit_tests.linkLibC();
-    unit_tests.linkSystemLibrary("ncurses");
-    unit_tests.linkSystemLibrary("pcre2-8");
+    unit_tests.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
+    unit_tests.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
     unit_tests.root_module.addImport("generated_help_assets", host_help_assets_module);
     unit_tests.root_module.addImport("generated_syntax_data", host_syntax_data_module);
     unit_tests.root_module.addImport("syntax_data_types", host_syntax_data_types_module);
@@ -221,11 +221,6 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(build_help_step);
     test_step.dependOn(&run_unit_tests.step);
 
-    // Zig unit-test coverage reporting is not yet wired into this build graph,
-    // so keep a Taskfile-compatible target name that at least runs the suite.
-    const coverage_step = b.step("coverage", "Run unit tests via the coverage-equivalent target");
-    coverage_step.dependOn(test_step);
-
     const system_test_run = b.addSystemCommand(&.{
         "sh",
         "-c",
@@ -246,7 +241,7 @@ pub fn build(b: *std.Build) void {
     const clean_run = b.addSystemCommand(&.{
         "sh",
         "-c",
-        "rm -rf zig-out .zig-cache coverage.out coverage.html",
+        "rm -rf zig-out .zig-cache",
     });
     clean_run.setCwd(b.path("."));
     const clean_step = b.step("clean", "Remove built binaries and generated outputs");

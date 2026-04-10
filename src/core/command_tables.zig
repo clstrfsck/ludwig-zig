@@ -5,10 +5,6 @@ fn cmdIndex(cmd: types.Commands) usize {
     return @intFromEnum(cmd);
 }
 
-fn promptIndex(prompt: types.PromptType) usize {
-    return @intFromEnum(prompt);
-}
-
 fn initCmd(
     attrib: *types.CmdAttribRec,
     lps: []const types.LeadParam,
