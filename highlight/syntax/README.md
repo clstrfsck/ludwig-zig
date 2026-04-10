@@ -1,6 +1,6 @@
 # Syntax Highlighting Assets
 
-The runtime syntax-highlighting implementation has bundled syntax
+The runtime syntax-highlighting implementation uses bundled syntax
 definition assets under `highlight/syntax/`.
 
 The files have been adopted from the

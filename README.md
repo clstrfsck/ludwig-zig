@@ -28,7 +28,7 @@ This repository now contains the Zig implementation of Ludwig. The original Pasc
 code is available here: [cjbarter/ludwig](https://github.com/cjbarter/ludwig).
 There is also a C++ port available here:
 [clstrfsck/ludwig-c](https://github.com/clstrfsck/ludwig-c) and a Go port here:
-[clstrfsck/lugwig-go](https://github.com/clstrfsck/ludwig-go).
+[clstrfsck/ludwig-go](https://github.com/clstrfsck/ludwig-go).
 
 ## Building
 
