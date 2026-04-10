@@ -1,0 +1,40 @@
+filetype: markdown
+
+detect:
+    filename: "\\.(livemd|md|mkd|mkdn|markdown)$"
+
+rules:
+    # quotes
+    - statement: "^>.*"
+
+    # Emphasis
+    - type: "(^|[[:space:]])(_[^ ][^_]*_|\\*[^ ][^*]*\\*)"
+
+    # Strong emphasis
+    - type: "(^|[[:space:]])(__[^ ][^_]*__|\\*\\*[^ ][^*]*\\*\\*)"
+
+    # horizontal rules
+    - special: "^(---+|===+|___+|\\*\\*\\*+)\\s*$"
+
+    # headlines
+    - special: "^#{1,6}.*"
+
+    # lists
+    - identifier: "^[[:space:]]*[\\*+-] |^[[:space:]]*[0-9]+\\. "
+
+    # links
+    - constant: "\\[[^]]+\\]"
+    - constant: "\\[([^][]|\\[[^]]*\\])*\\]\\([^)]+\\)"
+
+    # images
+    - underlined: "!\\[[^][]*\\](\\([^)]+\\)|\\[[^]]+\\])"
+
+    # urls
+    - underlined: "https?://[^ )>]+"
+
+    - special: "^```$"
+
+    - special:
+        start: "`"
+        end: "`"
+        rules: []

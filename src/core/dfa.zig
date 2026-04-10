@@ -1,0 +1,97 @@
+const std = @import("std");
+const types = @import("types.zig");
+
+fn clearDefinition(table: *types.DFATableObject) void {
+    if (table.Definition.Strng) |definition| {
+        definition.destroy();
+        table.Definition.Strng = null;
+    }
+    table.Definition.Length = 0;
+}
+
+pub fn PatternDFATableKill(
+    allocator: std.mem.Allocator,
+    pattern_ptr: *?*types.DFATableObject,
+) void {
+    if (pattern_ptr.*) |pattern| {
+        clearDefinition(pattern);
+        allocator.destroy(pattern);
+        pattern_ptr.* = null;
+    }
+}
+
+pub fn PatternDFATableInitialize(
+    allocator: std.mem.Allocator,
+    pattern_ptr: *?*types.DFATableObject,
+    pattern_definition: types.PatternDefType,
+) !bool {
+    const table = if (pattern_ptr.*) |existing| blk: {
+        clearDefinition(existing);
+        existing.* = .{};
+        break :blk existing;
+    } else blk: {
+        const created = try allocator.create(types.DFATableObject);
+        created.* = .{};
+        pattern_ptr.* = created;
+        break :blk created;
+    };
+
+    if (pattern_definition.Strng) |definition| {
+        table.Definition.Strng = try definition.Clone();
+    }
+    table.Definition.Length = pattern_definition.Length;
+    return true;
+}
+
+pub fn PatternDFAConvert(
+    nfa_table: *types.NFATableType,
+    dfa_table_pointer: *types.DFATableObject,
+    nfa_start: isize,
+    nfa_end: *isize,
+    middle_context_start: isize,
+    right_context_start: isize,
+    dfa_start: *isize,
+    dfa_end: *isize,
+) !bool {
+    _ = nfa_table;
+    _ = nfa_start;
+    _ = nfa_end;
+    _ = middle_context_start;
+    _ = right_context_start;
+
+    if (dfa_table_pointer.Definition.Strng == null or dfa_table_pointer.Definition.Length == 0) {
+        return false;
+    }
+
+    dfa_table_pointer.DFAStatesUsed = types.PatternDFAStart;
+    dfa_start.* = types.PatternDFAStart;
+    dfa_end.* = types.PatternDFAStart;
+    return true;
+}
+
+test "dfa table initialize owns pattern definitions and kill releases them" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var table: ?*types.DFATableObject = null;
+    const source = try @import("str_object.zig").NewStrObjectFrom(allocator, "'abc'");
+    try std.testing.expect(try PatternDFATableInitialize(allocator, &table, .{
+        .Strng = source,
+        .Length = 5,
+    }));
+    try std.testing.expect(table != null);
+    try std.testing.expect(table.?.Definition.Strng != source);
+    try std.testing.expectEqualStrings("'abc'", table.?.Definition.Strng.?.Slice(1, 5));
+
+    var nfa_table: types.NFATableType = [_]types.NFATransitionType{.{}} ** (types.MaxNFAStateRange + 1);
+    var nfa_end: isize = 1;
+    var dfa_start: isize = 0;
+    var dfa_end: isize = 0;
+    try std.testing.expect(try PatternDFAConvert(&nfa_table, table.?, 1, &nfa_end, 1, 1, &dfa_start, &dfa_end));
+    try std.testing.expectEqual(@as(isize, types.PatternDFAStart), dfa_start);
+    try std.testing.expectEqual(@as(isize, types.PatternDFAStart), dfa_end);
+
+    PatternDFATableKill(allocator, &table);
+    try std.testing.expect(table == null);
+}

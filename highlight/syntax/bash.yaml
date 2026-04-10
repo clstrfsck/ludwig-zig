@@ -1,0 +1,37 @@
+filetype: shell
+
+detect:
+    filename: "(\\.(sh|bash|ash|ebuild)$|(\\.bash(rc|_aliases|_functions|_profile)|\\.?profile|Pkgfile|pkgmk\\.conf|rc\\.conf|PKGBUILD|APKBUILD)$|bash-fc\\.)"
+    header: "^#!.*/(env +)?(ba)?(a)?(mk)?sh( |$)"
+
+rules:
+    # Numbers
+    - constant.number: "\\b[0-9]+\\b"
+    # Conditionals and control flow
+    - statement: "\\b(break|case|continue|do|done|elif|else|esac|exec|exit|fi|for|function|if|in|return|select|then|trap|until|wait|while)\\b"
+    - special: "[`$<>!=&~^\\{\\}\\(\\)\\;\\]\\[]+"
+    # Shell commands
+    - type: "\\b(cd|command|echo|eval|export|getopts|let|local|read|set|shift|time|umask|unset)\\b"
+    # Common linux commands
+    - type: "\\b(bash|dash|find|grep|kill|less|make|sed|sh|tar|awk)\\b"
+
+    - identifier: "\\$\\{[\\w:!%&=+#~@*^$?, .\\-\\/\\[\\]]+\\}"
+    - identifier: "\\$([0-9!#@*$?-]|[A-Za-z_]\\w*)"
+
+    - constant.string:
+        start: "\""
+        end: "\""
+        skip: "\\\\."
+        rules: []
+
+    - constant.string:
+        start: "'"
+        end: "'"
+        skip: "\\\\."
+        rules: []
+
+    - comment:
+        start: "(^|\\s)#"
+        end: "$"
+        rules:
+            - todo: "(TODO|XXX|FIXME):?"
