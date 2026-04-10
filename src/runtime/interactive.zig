@@ -431,6 +431,7 @@ fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session
     interactive_io.moveCursor(1, terminalHeight(editor));
     interactive_io.clearLine();
     interactive_io.refresh();
+    highlight.deinitHighlighting(editor.base_allocator, editor);
     if (session.terminal.active) {
         interactive_io.deactivate(&session.terminal);
     }
