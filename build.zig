@@ -10,8 +10,8 @@ fn configureLudwigExecutable(
     exe.root_module.addImport("generated_syntax_data", syntax_data_module);
     exe.root_module.addImport("syntax_data_types", syntax_data_types_module);
     exe.linkLibC();
-    exe.linkSystemLibrary("ncurses");
-    exe.linkSystemLibrary("pcre2-8");
+    exe.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
+    exe.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
 }
 
 pub fn build(b: *std.Build) void {
