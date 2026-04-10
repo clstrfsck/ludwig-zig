@@ -34,4 +34,9 @@ jobs:
         run: pip install -r system-test/requirements.txt
 
       - name: Run checks
-        run: zig build check
+        run: |
+          zig build clean
+          zig build build
+          zig build build-release
+          zig build test
+          zig build system-test
