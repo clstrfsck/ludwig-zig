@@ -188,8 +188,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
     unit_tests.linkLibC();
-    unit_tests.linkSystemLibrary("ncurses");
-    unit_tests.linkSystemLibrary("pcre2-8");
+    unit_tests.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
+    unit_tests.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
     unit_tests.root_module.addImport("generated_help_assets", host_help_assets_module);
     unit_tests.root_module.addImport("generated_syntax_data", host_syntax_data_module);
     unit_tests.root_module.addImport("syntax_data_types", host_syntax_data_types_module);
