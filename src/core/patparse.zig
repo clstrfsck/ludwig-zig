@@ -129,10 +129,6 @@ pub fn setAddRange(set: *types.AcceptSet, start: u8, end: u8) void {
     }
 }
 
-pub fn setClear(set: *types.AcceptSet) void {
-    set.Clear();
-}
-
 fn initSpaceSet() types.AcceptSet {
     return singletonSet(' ');
 }

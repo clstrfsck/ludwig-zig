@@ -20,10 +20,6 @@ pub fn sanityCheck() void {
     _ = c.KEY_NPAGE;
 }
 
-pub fn keyMax() c_int {
-    return c.KEY_MAX;
-}
-
 pub const Dimensions = struct {
     width: isize = 80,
     height: isize = 24,
@@ -65,29 +61,6 @@ fn applyFormatting(style: TextStyle, color_pair: u16) void {
             .dim => _ = c.wattron(win, c.A_DIM),
         }
     }
-}
-
-fn decodeCsiFinal(final: u8) ?isize {
-    return switch (final) {
-        'A' => types.TerminalKeyCodes.UpArrow,
-        'B' => types.TerminalKeyCodes.DownArrow,
-        'C' => types.TerminalKeyCodes.RightArrow,
-        'D' => types.TerminalKeyCodes.LeftArrow,
-        'H' => types.TerminalKeyCodes.Home,
-        'Z' => types.TerminalKeyCodes.BackTab,
-        else => null,
-    };
-}
-
-fn decodeCsiTilde(final: u8) ?isize {
-    return switch (final) {
-        '1', '7' => types.TerminalKeyCodes.Home,
-        '2' => types.TerminalKeyCodes.InsertChar,
-        '3' => types.TerminalKeyCodes.DeleteChar,
-        '5' => types.TerminalKeyCodes.PageUp,
-        '6' => types.TerminalKeyCodes.PageDown,
-        else => null,
-    };
 }
 
 pub fn init() !Dimensions {
@@ -197,10 +170,6 @@ pub fn writeByte(byte: u8) void {
     }
 }
 
-pub fn writeLineAt(row: isize, text: []const u8) void {
-    writeLineAtStyled(row, text, .normal);
-}
-
 pub fn writeLineAtStyled(row: isize, text: []const u8, style: TextStyle) void {
     moveCursor(1, row);
     clearLine();
@@ -263,75 +232,6 @@ fn mapKey(key: c_int) isize {
     };
 }
 
-fn readQueuedEscapeSequence() isize {
-    const win = window.?;
-    c.wtimeout(win, 250);
-    defer c.wtimeout(win, -1);
-
-    const second = c.wgetch(win);
-    if (second == c.ERR) {
-        return 27;
-    }
-    if (second >= c.KEY_MIN) {
-        return mapKey(second);
-    }
-
-    switch (second) {
-        '[' => {
-            const third = c.wgetch(win);
-            if (third == c.ERR) {
-                _ = c.ungetch(second);
-                return 27;
-            }
-            if (third >= c.KEY_MIN) {
-                return mapKey(third);
-            }
-            const third_byte: u8 = @intCast(third);
-            if (decodeCsiFinal(third_byte)) |decoded| {
-                return decoded;
-            }
-            if (third_byte >= '0' and third_byte <= '9') {
-                const fourth = c.wgetch(win);
-                if (fourth == c.ERR) {
-                    _ = c.ungetch(third);
-                    _ = c.ungetch(second);
-                    return 27;
-                }
-                if (fourth == '~') {
-                    if (decodeCsiTilde(third_byte)) |decoded| {
-                        return decoded;
-                    }
-                }
-                _ = c.ungetch(fourth);
-            }
-            _ = c.ungetch(third);
-            _ = c.ungetch(second);
-            return 27;
-        },
-        'O' => {
-            const third = c.wgetch(win);
-            if (third == c.ERR) {
-                _ = c.ungetch(second);
-                return 27;
-            }
-            if (third >= c.KEY_MIN) {
-                return mapKey(third);
-            }
-            const third_byte: u8 = @intCast(third);
-            if (decodeCsiFinal(third_byte)) |decoded| {
-                return decoded;
-            }
-            _ = c.ungetch(third);
-            _ = c.ungetch(second);
-            return 27;
-        },
-        else => {
-            _ = c.ungetch(second);
-            return 27;
-        },
-    }
-}
-
 pub fn readKey() ?isize {
     if (window == null) {
         return null;
@@ -340,8 +240,5 @@ pub fn readKey() ?isize {
     if (key == c.ERR) {
         return null;
     }
-    // if (key == 27) {
-    //     return readQueuedEscapeSequence();
-    // }
     return mapKey(key);
 }

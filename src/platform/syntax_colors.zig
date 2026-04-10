@@ -118,13 +118,6 @@ pub fn pairForGroup(group_name: []const u8) u16 {
     return 0;
 }
 
-pub fn defaultPair() u16 {
-    if (!colors_enabled) {
-        return 0;
-    }
-    return default_pair;
-}
-
 fn initBasicScheme() void {
     terminal.initPair(1, terminal.COLOR_YELLOW, -1);
     terminal.initPair(2, terminal.COLOR_GREEN, -1);

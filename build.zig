@@ -221,11 +221,6 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(build_help_step);
     test_step.dependOn(&run_unit_tests.step);
 
-    // Zig unit-test coverage reporting is not yet wired into this build graph,
-    // so keep a Taskfile-compatible target name that at least runs the suite.
-    const coverage_step = b.step("coverage", "Run unit tests via the coverage-equivalent target");
-    coverage_step.dependOn(test_step);
-
     const system_test_run = b.addSystemCommand(&.{
         "sh",
         "-c",
@@ -246,7 +241,7 @@ pub fn build(b: *std.Build) void {
     const clean_run = b.addSystemCommand(&.{
         "sh",
         "-c",
-        "rm -rf zig-out .zig-cache coverage.out coverage.html",
+        "rm -rf zig-out .zig-cache",
     });
     clean_run.setCwd(b.path("."));
     const clean_step = b.step("clean", "Remove built binaries and generated outputs");

@@ -17,11 +17,6 @@ pub fn ChIsLetter(ch: u8) bool {
 pub fn ChIsLower(ch: u8) bool {
     return std.ascii.isLower(ch);
 }
-
-pub fn ChIsUpper(ch: u8) bool {
-    return std.ascii.isUpper(ch);
-}
-
 pub fn ChIsNumeric(ch: u8) bool {
     return std.ascii.isDigit(ch);
 }
