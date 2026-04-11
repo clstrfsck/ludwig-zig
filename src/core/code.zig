@@ -826,7 +826,7 @@ fn executeArrowCommand(
     var new_eql = frame.Dot.?.*;
     const used_split_line = command == .CmdReturn and
         editor.EditMode == .ModeInsert and
-        types.frameOptionsHas(frame.Options, .OptNewLine) and
+        frame.Options.newLine and
         frame.Dot.?.Line.FLink != null;
 
     const cmd_success = switch (command) {
@@ -845,7 +845,7 @@ fn executeArrowCommand(
             line_ops.LineToNumber(frame.LastGroup.?.LastLine.?),
         ),
         .CmdReturn => blk: {
-            if (editor.EditMode == .ModeInsert and types.frameOptionsHas(frame.Options, .OptNewLine)) {
+            if (editor.EditMode == .ModeInsert and frame.Options.newLine) {
                 if (frame.Dot.?.Line.FLink == null) {
                     try text.TextRealizeNull(allocator, frame.Dot.?.Line);
                     var eop_line_nr = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
@@ -973,7 +973,7 @@ fn markSortOrder(left: *types.MarkObject, right: *types.MarkObject) std.math.Ord
 }
 
 fn joinLines(allocator: std.mem.Allocator, frame: *types.FrameObject) !bool {
-    if (!types.frameOptionsHas(frame.Options, .OptNewLine)) {
+    if (!frame.Options.newLine) {
         return false;
     }
     const previous = frame.Dot.?.Line.BLink orelse return false;
@@ -1141,10 +1141,10 @@ fn executeDeleteLine(
     const oops = oops_frame orelse return false;
 
     try mark_ops.MarksSqueeze(allocator, first, 1, after, 1);
-    line_ops.LinesExtract(first, last);
+    line_ops.linesExtract(first, last);
 
     if (frame != oops) {
-        try line_ops.LinesInject(allocator, first, last, oops.LastGroup.?.LastLine.?);
+        try line_ops.linesInject(allocator, first, last, oops.LastGroup.?.LastLine.?);
         try mark_ops.MarkCreate(allocator, first, 1, &oops.Marks[types.MarkEquals]);
         try mark_ops.MarkCreate(allocator, oops.LastGroup.?.LastLine.?, 1, &oops.Dot);
         oops.TextModified = true;
@@ -1367,7 +1367,7 @@ fn executeOpsysCommand(
     defer allocator.free(output);
 
     const range = (try buildOpsysLineRange(editor, allocator, output)) orelse return false;
-    try line_ops.LinesInject(allocator, range.first, range.last, frame.Dot.?.Line);
+    try line_ops.linesInject(allocator, range.first, range.last, frame.Dot.?.Line);
     try mark_ops.MarkCreate(allocator, range.first, 1, &frame.Marks[types.MarkEquals]);
     try mark_ops.MarkCreate(allocator, range.last.FLink.?, 1, &frame.Dot);
     try markModifiedAtDot(allocator, frame);
@@ -1641,7 +1641,7 @@ fn Execute(
             if (count != 0) {
                 const abs_count: isize = if (count < 0) -count else count;
                 const range = try line_ops.LinesCreate(allocator, @intCast(abs_count));
-                try line_ops.LinesInject(allocator, range.first, range.last, current_frame.Dot.?.Line);
+                try line_ops.linesInject(allocator, range.first, range.last, current_frame.Dot.?.Line);
                 if (count > 0) {
                     try mark_ops.MarkCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
                     try mark_ops.MarkCreate(allocator, range.first, current_frame.Dot.?.Col, &current_frame.Dot);
@@ -2141,7 +2141,7 @@ fn Execute(
         },
         .CmdFileTable => {
             const oops = special_frames.Oops orelse return false;
-            cmd_success = try file_ops.FileTable(editor, allocator, oops);
+            cmd_success = try file_ops.fileTable(editor, allocator, oops);
         },
         .CmdValidate => {
             cmd_success = validate_ops.ValidateCommand(editor, current_frame, special_frames);
@@ -3005,8 +3005,8 @@ test "code interpreter can apply frame parameters" {
     try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.EditMode);
     try std.testing.expectEqual(@as(isize, 24), target.frame.ScrHeight);
     try std.testing.expectEqual(@as(isize, 100), target.frame.ScrWidth);
-    try std.testing.expect(types.frameOptionsHas(target.frame.Options, .OptAutoIndent));
-    try std.testing.expect(!types.frameOptionsHas(target.frame.Options, .OptNewLine));
+    try std.testing.expect(target.frame.Options.autoIndent);
+    try std.testing.expect(!target.frame.Options.newLine);
 }
 
 test "code interpreter can validate linked frame/span state" {
@@ -3020,9 +3020,9 @@ test "code interpreter can validate linked frame/span state" {
     const cmd = (try frame_ops.FrameEdit(&editor, allocator, current, "COMMAND")).?;
     const oops = (try frame_ops.FrameEdit(&editor, allocator, current, "OOPS")).?;
     const heap = (try frame_ops.FrameEdit(&editor, allocator, current, "HEAP")).?;
-    types.frameOptionsSet(&cmd.Options, .OptSpecialFrame);
-    types.frameOptionsSet(&oops.Options, .OptSpecialFrame);
-    types.frameOptionsSet(&heap.Options, .OptSpecialFrame);
+    cmd.Options.specialFrame = true;
+    oops.Options.specialFrame = true;
+    heap.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Cmd = cmd,
         .Oops = oops,
@@ -3068,7 +3068,7 @@ test "code interpreter can bind simple user key commands" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const heap = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "HEAP")).?;
-    types.frameOptionsSet(&heap.Options, .OptSpecialFrame);
+    heap.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Heap = heap,
     };
@@ -3090,7 +3090,7 @@ test "code interpreter can bind extended user key commands" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const heap = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "HEAP")).?;
-    types.frameOptionsSet(&heap.Options, .OptSpecialFrame);
+    heap.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Heap = heap,
     };
@@ -3561,7 +3561,7 @@ test "code interpreter can table files into oops frame" {
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const current = (try frame_ops.FrameEdit(&editor, allocator, root.frame, "WORK")).?;
     const oops = (try frame_ops.FrameEdit(&editor, allocator, current, "OOPS")).?;
-    types.frameOptionsSet(&oops.Options, .OptSpecialFrame);
+    oops.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Oops = oops,
     };
@@ -3602,7 +3602,7 @@ test "code interpreter can index spans into oops frame" {
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "NAME", mark_one.?, mark_two.?));
 
     const oops = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "OOPS")).?;
-    types.frameOptionsSet(&oops.Options, .OptSpecialFrame);
+    oops.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Oops = oops,
     };

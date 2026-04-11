@@ -43,7 +43,7 @@ pub fn setupInitialValues(editor: anytype) !void {
     editor.InitialMarginRight = 132;
     editor.InitialMarginTop = 0;
     editor.InitialMarginBottom = 0;
-    editor.InitialOptions = 0;
+    editor.InitialOptions = .{};
 
     editor.Prefixes = std.StaticBitSet(types.CommandCount).initEmpty();
     var cmd = @as(usize, @intFromEnum(types.Commands.CmdPrefixAst));

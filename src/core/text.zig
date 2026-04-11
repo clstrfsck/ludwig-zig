@@ -18,7 +18,7 @@ fn newBlankString(allocator: std.mem.Allocator) !*str_object.StrObject {
 pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: bool) isize {
     var new_col: isize = if (cur_col >= cur_line.Group.?.Frame.MarginLeft) cur_line.Group.?.Frame.MarginLeft else 1;
 
-    if (types.frameOptionsHas(cur_line.Group.?.Frame.Options, .OptAutoIndent) and cur_line.FLink != null) {
+    if (cur_line.Group.?.Frame.Options.autoIndent and cur_line.FLink != null) {
         var str1 = cur_line.Str.?;
         const used1 = cur_line.Used;
         var str2 = cur_line.Str.?;
@@ -43,7 +43,7 @@ pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: 
 
 pub fn TextRealizeNull(allocator: std.mem.Allocator, old_null: *types.LineHdrObject) !void {
     const range = try line_ops.LinesCreate(allocator, 1);
-    try line_ops.LinesInject(allocator, range.first, range.last, old_null);
+    try line_ops.linesInject(allocator, range.first, range.last, old_null);
     try mark_ops.MarksShift(allocator, old_null, 1, types.MaxStrLenP, range.first, 1);
     const frame = range.first.Group.?.Frame;
     frame.TextModified = true;
@@ -214,7 +214,7 @@ pub fn TextInsertTpar(
     }
 
     if (line_count > 0) {
-        try line_ops.LinesInject(allocator, first_line.?, last_line.?, before_mark.Line);
+        try line_ops.linesInject(allocator, first_line.?, last_line.?, before_mark.Line);
     }
     if (!try TextInsert(allocator, true, 1, tmp_tp.Str.?, tmp_tp.Len, before_mark)) {
         return false;
@@ -274,7 +274,7 @@ fn textInterRemove(
         try mark_ops.MarksSqueeze(allocator, line_one, col_one, mark_two.Line, mark_two.Col);
         try mark_ops.MarksShift(allocator, mark_two.Line, mark_two.Col, types.MaxStrLenP + 1 - mark_two.Col, line_one, col_one);
         if (extr_one != extr_two) {
-            line_ops.LinesExtract(extr_one, extr_two.BLink.?);
+            line_ops.linesExtract(extr_one, extr_two.BLink.?);
         }
         return true;
     }
@@ -322,7 +322,7 @@ fn textInterRemove(
     if (col_one > 1) {
         try mark_ops.MarksShift(allocator, extr_one, 1, col_one - 1, mark_two.Line, 1);
     }
-    line_ops.LinesExtract(extr_one, extr_two);
+    line_ops.linesExtract(extr_one, extr_two);
     return true;
 }
 
@@ -499,7 +499,7 @@ fn textInterMove(
             const first_nicked = line_one.FLink.?;
             const last_nicked = line_two.BLink.?;
             try mark_ops.MarksSqueeze(allocator, first_nicked, 1, last_nicked.FLink.?, 1);
-            line_ops.LinesExtract(first_nicked, last_nicked);
+            line_ops.linesExtract(first_nicked, last_nicked);
             last_nicked.FLink = next_dst_line;
             first_nicked.BLink = next_dst_line.BLink;
             if (first_nicked.BLink) |blink| {
@@ -577,7 +577,7 @@ fn textInterMove(
                 first_line.Str.?.FillCopy(text_str, 1, text_len, 1, first_line.Len(), ' ');
                 first_line.Used = text_len;
             }
-            try line_ops.LinesInject(allocator, first_line, last_line, dst_line);
+            try line_ops.linesInject(allocator, first_line, last_line, dst_line);
 
             last_line = dst_line;
             dst_line = first_line;
@@ -586,7 +586,7 @@ fn textInterMove(
         }
     }
 
-    try line_ops.LinesInject(allocator, first_line, last_line, dst_line.FLink.?);
+    try line_ops.linesInject(allocator, first_line, last_line, dst_line.FLink.?);
     try mark_ops.MarksShift(allocator, dst_line, dst_col, types.MaxStrLenP + 1 - dst_col, last_line, col_two);
     if (text_len > 0) {
         try line_ops.LineChangeLength(allocator, dst_line, dst_col + text_len - 1);
@@ -683,7 +683,7 @@ pub fn TextSplitLine(
             markLineDirty(before_mark.Line.Group.?.Frame, before_mark.Line);
             new_line.Used = new_col + length - 1;
         }
-        try line_ops.LinesInject(allocator, new_line, new_line, before_mark.Line.FLink.?);
+        try line_ops.linesInject(allocator, new_line, new_line, before_mark.Line.FLink.?);
         try mark_ops.MarksShift(allocator, before_mark.Line, before_mark.Col, types.MaxStrLenP + 1 - before_mark.Col, new_line, new_col);
     } else {
         equals_col = before_mark.Col;
@@ -701,7 +701,7 @@ pub fn TextSplitLine(
             new_line.Used = new_line.Str.?.TrimmedLen(' ', shift);
         }
 
-        try line_ops.LinesInject(allocator, new_line, new_line, before_mark.Line);
+        try line_ops.linesInject(allocator, new_line, new_line, before_mark.Line);
         markLineDirty(new_line.Group.?.Frame, new_line);
         if (before_mark.Col > 1) {
             try mark_ops.MarksShift(allocator, before_mark.Line, 1, before_mark.Col - 1, new_line, 1);
@@ -760,7 +760,7 @@ test "text return column honors margin and auto-indent" {
     try std.testing.expectEqual(@as(isize, 1), TextReturnCol(fixture.content_lines[0], 3, false));
     try std.testing.expectEqual(@as(isize, 5), TextReturnCol(fixture.content_lines[0], 10, false));
 
-    types.frameOptionsSet(&fixture.frame.Options, .OptAutoIndent);
+    fixture.frame.Options.autoIndent = true;
     try line_ops.setLineContent(fixture.content_lines[0], "    A");
     try std.testing.expectEqual(@as(isize, 5), TextReturnCol(fixture.content_lines[0], 10, false));
 }

@@ -226,10 +226,10 @@ pub fn build(b: *std.Build) void {
         "-c",
         "if [ -x ./system-test/run-system-test.sh ]; then ./system-test/run-system-test.sh --showlocals; else echo 'system-test/run-system-test.sh not found; skipping'; fi",
     });
+    system_test_run.step.dependOn(build_release_step);
     system_test_run.setCwd(b.path("."));
     system_test_run.setEnvironmentVariable("LUDWIG_EXE", b.getInstallPath(.bin, "ludwig"));
     const system_test_step = b.step("system-test", "Run system tests if present");
-    system_test_step.dependOn(build_release_step);
     system_test_step.dependOn(&system_test_run.step);
 
     const check_step = b.step("check", "Run all checks");

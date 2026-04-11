@@ -176,7 +176,7 @@ fn replaceReportFrame(
     const sentinel = frame.LastGroup.?.LastLine.?;
     if (lines.len > 0) {
         const range = try line_ops.LinesCreate(allocator, lines.len);
-        try line_ops.LinesInject(allocator, range.first, range.last, sentinel);
+        try line_ops.linesInject(allocator, range.first, range.last, sentinel);
 
         var line = range.first;
         for (lines, 0..) |content, index| {

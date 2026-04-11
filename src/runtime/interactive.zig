@@ -60,7 +60,7 @@ fn makeSpecialFrame(
     name: []const u8,
 ) !*types.FrameObject {
     const frame = (try frame_ops.FrameEdit(editor, allocator, null, name)).?;
-    types.frameOptionsSet(&frame.Options, .OptSpecialFrame);
+    frame.Options.specialFrame = true;
     return frame;
 }
 
@@ -505,7 +505,7 @@ fn autoWrapIfNeeded(
     if (frame.Dot == null or frame.Dot.?.Col != frame.MarginRight + 1) {
         return;
     }
-    if (!types.frameOptionsHas(frame.Options, .OptAutoWrap)) {
+    if (!frame.Options.autoWrap) {
         return;
     }
 

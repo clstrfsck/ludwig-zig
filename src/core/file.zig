@@ -109,7 +109,7 @@ fn replaceReportFrame(
     const sentinel = frame.LastGroup.?.LastLine.?;
     if (lines.len > 0) {
         const range = try line_ops.LinesCreate(allocator, lines.len);
-        try line_ops.LinesInject(allocator, range.first, range.last, sentinel);
+        try line_ops.linesInject(allocator, range.first, range.last, sentinel);
 
         var line = range.first;
         for (lines, 0..) |content, index| {
@@ -135,7 +135,7 @@ fn replaceReportFrame(
     return true;
 }
 
-pub fn FileTable(
+pub fn fileTable(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     report_frame: *types.FrameObject,
@@ -921,7 +921,7 @@ pub fn FileReadCommand(
     const read_result = fileReadBuffered(input_file, lines_to_read, rept == .LeadParamPIndef) orelse return false;
     if (read_result.first) |first| {
         const last = read_result.last.?;
-        try line_ops.LinesInject(allocator, first, last, frame.Dot.?.Line);
+        try line_ops.linesInject(allocator, first, last, frame.Dot.?.Line);
         try mark_ops.MarkCreate(allocator, first, 1, &frame.Marks[types.MarkEquals]);
         frame.TextModified = true;
         const after = last.FLink.?;
@@ -967,7 +967,7 @@ pub fn FilePage(
         }
         const after = last.FLink orelse return false;
         try mark_ops.MarksSqueeze(allocator, first, 1, after, 1);
-        line_ops.LinesExtract(first, last);
+        line_ops.linesExtract(first, last);
     }
 
     if (frame.InputFile == 0) {
@@ -981,7 +981,7 @@ pub fn FilePage(
         if (read_result.first == null) {
             break;
         }
-        try line_ops.LinesInject(allocator, read_result.first.?, read_result.last.?, frame.LastGroup.?.LastLine.?);
+        try line_ops.linesInject(allocator, read_result.first.?, read_result.last.?, frame.LastGroup.?.LastLine.?);
         if (frame.Dot.?.Line.FLink == null) {
             try mark_ops.MarkCreate(allocator, read_result.first.?, frame.Dot.?.Col, &frame.Dot);
         }
@@ -1061,7 +1061,7 @@ fn injectFileIntoFrame(
     const source_last = if (source.RewindLastLine != null) source.RewindLastLine else source.LastLine;
     if (source_first != null and source_last != null) {
         const cloned = try cloneLineRange(allocator, source_first.?, source_last.?);
-        try line_ops.LinesInject(allocator, cloned.first, cloned.last, frame.LastGroup.?.LastLine.?);
+        try line_ops.linesInject(allocator, cloned.first, cloned.last, frame.LastGroup.?.LastLine.?);
         if (frame.Dot.?.Line.FLink == null) {
             try mark_ops.MarkCreate(allocator, cloned.first, frame.Dot.?.Col, &frame.Dot);
         }
@@ -1593,7 +1593,7 @@ test "file table writes current file usage into report frame" {
     editor.Files[4] = global_output;
     editor.FgoFile = 4;
 
-    try std.testing.expect(try FileTable(&editor, allocator, oops));
+    try std.testing.expect(try fileTable(&editor, allocator, oops));
     try expectFrameLines(oops, &[_][]const u8{
         "Usage   Mod Frame  Filename",
         "------- --- ------ --------",
@@ -1613,7 +1613,7 @@ test "file table shows none when no files are open" {
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const oops = (try @import("frame.zig").FrameEdit(&editor, allocator, root.frame, "OOPS")).?;
 
-    try std.testing.expect(try FileTable(&editor, allocator, oops));
+    try std.testing.expect(try fileTable(&editor, allocator, oops));
     try expectFrameLines(oops, &[_][]const u8{
         "Usage   Mod Frame  Filename",
         "------- --- ------ --------",
