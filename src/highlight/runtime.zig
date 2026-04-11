@@ -131,7 +131,7 @@ const Highlighter = struct {
         temp_allocator: std.mem.Allocator,
         frame: *types.FrameObject,
     ) anyerror!void {
-        clearFrameHighlighting(store_allocator, frame);
+        clearFrameHighlighting(frame);
         var line = frame.FirstGroup.?.FirstLine.?;
         while (line.FLink != null) : (line = line.FLink.?) {
             try self.highlightLine(store_allocator, temp_allocator, line);
@@ -426,7 +426,29 @@ fn ensureRegistry(allocator: std.mem.Allocator) !*Registry {
     return &registry.?;
 }
 
-fn clearFrameHighlighting(allocator: std.mem.Allocator, frame: *types.FrameObject) void {
+// clearFrameHighlighting resets highlight state on all lines, retaining the HlMatch
+// backing buffers for reuse on the next highlight pass.
+fn clearFrameHighlighting(frame: *types.FrameObject) void {
+    if (frame.FirstGroup == null) {
+        frame.Highlighter = null;
+        return;
+    }
+    var line = frame.FirstGroup.?.FirstLine.?;
+    while (true) {
+        line.HlMatch.clearRetainingCapacity();
+        line.HlState = null;
+        if (line.FLink == null) {
+            break;
+        }
+        line = line.FLink.?;
+    }
+    frame.Highlighter = null;
+}
+
+// freeFrameHighlighting releases the HlMatch backing buffers from base_allocator.
+// Use this when highlight data will not be immediately rebuilt (shutdown, or when
+// highlighting is disabled/inapplicable for this frame).
+fn freeFrameHighlighting(allocator: std.mem.Allocator, frame: *types.FrameObject) void {
     if (frame.FirstGroup == null) {
         frame.Highlighter = null;
         return;
@@ -533,14 +555,14 @@ pub fn deinitHighlighting(base_allocator: std.mem.Allocator, editor: *const stat
     var span = editor.FirstSpan;
     while (span) |s| : (span = s.FLink) {
         if (s.Frame) |frame| {
-            clearFrameHighlighting(base_allocator, frame);
+            freeFrameHighlighting(base_allocator, frame);
         }
     }
 }
 
 pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
     if (!editor.FileData.Highlighting or editor.LudwigMode != .LudwigScreen or frame.InputFile == 0) {
-        clearFrameHighlighting(editor.base_allocator, frame);
+        freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;
     }
@@ -550,19 +572,19 @@ pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
 
     syntax_colors.init();
     const compiled = ensureRegistry(editor.base_allocator) catch {
-        clearFrameHighlighting(editor.base_allocator, frame);
+        freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;
     };
 
     const input_file = editor.Files[@intCast(frame.InputFile)] orelse {
-        clearFrameHighlighting(editor.base_allocator, frame);
+        freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;
     };
 
     const syntax_file = compiled.detect(input_file.Filename, frameFirstLine(frame)) orelse {
-        clearFrameHighlighting(editor.base_allocator, frame);
+        freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;
     };
@@ -572,7 +594,7 @@ pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
 
     var highlighter = Highlighter{ .syntax_file = syntax_file };
     highlighter.highlightFrame(editor.base_allocator, temp_arena.allocator(), frame) catch {
-        clearFrameHighlighting(editor.base_allocator, frame);
+        freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;
     };
