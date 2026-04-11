@@ -1,7 +1,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 
-pub fn removeFromMarks(mark_list: *std.ArrayListUnmanaged(*types.MarkObject), mark: *types.MarkObject) void {
+fn removeFromMarks(mark_list: *std.ArrayListUnmanaged(*types.MarkObject), mark: *types.MarkObject) void {
     for (mark_list.items, 0..) |existing, index| {
         if (existing == mark) {
             _ = mark_list.orderedRemove(index);
@@ -10,7 +10,7 @@ pub fn removeFromMarks(mark_list: *std.ArrayListUnmanaged(*types.MarkObject), ma
     }
 }
 
-pub fn MarkCreate(
+pub fn markCreate(
     allocator: std.mem.Allocator,
     in_line: *types.LineHdrObject,
     column: isize,
@@ -39,7 +39,7 @@ pub fn MarkCreate(
     current_mark.Col = column;
 }
 
-pub fn MarkDestroy(
+pub fn markDestroy(
     allocator: std.mem.Allocator,
     mark_slot: *?*types.MarkObject,
 ) void {
@@ -50,7 +50,7 @@ pub fn MarkDestroy(
     }
 }
 
-pub fn MarksSqueeze(
+pub fn marksSqueeze(
     allocator: std.mem.Allocator,
     first_line: *types.LineHdrObject,
     first_column: isize,
@@ -95,7 +95,7 @@ pub fn MarksSqueeze(
     }
 }
 
-pub fn MarksShift(
+pub fn marksShift(
     allocator: std.mem.Allocator,
     source_line: *types.LineHdrObject,
     source_column: isize,
@@ -156,16 +156,16 @@ test "mark create move and destroy preserve line mark lists" {
     const line2 = try createTestLine(allocator);
 
     var mark: ?*types.MarkObject = null;
-    try MarkCreate(allocator, line1, 10, &mark);
+    try markCreate(allocator, line1, 10, &mark);
     try std.testing.expect(mark != null);
     try std.testing.expectEqual(@as(usize, 1), line1.Marks.items.len);
 
-    try MarkCreate(allocator, line2, 15, &mark);
+    try markCreate(allocator, line2, 15, &mark);
     try std.testing.expectEqual(@as(usize, 0), line1.Marks.items.len);
     try std.testing.expectEqual(@as(usize, 1), line2.Marks.items.len);
     try std.testing.expectEqual(@as(isize, 15), mark.?.Col);
 
-    MarkDestroy(allocator, &mark);
+    markDestroy(allocator, &mark);
     try std.testing.expect(mark == null);
     try std.testing.expectEqual(@as(usize, 0), line2.Marks.items.len);
 
@@ -187,11 +187,11 @@ test "marks squeeze across lines moves marks to the last line" {
     var mark1: ?*types.MarkObject = null;
     var mark2: ?*types.MarkObject = null;
     var mark3: ?*types.MarkObject = null;
-    try MarkCreate(allocator, lines[0], 5, &mark1);
-    try MarkCreate(allocator, lines[0], 15, &mark2);
-    try MarkCreate(allocator, lines[1], 10, &mark3);
+    try markCreate(allocator, lines[0], 5, &mark1);
+    try markCreate(allocator, lines[0], 15, &mark2);
+    try markCreate(allocator, lines[1], 10, &mark3);
 
-    try MarksSqueeze(allocator, lines[0], 10, lines[2], 20);
+    try marksSqueeze(allocator, lines[0], 10, lines[2], 20);
     try std.testing.expectEqual(@as(isize, 5), mark1.?.Col);
     try std.testing.expect(mark1.?.Line == lines[0]);
     try std.testing.expect(mark2.?.Line == lines[2]);
@@ -199,9 +199,9 @@ test "marks squeeze across lines moves marks to the last line" {
     try std.testing.expectEqual(@as(isize, 20), mark2.?.Col);
     try std.testing.expectEqual(@as(isize, 20), mark3.?.Col);
 
-    MarkDestroy(allocator, &mark1);
-    MarkDestroy(allocator, &mark2);
-    MarkDestroy(allocator, &mark3);
+    markDestroy(allocator, &mark1);
+    markDestroy(allocator, &mark2);
+    markDestroy(allocator, &mark3);
 }
 
 test "marks shift clamps to MaxStrLenP and preserves out-of-range marks" {
@@ -217,15 +217,15 @@ test "marks shift clamps to MaxStrLenP and preserves out-of-range marks" {
 
     var mark1: ?*types.MarkObject = null;
     var mark2: ?*types.MarkObject = null;
-    try MarkCreate(allocator, line1, 10, &mark1);
-    try MarkCreate(allocator, line1, 25, &mark2);
+    try markCreate(allocator, line1, 10, &mark1);
+    try markCreate(allocator, line1, 25, &mark2);
 
-    try MarksShift(allocator, line1, 10, 10, line2, types.MaxStrLenP + 50);
+    try marksShift(allocator, line1, 10, 10, line2, types.MaxStrLenP + 50);
     try std.testing.expect(mark1.?.Line == line2);
     try std.testing.expectEqual(@as(isize, types.MaxStrLenP), mark1.?.Col);
     try std.testing.expect(mark2.?.Line == line1);
     try std.testing.expectEqual(@as(isize, 25), mark2.?.Col);
 
-    MarkDestroy(allocator, &mark1);
-    MarkDestroy(allocator, &mark2);
+    markDestroy(allocator, &mark1);
+    markDestroy(allocator, &mark2);
 }

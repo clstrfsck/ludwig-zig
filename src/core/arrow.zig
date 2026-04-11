@@ -4,7 +4,7 @@ const text = @import("text.zig");
 const types = @import("types.zig");
 const line_ops = @import("line.zig");
 
-pub fn isArrowCommand(command: types.Commands) bool {
+fn isArrowCommand(command: types.Commands) bool {
     return switch (command) {
         .CmdReturn,
         .CmdHome,
@@ -96,7 +96,7 @@ pub fn doCmdUp(
     new_eql: *types.MarkObject,
 ) !bool {
     var dot_line = frame.Dot.?.Line;
-    const line_nr = line_ops.LineToNumber(dot_line);
+    const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
         .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
             if (line_nr - count > 0) {
@@ -106,7 +106,7 @@ pub fn doCmdUp(
                         dot_line = dot_line.BLink.?;
                     }
                 } else {
-                    dot_line = line_ops.LineFromNumber(frame, line_nr - count) orelse return false;
+                    dot_line = line_ops.lineFromNumber(frame, line_nr - count) orelse return false;
                 }
             } else {
                 return false;
@@ -116,7 +116,7 @@ pub fn doCmdUp(
         else => {},
     }
     new_eql.* = frame.Dot.?.*;
-    try mark_ops.MarkCreate(allocator, dot_line, frame.Dot.?.Col, &frame.Dot);
+    try mark_ops.markCreate(allocator, dot_line, frame.Dot.?.Col, &frame.Dot);
     return true;
 }
 
@@ -129,7 +129,7 @@ pub fn doCmdDown(
     eop_line_nr: isize,
 ) !bool {
     var dot_line = frame.Dot.?.Line;
-    const line_nr = line_ops.LineToNumber(dot_line);
+    const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
         .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
             if (line_nr + count <= eop_line_nr) {
@@ -139,7 +139,7 @@ pub fn doCmdDown(
                         dot_line = dot_line.FLink.?;
                     }
                 } else {
-                    dot_line = line_ops.LineFromNumber(frame, line_nr + count) orelse return false;
+                    dot_line = line_ops.lineFromNumber(frame, line_nr + count) orelse return false;
                 }
             }
         },
@@ -147,7 +147,7 @@ pub fn doCmdDown(
         else => {},
     }
     new_eql.* = frame.Dot.?.*;
-    try mark_ops.MarkCreate(allocator, dot_line, frame.Dot.?.Col, &frame.Dot);
+    try mark_ops.markCreate(allocator, dot_line, frame.Dot.?.Col, &frame.Dot);
     return true;
 }
 
@@ -174,7 +174,7 @@ pub fn doCmdReturn(
         dot_col = text.TextReturnCol(dot_line, dot_col, false);
         dot_line = dot_line.FLink.?;
     }
-    try mark_ops.MarkCreate(allocator, dot_line, dot_col, &frame.Dot);
+    try mark_ops.markCreate(allocator, dot_line, dot_col, &frame.Dot);
     return true;
 }
 

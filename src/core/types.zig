@@ -517,7 +517,7 @@ pub const LineHdrObject = struct {
 
     pub fn Len(self: *const LineHdrObject) isize {
         if (self.Str) |str| {
-            return @intCast(str.Len());
+            return @intCast(str.len());
         }
         return 0;
     }

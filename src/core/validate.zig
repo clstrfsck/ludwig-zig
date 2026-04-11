@@ -124,8 +124,8 @@ test "validate command accepts healthy special frames and spans" {
 
     var span_mark_one: ?*types.MarkObject = null;
     var span_mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
-    try mark_ops.MarkCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
+    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
+    try mark_ops.markCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
 
     try std.testing.expect(ValidateCommand(&editor, current, &special_frames));
@@ -164,8 +164,8 @@ test "validate command rejects spans with marks in different frames" {
     const span = try allocator.create(types.SpanObject);
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &mark_one);
-    try mark_ops.MarkCreate(allocator, other.FirstGroup.?.FirstLine.?, 1, &mark_two);
+    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &mark_one);
+    try mark_ops.markCreate(allocator, other.FirstGroup.?.FirstLine.?, 1, &mark_two);
     span.* = .{
         .Name = "BROKEN",
         .MarkOne = mark_one,

@@ -12,7 +12,7 @@ pub const CommandType = enum {
     unknown_command,
 };
 
-pub fn getCommandType(command: types.Commands) CommandType {
+fn getCommandType(command: types.Commands) CommandType {
     return switch (command) {
         .CmdCaseUp, .CmdCaseLow, .CmdCaseEdit => .case_command,
         .CmdDittoUp, .CmdDittoDown => .ditto_command,
@@ -20,7 +20,7 @@ pub fn getCommandType(command: types.Commands) CommandType {
     };
 }
 
-pub fn CaseDittoCommand(
+pub fn caseDittoCommand(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     command: types.Commands,
@@ -90,27 +90,27 @@ pub fn CaseDittoCommand(
     if (cmd_valid) {
         const available = other_line.?.Used + 1 - first_col;
         const new_str = if (available > 0)
-            try str_object.NewStrObjectCopy(allocator, other_line.?.Str.?, first_col, available, count_mut)
+            try str_object.newStrObjectCopy(allocator, other_line.?.Str.?, first_col, available, count_mut)
         else
-            try str_object.NewBlankStrObject(allocator, @intCast(count_mut));
+            try str_object.newBlankStrObject(allocator, @intCast(count_mut));
         defer new_str.destroy();
 
         switch (command) {
-            .CmdCaseUp => new_str.ApplyN(chars.ChToUpper, count_mut, 1),
-            .CmdCaseLow => new_str.ApplyN(chars.ChToLower, count_mut, 1),
+            .CmdCaseUp => new_str.applyN(chars.chToUpper, count_mut, 1),
+            .CmdCaseLow => new_str.applyN(chars.chToLower, count_mut, 1),
             .CmdCaseEdit => {
                 var ch: u8 = if (1 < first_col and first_col <= other_line.?.Used)
-                    other_line.?.Str.?.Get(first_col - 1)
+                    other_line.?.Str.?.get(first_col - 1)
                 else
                     ' ';
                 var j: isize = 1;
                 while (j <= count_mut) : (j += 1) {
-                    if (chars.ChIsLetter(ch)) {
-                        ch = chars.ChToLower(new_str.Get(j));
+                    if (chars.chIsLetter(ch)) {
+                        ch = chars.chToLower(new_str.get(j));
                     } else {
-                        ch = chars.ChToUpper(new_str.Get(j));
+                        ch = chars.chToUpper(new_str.get(j));
                     }
-                    new_str.Set(j, ch);
+                    new_str.set(j, ch);
                 }
             },
             .CmdDittoUp, .CmdDittoDown => {},
@@ -133,8 +133,8 @@ pub fn CaseDittoCommand(
 
     if (cmd_status) {
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, old_dot_col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, old_dot_col, &frame.Marks[types.MarkEquals]);
     }
     return cmd_status or !from_span;
 }
@@ -152,7 +152,7 @@ fn moveDot(
     line: *types.LineHdrObject,
     col: isize,
 ) !void {
-    try mark_ops.MarkCreate(allocator, line, col, &frame.Dot);
+    try mark_ops.markCreate(allocator, line, col, &frame.Dot);
 }
 
 test "case ditto rejects negative ditto params in insert contexts" {
@@ -162,7 +162,7 @@ test "case ditto rejects negative ditto params in insert contexts" {
 
     const fixture = try buildFrame(allocator, &[_][]const u8{ "UPPER", "lower" });
     try moveDot(allocator, fixture.frame, fixture.content_lines[1], 1);
-    try std.testing.expect(!(try CaseDittoCommand(
+    try std.testing.expect(!(try caseDittoCommand(
         allocator,
         fixture.frame,
         .CmdDittoUp,
@@ -172,7 +172,7 @@ test "case ditto rejects negative ditto params in insert contexts" {
         .ModeInsert,
         .ModeCommand,
     )));
-    try std.testing.expect(!(try CaseDittoCommand(
+    try std.testing.expect(!(try caseDittoCommand(
         allocator,
         fixture.frame,
         .CmdDittoDown,
@@ -190,7 +190,7 @@ test "case commands rewrite the current line in place" {
     const allocator = arena.allocator();
 
     const up_fixture = try buildFrame(allocator, &[_][]const u8{"hello world"});
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         up_fixture.frame,
         .CmdCaseUp,
@@ -203,7 +203,7 @@ test "case commands rewrite the current line in place" {
     try std.testing.expectEqualStrings("HELLO world", line_ops.getLineContent(up_fixture.content_lines[0]));
 
     const low_fixture = try buildFrame(allocator, &[_][]const u8{"HELLO WORLD"});
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         low_fixture.frame,
         .CmdCaseLow,
@@ -216,7 +216,7 @@ test "case commands rewrite the current line in place" {
     try std.testing.expectEqualStrings("hello WORLD", line_ops.getLineContent(low_fixture.content_lines[0]));
 
     const edit_fixture = try buildFrame(allocator, &[_][]const u8{"HeLLo WoRLd"});
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         edit_fixture.frame,
         .CmdCaseEdit,
@@ -236,7 +236,7 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
 
     const plus_fixture = try buildFrame(allocator, &[_][]const u8{ "ABCDEFGHIJ", "1234567890" });
     try moveDot(allocator, plus_fixture.frame, plus_fixture.content_lines[1], 3);
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         plus_fixture.frame,
         .CmdDittoUp,
@@ -250,7 +250,7 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
 
     const pindef_fixture = try buildFrame(allocator, &[_][]const u8{ "COMPLETE LINE", "short" });
     try moveDot(allocator, pindef_fixture.frame, pindef_fixture.content_lines[1], 3);
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         pindef_fixture.frame,
         .CmdDittoUp,
@@ -270,7 +270,7 @@ test "ditto commands honor backward copy parameters" {
 
     const minus_fixture = try buildFrame(allocator, &[_][]const u8{ "ABCDEFGHIJ", "1234567890" });
     try moveDot(allocator, minus_fixture.frame, minus_fixture.content_lines[1], 6);
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         minus_fixture.frame,
         .CmdDittoUp,
@@ -285,7 +285,7 @@ test "ditto commands honor backward copy parameters" {
 
     const nindef_fixture = try buildFrame(allocator, &[_][]const u8{ "PREFIXSUFFIX", "lowercase text" });
     try moveDot(allocator, nindef_fixture.frame, nindef_fixture.content_lines[1], 7);
-    try std.testing.expect(try CaseDittoCommand(
+    try std.testing.expect(try caseDittoCommand(
         allocator,
         nindef_fixture.frame,
         .CmdDittoUp,

@@ -14,7 +14,7 @@ pub const FrameFixture = struct {
     sentinel_line: *types.LineHdrObject,
 };
 
-pub fn LineEOPCreate(
+pub fn lineEOPCreate(
     allocator: std.mem.Allocator,
     inframe: *types.FrameObject,
 ) !*types.GroupObject {
@@ -34,7 +34,7 @@ pub fn LineEOPCreate(
     return new_group;
 }
 
-pub fn LinesCreate(
+pub fn linesCreate(
     allocator: std.mem.Allocator,
     line_count: usize,
 ) !LineRange {
@@ -306,7 +306,7 @@ pub fn linesExtract(
     }
 }
 
-pub fn LineChangeLength(
+pub fn lineChangeLength(
     allocator: std.mem.Allocator,
     line: *types.LineHdrObject,
     new_length: isize,
@@ -323,9 +323,9 @@ pub fn LineChangeLength(
         }
 
         if (line.Str) |old_str| {
-            new_str = try str_object.NewStrObjectCopy(allocator, old_str, 1, @intCast(old_str.Len()), adjusted_length);
+            new_str = try str_object.newStrObjectCopy(allocator, old_str, 1, @intCast(old_str.len()), adjusted_length);
         } else {
-            new_str = try str_object.NewBlankStrObject(allocator, @intCast(adjusted_length));
+            new_str = try str_object.newBlankStrObject(allocator, @intCast(adjusted_length));
         }
     }
 
@@ -339,11 +339,11 @@ pub fn LineChangeLength(
     line.Str = new_str;
 }
 
-pub fn LineToNumber(line: *const types.LineHdrObject) isize {
+pub fn lineToNumber(line: *const types.LineHdrObject) isize {
     return line.Group.?.FirstLineNr + line.OffsetNr;
 }
 
-pub fn LineFromNumber(frame: *const types.FrameObject, number: isize) ?*types.LineHdrObject {
+pub fn lineFromNumber(frame: *const types.FrameObject, number: isize) ?*types.LineHdrObject {
     var this_group = frame.LastGroup orelse return null;
 
     if (number >= this_group.FirstLineNr + this_group.NrLines or number < 1) {
@@ -394,9 +394,9 @@ pub fn createContentFrame(
             .Group = group,
             .OffsetNr = @intCast(index),
             .Used = @intCast(content.len),
-            .Str = try str_object.NewBlankStrObject(allocator, types.MaxStrLen),
+            .Str = try str_object.newBlankStrObject(allocator, types.MaxStrLen),
         };
-        try line.Str.?.Assign(content);
+        try line.Str.?.assign(content);
         text_lines[index] = line;
 
         if (prev_line) |previous| {
@@ -420,7 +420,7 @@ pub fn createContentFrame(
     group.LastLine = null_line;
     frame.FirstGroup = group;
     frame.LastGroup = group;
-    try mark.MarkCreate(allocator, first_line.?, 1, &frame.Dot);
+    try mark.markCreate(allocator, first_line.?, 1, &frame.Dot);
 
     return .{
         .frame = frame,
@@ -442,10 +442,10 @@ pub fn setupLinkedLines(
 }
 
 pub fn setLineContent(line: *types.LineHdrObject, content: []const u8) !void {
-    try line.Str.?.Assign(content);
+    try line.Str.?.assign(content);
     line.Used = @intCast(content.len);
     if (line.Len() > line.Used) {
-        line.Str.?.FillN(' ', line.Len() - line.Used, line.Used + 1);
+        line.Str.?.fillN(' ', line.Len() - line.Used, line.Used + 1);
     }
 }
 
@@ -457,16 +457,16 @@ pub fn setSentinelDisplayContent(
 ) !void {
     const min_len = @as(isize, @intCast(prefix.len + types.NameLen));
     if (line.Len() < min_len) {
-        try LineChangeLength(allocator, line, min_len);
+        try lineChangeLength(allocator, line, min_len);
     }
     if (line.Str == null) {
         return error.MissingSentinelStorage;
     }
 
     const storage_len: isize = @intCast(line.Len());
-    line.Str.?.FillCopyBytes(prefix, 1, storage_len, ' ');
+    line.Str.?.fillCopyBytes(prefix, 1, storage_len, ' ');
     if (frame_name.len > 0) {
-        line.Str.?.FillCopyBytes(frame_name, @intCast(prefix.len + 1), storage_len - @as(isize, @intCast(prefix.len)), ' ');
+        line.Str.?.fillCopyBytes(frame_name, @intCast(prefix.len + 1), storage_len - @as(isize, @intCast(prefix.len)), ' ');
     }
     line.Used = 0;
 }
@@ -475,7 +475,7 @@ pub fn getLineContent(line: ?*const types.LineHdrObject) []const u8 {
     if (line == null or line.?.Str == null or line.?.Used <= 0) {
         return "";
     }
-    return line.?.Str.?.Slice(1, line.?.Used);
+    return line.?.Str.?.slice(1, line.?.Used);
 }
 
 pub fn getDisplayLineContent(line: ?*const types.LineHdrObject) []const u8 {
@@ -484,11 +484,11 @@ pub fn getDisplayLineContent(line: ?*const types.LineHdrObject) []const u8 {
     }
     if (line.?.FLink == null) {
         const str = line.?.Str.?;
-        const trimmed_len = str.TrimmedLen(' ', @intCast(str.Len()));
+        const trimmed_len = str.trimmedLen(' ', @intCast(str.len()));
         if (trimmed_len <= 0) {
             return "";
         }
-        return str.Slice(1, trimmed_len);
+        return str.slice(1, trimmed_len);
     }
     return getLineContent(line);
 }
@@ -550,7 +550,7 @@ test "line eop create returns a single sentinel line group" {
     const frame = try allocator.create(types.FrameObject);
     frame.* = .{};
 
-    const group = try LineEOPCreate(allocator, frame);
+    const group = try lineEOPCreate(allocator, frame);
     try std.testing.expect(group.Frame == frame);
     try std.testing.expect(group.FirstLine == group.LastLine);
     try std.testing.expectEqual(@as(isize, 1), group.FirstLineNr);
@@ -564,7 +564,7 @@ test "lines create links first to last with nil tail" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const range = try LinesCreate(allocator, 3);
+    const range = try linesCreate(allocator, 3);
     try std.testing.expect(range.first != range.last);
     try std.testing.expect(range.first.BLink == null);
     try std.testing.expect(range.first.FLink != null);
@@ -578,10 +578,10 @@ test "line to number and from number follow group numbering" {
     const allocator = arena.allocator();
 
     const fixture = try createContentFrame(allocator, &[_][]const u8{ "alpha", "beta", "gamma" });
-    try std.testing.expectEqual(@as(isize, 1), LineToNumber(fixture.content_lines[0]));
-    try std.testing.expectEqual(@as(isize, 3), LineToNumber(fixture.content_lines[2]));
-    try std.testing.expect(LineFromNumber(fixture.frame, 2) == fixture.content_lines[1]);
-    try std.testing.expect(LineFromNumber(fixture.frame, 4) == null);
+    try std.testing.expectEqual(@as(isize, 1), lineToNumber(fixture.content_lines[0]));
+    try std.testing.expectEqual(@as(isize, 3), lineToNumber(fixture.content_lines[2]));
+    try std.testing.expect(lineFromNumber(fixture.frame, 2) == fixture.content_lines[1]);
+    try std.testing.expect(lineFromNumber(fixture.frame, 4) == null);
 }
 
 test "line change length quantizes and adjusts frame space" {
@@ -594,7 +594,7 @@ test "line change length quantizes and adjusts frame space" {
     const original_space = fixture.frame.SpaceLeft;
     const old_length = line.Len();
 
-    try LineChangeLength(allocator, line, 13);
+    try lineChangeLength(allocator, line, 13);
     try std.testing.expect(line.Str != null);
     try std.testing.expectEqual(@as(isize, 20), line.Len());
     try std.testing.expectEqual(original_space + old_length - 20, fixture.frame.SpaceLeft);

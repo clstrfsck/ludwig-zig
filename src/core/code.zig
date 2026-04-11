@@ -121,7 +121,7 @@ fn nextKey(ps: *ParseState) bool {
     }
 
     if (ps.currentPoint.Col <= ps.currentPoint.Line.Used) {
-        ps.key = ps.currentPoint.Line.Str.?.Get(ps.currentPoint.Col);
+        ps.key = ps.currentPoint.Line.Str.?.get(ps.currentPoint.Col);
         ps.currentPoint.Col += 1;
     } else if (ps.currentPoint.Line != ps.endPoint.Line) {
         ps.key = ' ';
@@ -140,7 +140,7 @@ fn nextNonBl(ps: *ParseState) bool {
             if (!nextKey(ps)) {
                 return false;
             }
-            if (ps.fromSpan and ps.key == '<' and ps.currentPoint.Col <= ps.currentPoint.Line.Used and ps.currentPoint.Line.Str.?.Get(ps.currentPoint.Col) == '>') {
+            if (ps.fromSpan and ps.key == '<' and ps.currentPoint.Col <= ps.currentPoint.Line.Used and ps.currentPoint.Line.Str.?.get(ps.currentPoint.Col) == '>') {
                 ps.key = 0;
             }
             if (ps.key != ' ') {
@@ -274,7 +274,7 @@ fn scanLeadingParam(ps: *ParseState, rep_sym: *types.LeadParam, rep_count: *isiz
 fn newPromptParam(allocator: std.mem.Allocator) !*types.TParObject {
     const tp = try allocator.create(types.TParObject);
     tp.* = .{
-        .Str = try str_object.NewBlankStrObject(allocator, types.MaxStrLen),
+        .Str = try str_object.newBlankStrObject(allocator, types.MaxStrLen),
         .Dlm = types.TpdPrompt,
     };
     return tp;
@@ -321,7 +321,7 @@ fn scanTrailingParam(
         return false;
     }
     const par_delim = ps.key;
-    if (ps.key < 0 or ps.key > types.MaxSetRange or !@import("chars.zig").ChIsPunctuation(@intCast(ps.key))) {
+    if (ps.key < 0 or ps.key > types.MaxSetRange or !@import("chars.zig").chIsPunctuation(@intCast(ps.key))) {
         return compileError(ps, "Illegal parameter delimiter");
     }
 
@@ -334,7 +334,7 @@ fn scanTrailingParam(
 
         while (true) {
             var par_length: isize = 0;
-            const par_string = str_object.NewBlankStrObject(allocator, types.MaxStrLen) catch return compileError(ps, "Out of memory");
+            const par_string = str_object.newBlankStrObject(allocator, types.MaxStrLen) catch return compileError(ps, "Out of memory");
             while (true) {
                 if (!nextKey(ps)) {
                     return false;
@@ -343,7 +343,7 @@ fn scanTrailingParam(
                     return compileError(ps, "Missing trailing delimiter");
                 }
                 par_length += 1;
-                par_string.Set(par_length, @intCast(ps.key));
+                par_string.set(par_length, @intCast(ps.key));
                 if (ps.eoln or ps.key == par_delim) {
                     break;
                 }
@@ -526,7 +526,7 @@ fn scanCommand(
     }
 
     if (ps.key >= 0 and ps.key <= types.MaxSetRange) {
-        ps.key = @intCast(@import("chars.zig").ChToUpper(@intCast(ps.key)));
+        ps.key = @intCast(@import("chars.zig").chToUpper(@intCast(ps.key)));
     }
 
     var command = editor.Lookup[@intCast(ps.key)].Command;
@@ -539,7 +539,7 @@ fn scanCommand(
         }
         const bounds = lookupExpansionRange(editor, command);
         var index = bounds.@"0";
-        const target = @import("chars.zig").ChToUpper(@intCast(ps.key));
+        const target = @import("chars.zig").chToUpper(@intCast(ps.key));
         while (index < bounds.@"1" and target != editor.LookupExp[index].Extn) : (index += 1) {}
         if (index < bounds.@"1") {
             command = editor.LookupExp[index].Command;
@@ -570,8 +570,8 @@ fn scanCommand(
     return true;
 }
 
-pub fn CodeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
-    code_store.CodeDiscard(editor, code_head);
+pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
+    code_store.codeDiscard(editor, code_head);
 }
 
 fn compileParsed(
@@ -582,7 +582,7 @@ fn compileParsed(
     full_scan: bool,
 ) !bool {
     if (span.Code != null) {
-        CodeDiscard(editor, &span.Code);
+        codeDiscard(editor, &span.Code);
     }
 
     ps.codeBase = editor.CodeTop;
@@ -719,7 +719,7 @@ fn markModifiedAtDot(
 ) !void {
     frame.TextModified = true;
     if (frame.Dot) |dot| {
-        try mark_ops.MarkCreate(allocator, dot.Line, dot.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, dot.Line, dot.Col, &frame.Marks[types.MarkModified]);
     }
 }
 
@@ -809,8 +809,8 @@ fn executeAdvance(
     }
 
     if (success) {
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkEquals]);
-        try mark_ops.MarkCreate(allocator, new_line, 1, &frame.Dot);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, new_line, 1, &frame.Dot);
     }
     return success;
 }
@@ -842,18 +842,18 @@ fn executeArrowCommand(
             rept,
             count,
             &new_eql,
-            line_ops.LineToNumber(frame.LastGroup.?.LastLine.?),
+            line_ops.lineToNumber(frame.LastGroup.?.LastLine.?),
         ),
         .CmdReturn => blk: {
             if (editor.EditMode == .ModeInsert and frame.Options.newLine) {
                 if (frame.Dot.?.Line.FLink == null) {
                     try text.TextRealizeNull(allocator, frame.Dot.?.Line);
-                    var eop_line_nr = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+                    var eop_line_nr = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
                     break :blk try arrow.doCmdReturn(allocator, frame, count, &new_eql, &eop_line_nr);
                 }
                 break :blk try text.TextSplitLine(allocator, frame.Dot.?, 0, &frame.Marks[types.MarkEquals]);
             }
-            var eop_line_nr = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+            var eop_line_nr = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
             break :blk try arrow.doCmdReturn(allocator, frame, count, &new_eql, &eop_line_nr);
         },
         else => false,
@@ -861,7 +861,7 @@ fn executeArrowCommand(
 
     var final_success = cmd_success;
     if (cmd_success and !used_split_line) {
-        try mark_ops.MarkCreate(allocator, new_eql.Line, new_eql.Col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, new_eql.Line, new_eql.Col, &frame.Marks[types.MarkEquals]);
         if (command == .CmdDown and rept != .LeadParamPIndef and frame.Dot.?.Line.FLink == null) {
             final_success = false;
         }
@@ -897,8 +897,8 @@ fn computeLineRange(
                     return null;
                 }
             } else {
-                const line_nr = line_ops.LineToNumber(first_line.?);
-                last_line = line_ops.LineFromNumber(frame, line_nr + count - 1) orelse return null;
+                const line_nr = line_ops.lineToNumber(first_line.?);
+                last_line = line_ops.lineFromNumber(frame, line_nr + count - 1) orelse return null;
                 if (last_line.?.FLink == null) {
                     return null;
                 }
@@ -913,12 +913,12 @@ fn computeLineRange(
                     first_line = first_line.?.BLink orelse return null;
                 }
             } else {
-                var line_nr = line_ops.LineToNumber(last_line.?);
+                var line_nr = line_ops.lineToNumber(last_line.?);
                 if (abs_count > line_nr) {
                     return null;
                 }
                 line_nr = line_nr - abs_count + 1;
-                first_line = line_ops.LineFromNumber(frame, line_nr);
+                first_line = line_ops.lineFromNumber(frame, line_nr);
             }
         },
         .LeadParamPIndef => {
@@ -946,8 +946,8 @@ fn computeLineRange(
             } else if (mark_line.Line.BLink == first_line.?) {
                 last_line = first_line.?;
             } else {
-                const mark_line_nr = line_ops.LineToNumber(mark_line.Line);
-                const line_nr = line_ops.LineToNumber(dot.Line);
+                const mark_line_nr = line_ops.lineToNumber(mark_line.Line);
+                const line_nr = line_ops.lineToNumber(dot.Line);
                 if (mark_line_nr < line_nr) {
                     first_line = mark_line.Line;
                     last_line = last_line.?.BLink;
@@ -965,8 +965,8 @@ fn computeLineRange(
 }
 
 fn markSortOrder(left: *types.MarkObject, right: *types.MarkObject) std.math.Order {
-    const left_line = line_ops.LineToNumber(left.Line);
-    const right_line = line_ops.LineToNumber(right.Line);
+    const left_line = line_ops.lineToNumber(left.Line);
+    const right_line = line_ops.lineToNumber(right.Line);
     if (left_line < right_line) return .lt;
     if (left_line > right_line) return .gt;
     return std.math.order(left.Col, right.Col);
@@ -978,13 +978,13 @@ fn joinLines(allocator: std.mem.Allocator, frame: *types.FrameObject) !bool {
     }
     const previous = frame.Dot.?.Line.BLink orelse return false;
     var other_mark: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &other_mark);
-    try mark_ops.MarkCreate(allocator, previous, previous.Used + 1, &other_mark);
+    defer mark_ops.markDestroy(allocator, &other_mark);
+    try mark_ops.markCreate(allocator, previous, previous.Used + 1, &other_mark);
     if (!try text.TextRemove(allocator, other_mark.?, frame.Dot.?)) {
         return false;
     }
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     return true;
 }
 
@@ -1018,11 +1018,11 @@ fn executeInsertChar(
     else
         frame.Dot.?.Col;
     if (rept_mut != .LeadParamNInt) {
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_abs, &frame.Dot);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_abs, &frame.Dot);
     }
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, eql_col, &frame.Marks[types.MarkEquals]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, eql_col, &frame.Marks[types.MarkEquals]);
     return true;
 }
 
@@ -1041,7 +1041,7 @@ fn executeDeleteMarkedRange(
 
     if (frame != oops_frame) {
         const oops_span = oops_frame.Span orelse return false;
-        try mark_ops.MarkCreate(allocator, oops_frame.LastGroup.?.LastLine.?, 1, &oops_span.MarkTwo);
+        try mark_ops.markCreate(allocator, oops_frame.LastGroup.?.LastLine.?, 1, &oops_span.MarkTwo);
         if (!try text.TextMove(
             allocator,
             false,
@@ -1055,13 +1055,13 @@ fn executeDeleteMarkedRange(
             return false;
         }
         oops_frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, oops_frame.Dot.?.Line, oops_frame.Dot.?.Col, &oops_frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, oops_frame.Dot.?.Line, oops_frame.Dot.?.Col, &oops_frame.Marks[types.MarkModified]);
     } else if (!try text.TextRemove(allocator, start, finish)) {
         return false;
     }
 
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     return true;
 }
 
@@ -1093,9 +1093,9 @@ fn executeDeleteChar(
         .LeadParamMinus, .LeadParamNInt => {
             count_mut = -count_mut;
             if (count_mut < frame.Dot.?.Col) {
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
             } else if (!from_span and count_mut == 1 and frame.Dot.?.Col == 1 and try joinLines(allocator, frame)) {
-                mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkEquals]);
+                mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
                 return true;
             } else {
                 return false;
@@ -1103,21 +1103,21 @@ fn executeDeleteChar(
         },
         .LeadParamNIndef => {
             count_mut = frame.Dot.?.Col - 1;
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, 1, &frame.Dot);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, 1, &frame.Dot);
         },
         .LeadParamMarker => unreachable,
     }
 
     var end_mark: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &end_mark);
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count_mut, &end_mark);
+    defer mark_ops.markDestroy(allocator, &end_mark);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count_mut, &end_mark);
     if (!try text.TextRemove(allocator, frame.Dot.?, end_mark.?)) {
         return false;
     }
 
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkEquals]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
     return true;
 }
 
@@ -1140,20 +1140,20 @@ fn executeDeleteLine(
     const dot_col = frame.Dot.?.Col;
     const oops = oops_frame orelse return false;
 
-    try mark_ops.MarksSqueeze(allocator, first, 1, after, 1);
+    try mark_ops.marksSqueeze(allocator, first, 1, after, 1);
     line_ops.linesExtract(first, last);
 
     if (frame != oops) {
         try line_ops.linesInject(allocator, first, last, oops.LastGroup.?.LastLine.?);
-        try mark_ops.MarkCreate(allocator, first, 1, &oops.Marks[types.MarkEquals]);
-        try mark_ops.MarkCreate(allocator, oops.LastGroup.?.LastLine.?, 1, &oops.Dot);
+        try mark_ops.markCreate(allocator, first, 1, &oops.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, oops.LastGroup.?.LastLine.?, 1, &oops.Dot);
         oops.TextModified = true;
-        try mark_ops.MarkCreate(allocator, oops.Dot.?.Line, oops.Dot.?.Col, &oops.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, oops.Dot.?.Line, oops.Dot.?.Col, &oops.Marks[types.MarkModified]);
     }
 
     frame.Dot.?.Col = dot_col;
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     return true;
 }
 
@@ -1179,15 +1179,15 @@ fn executeRubout(
     }
 
     const eql_col = frame.Dot.?.Col;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
     if (!try text.TextOvertype(allocator, true, 1, editor.BlankString.?, count_mut, frame.Dot.?)) {
         return false;
     }
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
 
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, eql_col, &frame.Marks[types.MarkEquals]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, eql_col, &frame.Marks[types.MarkEquals]);
     return true;
 }
 
@@ -1203,26 +1203,26 @@ fn executeJump(
             if (frame.Dot.?.Col + count > types.MaxStrLenP) {
                 return false;
             }
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count, &frame.Dot);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count, &frame.Dot);
         },
         .LeadParamMinus, .LeadParamNInt => {
             if (frame.Dot.?.Col <= -count) {
                 return false;
             }
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count, &frame.Dot);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count, &frame.Dot);
         },
         .LeadParamPIndef => {
             if (frame.Dot.?.Col > frame.Dot.?.Line.Used + 1) {
                 return false;
             }
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Line.Used + 1, &frame.Dot);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Line.Used + 1, &frame.Dot);
         },
         .LeadParamNIndef => {
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, 1, &frame.Dot);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, 1, &frame.Dot);
         },
         .LeadParamMarker => {
             const marker = the_mark orelse return false;
-            try mark_ops.MarkCreate(allocator, marker.Line, marker.Col, &frame.Dot);
+            try mark_ops.markCreate(allocator, marker.Line, marker.Col, &frame.Dot);
         },
     }
     return true;
@@ -1249,9 +1249,9 @@ fn appendOpsysLine(
     last: *?*types.LineHdrObject,
     content: []const u8,
 ) !void {
-    const range = try line_ops.LinesCreate(allocator, 1);
+    const range = try line_ops.linesCreate(allocator, 1);
     if (content.len > 0) {
-        try line_ops.LineChangeLength(allocator, range.first, @intCast(content.len));
+        try line_ops.lineChangeLength(allocator, range.first, @intCast(content.len));
         try line_ops.setLineContent(range.first, content);
     } else {
         range.first.Used = 0;
@@ -1363,13 +1363,13 @@ fn executeOpsysCommand(
         return false;
     }
 
-    const output = runOpsysCommand(allocator, request.Str.?.Slice(1, request.Len)) catch return false;
+    const output = runOpsysCommand(allocator, request.Str.?.slice(1, request.Len)) catch return false;
     defer allocator.free(output);
 
     const range = (try buildOpsysLineRange(editor, allocator, output)) orelse return false;
     try line_ops.linesInject(allocator, range.first, range.last, frame.Dot.?.Line);
-    try mark_ops.MarkCreate(allocator, range.first, 1, &frame.Marks[types.MarkEquals]);
-    try mark_ops.MarkCreate(allocator, range.last.FLink.?, 1, &frame.Dot);
+    try mark_ops.markCreate(allocator, range.first, 1, &frame.Marks[types.MarkEquals]);
+    try mark_ops.markCreate(allocator, range.last.FLink.?, 1, &frame.Dot);
     try markModifiedAtDot(allocator, frame);
     return true;
 }
@@ -1410,7 +1410,7 @@ fn Execute(
             }
         },
         .CmdCaseEdit, .CmdCaseLow, .CmdCaseUp, .CmdDittoDown, .CmdDittoUp => {
-            cmd_success = try caseditto.CaseDittoCommand(
+            cmd_success = try caseditto.caseDittoCommand(
                 allocator,
                 current_frame,
                 command,
@@ -1479,13 +1479,13 @@ fn Execute(
                                 if (mark.Line == current_frame.Dot.?.Line) {
                                     break :blk current_frame.Dot.?.Col >= mark.Col;
                                 }
-                                break :blk line_ops.LineToNumber(current_frame.Dot.?.Line) >= line_ops.LineToNumber(mark.Line);
+                                break :blk line_ops.lineToNumber(current_frame.Dot.?.Line) >= line_ops.lineToNumber(mark.Line);
                             },
                             .LeadParamNIndef => blk: {
                                 if (mark.Line == current_frame.Dot.?.Line) {
                                     break :blk current_frame.Dot.?.Col <= mark.Col;
                                 }
-                                break :blk line_ops.LineToNumber(current_frame.Dot.?.Line) <= line_ops.LineToNumber(mark.Line);
+                                break :blk line_ops.lineToNumber(current_frame.Dot.?.Line) <= line_ops.lineToNumber(mark.Line);
                             },
                             else => false,
                         };
@@ -1520,7 +1520,7 @@ fn Execute(
                 if (request.Len == 0) {
                     return false;
                 }
-                if (!try codeCompileBuffer(editor, allocator, cmd_span, request.Str.?.Slice(1, request.Len), true)) {
+                if (!try codeCompileBuffer(editor, allocator, cmd_span, request.Str.?.slice(1, request.Len), true)) {
                     return false;
                 }
             } else if (cmd_span.Code == null) {
@@ -1556,7 +1556,7 @@ fn Execute(
             if (request.Len == 0) {
                 return false;
             }
-            if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, request.Str.?.Slice(1, request.Len))) {
+            if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, request.Str.?.slice(1, request.Len))) {
                 return false;
             }
             if (!try CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
@@ -1579,7 +1579,7 @@ fn Execute(
         .CmdFrameEdit => {
             var request: types.TParObject = .{};
             if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
-                const frame_name = if (request.Len == 0) "" else request.Str.?.Slice(1, request.Len);
+                const frame_name = if (request.Len == 0) "" else request.Str.?.slice(1, request.Len);
                 current_frame = (try frame_ops.FrameEdit(editor, allocator, current_frame, frame_name)) orelse return false;
                 cmd_success = true;
             }
@@ -1590,7 +1590,7 @@ fn Execute(
                 if (request.Len == 0) {
                     return false;
                 }
-                cmd_success = try frame_ops.FrameKill(editor, allocator, current_frame, request.Str.?.Slice(1, request.Len));
+                cmd_success = try frame_ops.FrameKill(editor, allocator, current_frame, request.Str.?.slice(1, request.Len));
             }
         },
         .CmdFrameParameters => {
@@ -1622,7 +1622,7 @@ fn Execute(
         .CmdHelp => {
             var request: types.TParObject = .{};
             if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
-                const topic = if (request.Len == 0) "" else request.Str.?.Slice(1, request.Len);
+                const topic = if (request.Len == 0) "" else request.Str.?.slice(1, request.Len);
                 if (editor.LudwigMode == .LudwigScreen) {
                     cmd_success = try help_ops.HelpInteractive(editor, allocator, topic);
                 } else {
@@ -1640,17 +1640,17 @@ fn Execute(
         .CmdInsertLine => {
             if (count != 0) {
                 const abs_count: isize = if (count < 0) -count else count;
-                const range = try line_ops.LinesCreate(allocator, @intCast(abs_count));
+                const range = try line_ops.linesCreate(allocator, @intCast(abs_count));
                 try line_ops.linesInject(allocator, range.first, range.last, current_frame.Dot.?.Line);
                 if (count > 0) {
-                    try mark_ops.MarkCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
-                    try mark_ops.MarkCreate(allocator, range.first, current_frame.Dot.?.Col, &current_frame.Dot);
+                    try mark_ops.markCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
+                    try mark_ops.markCreate(allocator, range.first, current_frame.Dot.?.Col, &current_frame.Dot);
                 } else {
-                    try mark_ops.MarkCreate(allocator, range.first, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
+                    try mark_ops.markCreate(allocator, range.first, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
                 }
                 try markModifiedAtDot(allocator, current_frame);
             } else {
-                try mark_ops.MarkCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
+                try mark_ops.markCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
             }
             cmd_success = true;
         },
@@ -1715,9 +1715,9 @@ fn Execute(
                 return false;
             }
             if (count < 0) {
-                mark_ops.MarkDestroy(allocator, &current_frame.Marks[@intCast(-count)]);
+                mark_ops.markDestroy(allocator, &current_frame.Marks[@intCast(-count)]);
             } else {
-                try mark_ops.MarkCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[@intCast(count)]);
+                try mark_ops.markCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[@intCast(count)]);
             }
             cmd_success = true;
         },
@@ -1789,7 +1789,7 @@ fn Execute(
                 const oops_span = oops_frame.Span orelse return false;
                 const heap_frame = special_frames.Heap orelse return false;
                 const heap_span = heap_frame.Span orelse return false;
-                const span_name = request1.Str.?.Slice(1, request1.Len);
+                const span_name = request1.Str.?.slice(1, request1.Len);
 
                 var span_ptr = try findSpanByName(editor, allocator, span_name);
                 if (span_ptr) |existing| {
@@ -1798,7 +1798,7 @@ fn Execute(
                             return false;
                         }
                     } else {
-                        try mark_ops.MarkCreate(allocator, oops_frame.LastGroup.?.LastLine.?, 1, &oops_span.MarkTwo);
+                        try mark_ops.markCreate(allocator, oops_frame.LastGroup.?.LastLine.?, 1, &oops_span.MarkTwo);
                         if (!try text.TextMove(
                             allocator,
                             false,
@@ -1813,7 +1813,7 @@ fn Execute(
                         }
                     }
                 } else {
-                    try mark_ops.MarkCreate(allocator, heap_frame.LastGroup.?.LastLine.?, 1, &heap_span.MarkTwo);
+                    try mark_ops.markCreate(allocator, heap_frame.LastGroup.?.LastLine.?, 1, &heap_span.MarkTwo);
                     if (!try createNamedSpan(editor, allocator, span_name, heap_span.MarkTwo.?, heap_span.MarkTwo.?)) {
                         return false;
                     }
@@ -1825,7 +1825,7 @@ fn Execute(
                 }
                 const span_frame = span_ptr.?.MarkTwo.?.Line.Group.?.Frame;
                 span_frame.TextModified = true;
-                try mark_ops.MarkCreate(
+                try mark_ops.markCreate(
                     allocator,
                     span_ptr.?.MarkTwo.?.Line,
                     span_ptr.?.MarkTwo.?.Col,
@@ -1838,7 +1838,7 @@ fn Execute(
                     if (request.Len == 0) {
                         return false;
                     }
-                    const span_name = request.Str.?.Slice(1, request.Len);
+                    const span_name = request.Str.?.slice(1, request.Len);
                     switch (command) {
                         .CmdSpanDefine => {
                             if (rept == .LeadParamMinus) {
@@ -1870,14 +1870,14 @@ fn Execute(
                             const span_ptr = (try findSpanByNameOrMessage(editor, allocator, span_name)) orelse return false;
                             const target = if (rept == .LeadParamMinus) span_ptr.MarkOne.? else span_ptr.MarkTwo.?;
                             if (target.Line.Group.?.Frame == current_frame) {
-                                try mark_ops.MarkCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
-                                try mark_ops.MarkCreate(allocator, target.Line, target.Col, &current_frame.Dot);
+                                try mark_ops.markCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
+                                try mark_ops.markCreate(allocator, target.Line, target.Col, &current_frame.Dot);
                                 cmd_success = true;
                             } else {
                                 const target_frame = target.Line.Group.?.Frame;
                                 current_frame = (try frame_ops.FrameEdit(editor, allocator, current_frame, target_frame.Span.?.Name)) orelse return false;
-                                mark_ops.MarkDestroy(allocator, &target_frame.Marks[types.MarkEquals]);
-                                try mark_ops.MarkCreate(allocator, target.Line, target.Col, &target_frame.Dot);
+                                mark_ops.markDestroy(allocator, &target_frame.Marks[types.MarkEquals]);
+                                try mark_ops.markCreate(allocator, target.Line, target.Col, &target_frame.Dot);
                                 cmd_success = true;
                             }
                         },
@@ -1894,13 +1894,13 @@ fn Execute(
                                 &current_frame.Dot,
                             );
                             if (command == .CmdSpanTransfer and span_ptr.Frame == null and cmd_success) {
-                                try mark_ops.MarkCreate(
+                                try mark_ops.markCreate(
                                     allocator,
                                     current_frame.Marks[types.MarkEquals].?.Line,
                                     current_frame.Marks[types.MarkEquals].?.Col,
                                     &span_ptr.MarkOne,
                                 );
-                                try mark_ops.MarkCreate(
+                                try mark_ops.markCreate(
                                     allocator,
                                     current_frame.Dot.?.Line,
                                     current_frame.Dot.?.Col,
@@ -1967,9 +1967,9 @@ fn Execute(
             cmd_success = true;
         },
         .CmdPositionLine => {
-            const new_line = line_ops.LineFromNumber(current_frame, count) orelse return false;
-            try mark_ops.MarkCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
-            try mark_ops.MarkCreate(allocator, new_line, 1, &current_frame.Dot);
+            const new_line = line_ops.lineFromNumber(current_frame, count) orelse return false;
+            try mark_ops.markCreate(allocator, current_frame.Dot.?.Line, current_frame.Dot.?.Col, &current_frame.Marks[types.MarkEquals]);
+            try mark_ops.markCreate(allocator, new_line, 1, &current_frame.Dot);
             cmd_success = true;
         },
         .CmdOpSysCommand => {
@@ -2019,7 +2019,7 @@ fn Execute(
                 const key_code = user_ops.ResolveUserKeyCode(editor, &request) orelse return false;
                 const heap_frame = special_frames.Heap orelse return false;
                 const heap_span = heap_frame.Span orelse return false;
-                try mark_ops.MarkCreate(allocator, heap_frame.LastGroup.?.LastLine.?, 1, &heap_span.MarkTwo);
+                try mark_ops.markCreate(allocator, heap_frame.LastGroup.?.LastLine.?, 1, &heap_span.MarkTwo);
                 if (!try createNamedSpan(editor, allocator, types.BlankFrameName, heap_span.MarkTwo.?, heap_span.MarkTwo.?)) {
                     return false;
                 }
@@ -2135,7 +2135,7 @@ fn Execute(
                 if (!try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                     return false;
                 }
-                const file_name = if (request.Len == 0) "" else request.Str.?.Slice(1, request.Len);
+                const file_name = if (request.Len == 0) "" else request.Str.?.slice(1, request.Len);
                 cmd_success = try file_ops.fileOpenCommand(editor, allocator, current_frame, command, file_name);
             }
         },
@@ -2159,8 +2159,8 @@ fn Execute(
 
     if (cmd_success) {
         switch (editor.CmdAttrib[cmdIndex(command)].EqAction) {
-            .EqOld => try mark_ops.MarkCreate(allocator, old_dot.Line, old_dot.Col, &old_frame.Marks[types.MarkEquals]),
-            .EqDel => mark_ops.MarkDestroy(allocator, &old_frame.Marks[types.MarkEquals]),
+            .EqOld => try mark_ops.markCreate(allocator, old_dot.Line, old_dot.Col, &old_frame.Marks[types.MarkEquals]),
+            .EqDel => mark_ops.markDestroy(allocator, &old_frame.Marks[types.MarkEquals]),
             .EqNil => {},
         }
     }
@@ -2194,7 +2194,7 @@ pub fn CodeInterpretFrame(
     var labels: [max_level + 1]Labels = [_]Labels{.{}} ** (max_level + 1);
     var code_ref: ?*types.CodeHeader = code_head;
     code_head.Ref += 1;
-    defer CodeDiscard(editor, &code_ref);
+    defer codeDiscard(editor, &code_ref);
     const top_level = editor.ExecLevel == 0;
     if (top_level) {
         editor.QuitRequested = false;
@@ -2308,7 +2308,7 @@ pub fn CodeInterpretFrame(
                                     current_frame.VerifyTpar = request;
                                 }
 
-                                switch (request.Str.?.Get(1)) {
+                                switch (request.Str.?.get(1)) {
                                     'Y' => {},
                                     'A' => verify_always[@intCast(curr_cnt)] = true,
                                     'Q' => {
@@ -2386,9 +2386,9 @@ fn makeCommandSpan(
     const fixture = try line_ops.createContentFrame(allocator, contents);
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &mark_one);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &mark_one);
     const last = fixture.content_lines[contents.len - 1];
-    try mark_ops.MarkCreate(allocator, last, last.Used + 1, &mark_two);
+    try mark_ops.markCreate(allocator, last, last.Used + 1, &mark_two);
     const span = try allocator.create(types.SpanObject);
     span.* = .{
         .Name = "CMD",
@@ -2413,8 +2413,8 @@ fn makeSpecialFrame(
         .Frame = fixture.frame,
     };
     fixture.frame.Span = span;
-    try mark_ops.MarkCreate(allocator, fixture.frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-    try mark_ops.MarkCreate(allocator, fixture.frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    try mark_ops.markCreate(allocator, fixture.frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
+    try mark_ops.markCreate(allocator, fixture.frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
     return fixture;
 }
 
@@ -2592,7 +2592,7 @@ test "code interpreter can insert spaces with insert char command" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 2, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 2, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2C"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
@@ -2609,8 +2609,8 @@ test "code interpreter can delete a marked character range into oops" {
     const allocator = editor.allocator();
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"abcdef"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 5, &target.frame.Dot);
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 2, &target.frame.Marks[1]);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 5, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 2, &target.frame.Marks[1]);
 
     const oops = try makeSpecialFrame(allocator, "OOPS", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
@@ -2635,7 +2635,7 @@ test "code interpreter can delete a line into oops" {
         "two",
         "three",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[1], 2, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[1], 2, &target.frame.Dot);
 
     const oops = try makeSpecialFrame(allocator, "OOPS", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
@@ -2662,7 +2662,7 @@ test "code interpreter can jump by character count" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"abcdef"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2J"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
@@ -2696,14 +2696,14 @@ test "code interpreter can set margins from dot" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"abcdef"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 3, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 3, &target.frame.Dot);
 
     const left_command = try makeCommandSpan(allocator, &[_][]const u8{"{"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, left_command.span, true));
     try std.testing.expect((try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, left_command.span.Code.?, true)).ok);
     try std.testing.expectEqual(@as(isize, 3), target.frame.MarginLeft);
 
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 5, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 5, &target.frame.Dot);
     const right_command = try makeCommandSpan(allocator, &[_][]const u8{"}"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, right_command.span, true));
     try std.testing.expect((try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, right_command.span.Code.?, true)).ok);
@@ -2781,7 +2781,7 @@ test "code compile and interpret resolve prefix equal string commands" {
     const allocator = editor.allocator();
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello world"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"EQS/hello/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
@@ -2800,7 +2800,7 @@ test "code interpreter executes success and fail handlers" {
         "hello world",
         "second",
     });
-    try mark_ops.MarkCreate(allocator, success_target.content_lines[0], 1, &success_target.frame.Dot);
+    try mark_ops.markCreate(allocator, success_target.content_lines[0], 1, &success_target.frame.Dot);
     const success_cmd = try makeCommandSpan(allocator, &[_][]const u8{"G/world/[A]"});
     try std.testing.expect(try CodeCompile(&editor, allocator, success_target.frame, success_cmd.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, success_target.frame, &special_frames, .LeadParamNone, 1, success_cmd.span.Code.?, true));
@@ -2810,7 +2810,7 @@ test "code interpreter executes success and fail handlers" {
         "hello world",
         "second",
     });
-    try mark_ops.MarkCreate(allocator, fail_target.content_lines[0], 1, &fail_target.frame.Dot);
+    try mark_ops.markCreate(allocator, fail_target.content_lines[0], 1, &fail_target.frame.Dot);
     const fail_cmd = try makeCommandSpan(allocator, &[_][]const u8{"G/missing/[:A]"});
     try std.testing.expect(try CodeCompile(&editor, allocator, fail_target.frame, fail_cmd.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, fail_target.frame, &special_frames, .LeadParamNone, 1, fail_cmd.span.Code.?, true));
@@ -2827,7 +2827,7 @@ test "code interpreter executes compound loops using iterate opcodes" {
         "two",
         "three",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2(A)"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
@@ -2844,7 +2844,7 @@ test "code interpreter executes compiled arrow and insert text commands" {
         "hello",
         "second",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
     const command = try makeCommandSpan(allocator, &[_][]const u8{"ZU I/abc/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
@@ -2870,8 +2870,8 @@ test "code interpreter executes span assign with heap and oops special frames" {
     const source = try line_ops.createContentFrame(allocator, &[_][]const u8{"stale"});
     var source_mark_one: ?*types.MarkObject = null;
     var source_mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, source.content_lines[0], 1, &source_mark_one);
-    try mark_ops.MarkCreate(allocator, source.content_lines[0], 6, &source_mark_two);
+    try mark_ops.markCreate(allocator, source.content_lines[0], 1, &source_mark_one);
+    try mark_ops.markCreate(allocator, source.content_lines[0], 6, &source_mark_two);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "NAME", source_mark_one.?, source_mark_two.?));
 
     const assign_existing = try makeCommandSpan(allocator, &[_][]const u8{"SA/NAME/new/"});
@@ -2898,8 +2898,8 @@ test "code interpreter executes span define jump and destroy commands" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello world"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Marks[1]);
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 6, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Marks[1]);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 6, &target.frame.Dot);
 
     const define_command = try makeCommandSpan(allocator, &[_][]const u8{"SD/TEST/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, define_command.span, true));
@@ -2909,7 +2909,7 @@ test "code interpreter executes span define jump and destroy commands" {
     try std.testing.expectEqual(@as(isize, 1), defined_span.MarkOne.?.Col);
     try std.testing.expectEqual(@as(isize, 6), defined_span.MarkTwo.?.Col);
 
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 11, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 11, &target.frame.Dot);
     const jump_command = try makeCommandSpan(allocator, &[_][]const u8{"-SJ/TEST/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, jump_command.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, jump_command.span.Code.?, true));
@@ -2935,7 +2935,7 @@ test "code interpreter executes command strings and replays last command" {
     var special_frames: types.SpecialFrames = .{
         .Cmd = cmd_frame.frame,
     };
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const exec_command = try makeCommandSpan(allocator, &[_][]const u8{"^/AA/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, exec_command.span, true));
@@ -2943,7 +2943,7 @@ test "code interpreter executes command strings and replays last command" {
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[2]);
     try std.testing.expect(cmd_frame.frame.Span.?.Code != null);
 
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const repeat_command = try makeCommandSpan(allocator, &[_][]const u8{"\x07"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, repeat_command.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, repeat_command.span.Code.?, true));
@@ -3031,8 +3031,8 @@ test "code interpreter can validate linked frame/span state" {
 
     var span_mark_one: ?*types.MarkObject = null;
     var span_mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
-    try mark_ops.MarkCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
+    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
+    try mark_ops.markCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
 
     const validate_command = try makeCommandSpan(allocator, &[_][]const u8{"~V"});
@@ -3051,7 +3051,7 @@ test "code interpreter can insert user command introducer in screen mode" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 2, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 2, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"UC"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
@@ -3118,7 +3118,7 @@ test "code interpreter can apply window movement commands" {
         "five",
     });
     target.frame.ScrHeight = 2;
-    try mark_ops.MarkCreate(allocator, target.content_lines[2], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[2], 1, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"WF"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
@@ -3151,7 +3151,7 @@ test "code interpreter can read from the global input file buffer" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"tail"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const input_file = try makeBufferedFile(allocator, &[_][]const u8{
         "alpha",
@@ -3186,7 +3186,7 @@ test "code interpreter can write the selected range to the global output file bu
         "two",
         "three",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
 
     const output_file = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     editor.Files[1] = output_file;
@@ -3210,7 +3210,7 @@ test "code interpreter can page buffered file contents" {
         "old1",
         "old2",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
 
     const input_file = try makeBufferedFile(allocator, &[_][]const u8{
         "new1",
@@ -3246,7 +3246,7 @@ test "code interpreter can rewind attached input file buffer" {
     var special_frames: types.SpecialFrames = .{};
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"stale"});
-    try mark_ops.MarkCreate(allocator, target.frame.LastGroup.?.LastLine.?, 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.frame.LastGroup.?.LastLine.?, 1, &target.frame.Dot);
 
     const input_file = try makeBufferedFile(allocator, &[_][]const u8{
         "alpha",
@@ -3308,7 +3308,7 @@ test "code interpreter can execute a buffered file into the command frame" {
         "one",
         "two",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const cmd_frame = try makeSpecialFrame(allocator, "COMMAND", &[_][]const u8{"old"});
     var special_frames: types.SpecialFrames = .{
@@ -3363,7 +3363,7 @@ test "code interpreter can open a disk global input file and read from it" {
 
     const path = try writeTmpFile(allocator, &tmp_dir, "global.in", "alpha\nbeta\n");
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"tail"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const command_text = try commandWithPath(allocator, "FGI", path, " 2FGR -FGI||");
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
@@ -3413,7 +3413,7 @@ test "code interpreter can write and close a disk global output file" {
 
     const path = try tmpFilePath(allocator, &tmp_dir, "global.out");
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const command_text = try commandWithPath(allocator, "FGO", path, " FGW -FGO||");
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
@@ -3474,7 +3474,7 @@ test "code interpreter can execute a disk file into the command frame" {
         "one",
         "two",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const cmd_frame = try makeSpecialFrame(allocator, "COMMAND", &[_][]const u8{"old"});
     var special_frames: types.SpecialFrames = .{
@@ -3597,8 +3597,8 @@ test "code interpreter can index spans into oops frame" {
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"alphabet soup"});
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &mark_one);
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 6, &mark_two);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &mark_one);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 6, &mark_two);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "NAME", mark_one.?, mark_two.?));
 
     const oops = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "OOPS")).?;
@@ -3633,12 +3633,12 @@ test "code interpreter can jump to spans in other frames" {
     const other = (try frame_ops.FrameEdit(&editor, allocator, origin.frame, "OTHER")).?;
     try text.TextRealizeNull(allocator, other.LastGroup.?.LastLine.?);
     const content_line = other.LastGroup.?.LastLine.?.BLink.?;
-    try line_ops.LineChangeLength(allocator, content_line, 4);
+    try line_ops.lineChangeLength(allocator, content_line, 4);
     try line_ops.setLineContent(content_line, "dest");
     var span_mark_one: ?*types.MarkObject = null;
     var span_mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, content_line, 1, &span_mark_one);
-    try mark_ops.MarkCreate(allocator, content_line, 5, &span_mark_two);
+    try mark_ops.markCreate(allocator, content_line, 1, &span_mark_one);
+    try mark_ops.markCreate(allocator, content_line, 5, &span_mark_two);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "DEST", span_mark_one.?, span_mark_two.?));
 
     const jump_command = try makeCommandSpan(allocator, &[_][]const u8{"SJ/DEST/"});
@@ -3664,7 +3664,7 @@ test "code interpreter can compile command frame for do last command" {
         .Cmd = cmd_frame.frame,
     };
     cmd_frame.frame.Span.?.Code = null;
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const repeat_command = try makeCommandSpan(allocator, &[_][]const u8{"\x07"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, repeat_command.span, true));
@@ -3686,7 +3686,7 @@ test "code interpreter executes named span compile and execute variants" {
         "two",
         "three",
     });
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const compile_command = try makeCommandSpan(allocator, &[_][]const u8{"SR/CMD/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, compile_command.span, true));
@@ -3695,14 +3695,14 @@ test "code interpreter executes named span compile and execute variants" {
     try std.testing.expect(compiled_span.Code != null);
 
     try line_ops.setLineContent(command_source.fixture.content_lines[0], "2A");
-    try mark_ops.MarkCreate(allocator, compiled_span.MarkTwo.?.Line, 3, &compiled_span.MarkTwo);
+    try mark_ops.markCreate(allocator, compiled_span.MarkTwo.?.Line, 3, &compiled_span.MarkTwo);
 
     const no_recompile_command = try makeCommandSpan(allocator, &[_][]const u8{"EN/CMD/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, no_recompile_command.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, no_recompile_command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
 
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const execute_command = try makeCommandSpan(allocator, &[_][]const u8{"EX/CMD/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, execute_command.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, execute_command.span.Code.?, true));
@@ -3721,10 +3721,10 @@ test "code interpreter executes span copy and transfer commands" {
     });
     var span_start: ?*types.MarkObject = null;
     var span_end: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, copy_target.content_lines[0], 1, &span_start);
-    try mark_ops.MarkCreate(allocator, copy_target.content_lines[0], 6, &span_end);
+    try mark_ops.markCreate(allocator, copy_target.content_lines[0], 1, &span_start);
+    try mark_ops.markCreate(allocator, copy_target.content_lines[0], 6, &span_end);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "COPY", span_start.?, span_end.?));
-    try mark_ops.MarkCreate(allocator, copy_target.content_lines[1], 1, &copy_target.frame.Dot);
+    try mark_ops.markCreate(allocator, copy_target.content_lines[1], 1, &copy_target.frame.Dot);
 
     const copy_command = try makeCommandSpan(allocator, &[_][]const u8{"SC/COPY/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, copy_target.frame, copy_command.span, true));
@@ -3738,10 +3738,10 @@ test "code interpreter executes span copy and transfer commands" {
     });
     span_start = null;
     span_end = null;
-    try mark_ops.MarkCreate(allocator, transfer_target.content_lines[0], 1, &span_start);
-    try mark_ops.MarkCreate(allocator, transfer_target.content_lines[0], 6, &span_end);
+    try mark_ops.markCreate(allocator, transfer_target.content_lines[0], 1, &span_start);
+    try mark_ops.markCreate(allocator, transfer_target.content_lines[0], 6, &span_end);
     try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "MOVE", span_start.?, span_end.?));
-    try mark_ops.MarkCreate(allocator, transfer_target.content_lines[1], 1, &transfer_target.frame.Dot);
+    try mark_ops.markCreate(allocator, transfer_target.content_lines[1], 1, &transfer_target.frame.Dot);
 
     const transfer_command = try makeCommandSpan(allocator, &[_][]const u8{"ST/MOVE/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, transfer_target.frame, transfer_command.span, true));
@@ -3762,7 +3762,7 @@ test "code interpreter executes compiled split line and equal-eol commands" {
         "hello world",
         "second",
     });
-    try mark_ops.MarkCreate(allocator, split_target.content_lines[0], 6, &split_target.frame.Dot);
+    try mark_ops.markCreate(allocator, split_target.content_lines[0], 6, &split_target.frame.Dot);
     const split_command = try makeCommandSpan(allocator, &[_][]const u8{"SL"});
     try std.testing.expect(try CodeCompile(&editor, allocator, split_target.frame, split_command.span, true));
     var special_frames: types.SpecialFrames = .{};
@@ -3774,7 +3774,7 @@ test "code interpreter executes compiled split line and equal-eol commands" {
     try line_ops.validateFrameShape(split_target.frame);
 
     const eql_target = try line_ops.createContentFrame(allocator, &[_][]const u8{"abc"});
-    try mark_ops.MarkCreate(allocator, eql_target.content_lines[0], 4, &eql_target.frame.Dot);
+    try mark_ops.markCreate(allocator, eql_target.content_lines[0], 4, &eql_target.frame.Dot);
     const eql_command = try makeCommandSpan(allocator, &[_][]const u8{"EOL"});
     try std.testing.expect(try CodeCompile(&editor, allocator, eql_target.frame, eql_command.span, true));
     try std.testing.expect(try CodeInterpret(&editor, allocator, eql_target.frame, &special_frames, .LeadParamNone, 1, eql_command.span.Code.?, true));
@@ -3786,10 +3786,10 @@ test "code interpreter executes compiled replace commands" {
     const allocator = editor.allocator();
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello world"});
-    try mark_ops.MarkCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
+    try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const command = try makeCommandSpan(allocator, &[_][]const u8{"R/world/earth/"});
     try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
     try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
-    try std.testing.expectEqualStrings("hello earth", target.content_lines[0].Str.?.Slice(1, 11));
+    try std.testing.expectEqualStrings("hello earth", target.content_lines[0].Str.?.slice(1, 11));
 }

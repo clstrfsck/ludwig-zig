@@ -90,7 +90,7 @@ fn fail(message: []const u8) ParseResult {
     };
 }
 
-pub fn FileCreateOpen(
+pub fn fileCreateOpen(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     argv: []const []const u8,
@@ -365,7 +365,7 @@ test "filesys parser applies command flags and opens command/edit files" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-B", "3", "-t", "-w", "4", "-O", input_path, output_path };
-    const result = try FileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
     try std.testing.expect(result.ok);
     try std.testing.expect(!editor.FileData.OldCmds);
     try std.testing.expect(editor.FileData.Entab);
@@ -393,7 +393,7 @@ test "filesys parser can use a memory file for command input" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-m", memory_path };
-    const result = try FileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
     try std.testing.expect(result.ok);
     try std.testing.expect(input != null);
     try std.testing.expect(output != null);
@@ -409,7 +409,7 @@ test "filesys parser reports usage for conflicting create and readonly flags" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-c", "-r" };
-    const result = try FileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
     try std.testing.expect(!result.ok);
     try std.testing.expect(result.show_usage);
 }

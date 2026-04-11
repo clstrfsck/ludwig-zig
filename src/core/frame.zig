@@ -75,7 +75,7 @@ pub fn FrameEdit(
         .Options = editor.InitialOptions,
     };
 
-    const group = try line_ops.LineEOPCreate(allocator, frame);
+    const group = try line_ops.lineEOPCreate(allocator, frame);
     frame.FirstGroup = group;
     frame.LastGroup = group;
     try line_ops.setSentinelDisplayContent(allocator, group.FirstLine.?, end_of_file_prefix, resolved_name);
@@ -96,10 +96,10 @@ pub fn FrameEdit(
         next.BLink = span;
     }
 
-    try mark_ops.MarkCreate(allocator, group.FirstLine.?, 1, &span.MarkOne);
-    try mark_ops.MarkCreate(allocator, group.LastLine.?, 1, &span.MarkTwo);
+    try mark_ops.markCreate(allocator, group.FirstLine.?, 1, &span.MarkOne);
+    try mark_ops.markCreate(allocator, group.LastLine.?, 1, &span.MarkTwo);
     frame.Span = span;
-    try mark_ops.MarkCreate(allocator, group.FirstLine.?, editor.InitialMarginLeft, &frame.Dot);
+    try mark_ops.markCreate(allocator, group.FirstLine.?, editor.InitialMarginLeft, &frame.Dot);
     return frame;
 }
 
@@ -149,10 +149,10 @@ pub fn FrameKill(
     }
     target_frame.Span = null;
 
-    mark_ops.MarkDestroy(allocator, &target_frame.Dot);
+    mark_ops.markDestroy(allocator, &target_frame.Dot);
     var mark_index: usize = 0;
     while (mark_index < target_frame.Marks.len) : (mark_index += 1) {
-        mark_ops.MarkDestroy(allocator, &target_frame.Marks[mark_index]);
+        mark_ops.markDestroy(allocator, &target_frame.Marks[mark_index]);
     }
 
     const last_content = target_frame.LastGroup.?.LastLine.?.BLink;
@@ -163,9 +163,9 @@ pub fn FrameKill(
     target_frame.FirstGroup = null;
     target_frame.LastGroup = null;
 
-    dfa.PatternDFATableKill(allocator, &target_frame.EqsPatternPtr);
-    dfa.PatternDFATableKill(allocator, &target_frame.GetPatternPtr);
-    dfa.PatternDFATableKill(allocator, &target_frame.RepPatternPtr);
+    dfa.patternDFATableKill(allocator, &target_frame.EqsPatternPtr);
+    dfa.patternDFATableKill(allocator, &target_frame.GetPatternPtr);
+    dfa.patternDFATableKill(allocator, &target_frame.RepPatternPtr);
     return true;
 }
 
@@ -176,14 +176,14 @@ const TparParser = struct {
     pos: isize = 1,
 
     fn nextChar(self: *TparParser) u8 {
-        while (self.pos < self.request.Len and self.request.Str.?.Get(self.pos) == ' ') {
+        while (self.pos < self.request.Len and self.request.Str.?.get(self.pos) == ' ') {
             self.pos += 1;
         }
         var ch: u8 = 0;
-        if (self.pos > self.request.Len or self.request.Str.?.Get(self.pos) == ' ') {
+        if (self.pos > self.request.Len or self.request.Str.?.get(self.pos) == ' ') {
             ch = 0;
         } else {
-            ch = self.request.Str.?.Get(self.pos);
+            ch = self.request.Str.?.get(self.pos);
         }
         if (self.pos <= self.request.Len) {
             self.pos += 1;
@@ -214,11 +214,11 @@ const TparParser = struct {
             return false;
         }
 
-        while (self.pos <= self.request.Len and self.request.Str.?.Get(self.pos) == ' ') {
+        while (self.pos <= self.request.Len and self.request.Str.?.get(self.pos) == ' ') {
             self.pos += 1;
         }
         const start = self.pos;
-        while (self.pos <= self.request.Len and self.request.Str.?.Get(self.pos) != ',') {
+        while (self.pos <= self.request.Len and self.request.Str.?.get(self.pos) != ',') {
             self.pos += 1;
         }
         const end = self.pos - 1;
@@ -227,7 +227,7 @@ const TparParser = struct {
             return false;
         }
         const len: usize = @intCast(end - start + 1);
-        const key_name = std.mem.trim(u8, self.request.Str.?.Slice(start, @intCast(len)), " ");
+        const key_name = std.mem.trim(u8, self.request.Str.?.slice(start, @intCast(len)), " ");
         if (key_name.len == 0) {
             emitFrameMessage(self.editor, invalid_cmd_introducer_message);
             return false;
@@ -235,7 +235,7 @@ const TparParser = struct {
 
         if (key_name.len == 1) {
             const ch = key_name[0];
-            if (!chars.ChIsPunctuation(ch)) {
+            if (!chars.chIsPunctuation(ch)) {
                 emitFrameMessage(self.editor, invalid_cmd_introducer_message);
                 return false;
             }
@@ -399,14 +399,14 @@ const TparParser = struct {
             },
             'T' => {
                 if (frame.Dot.?.Line.Used > 0) {
-                    const ts = frame.Dot.?.Line.Str.?.Get(1) != ' ';
+                    const ts = frame.Dot.?.Line.Str.?.get(1) != ' ';
                     if (set_initial) self.editor.InitialTabStops[1] = ts;
                     frame.TabStops[1] = ts;
                 }
                 var i: isize = 2;
                 while (i <= frame.Dot.?.Line.Used) : (i += 1) {
-                    const chi = frame.Dot.?.Line.Str.?.Get(i);
-                    const chim1 = frame.Dot.?.Line.Str.?.Get(i - 1);
+                    const chi = frame.Dot.?.Line.Str.?.get(i);
+                    const chim1 = frame.Dot.?.Line.Str.?.get(i - 1);
                     const value = (chi != ' ') and (chim1 == ' ');
                     if (set_initial) self.editor.InitialTabStops[@intCast(i)] = value;
                     frame.TabStops[@intCast(i)] = value;
@@ -418,32 +418,32 @@ const TparParser = struct {
                 }
             },
             'I' => {
-                const range = try line_ops.LinesCreate(self.allocator, 1);
+                const range = try line_ops.linesCreate(self.allocator, 1);
                 const first_line = range.first;
-                try line_ops.LineChangeLength(self.allocator, first_line, types.MaxStrLen);
+                try line_ops.lineChangeLength(self.allocator, first_line, types.MaxStrLen);
                 var i: isize = 1;
                 if (set_initial) {
                     while (i <= types.MaxStrLen) : (i += 1) {
                         if (self.editor.InitialTabStops[@intCast(i)]) {
-                            first_line.Str.?.Set(i, 'T');
+                            first_line.Str.?.set(i, 'T');
                         }
                     }
-                    first_line.Str.?.Set(self.editor.InitialMarginLeft, 'L');
-                    first_line.Str.?.Set(self.editor.InitialMarginRight, 'R');
+                    first_line.Str.?.set(self.editor.InitialMarginLeft, 'L');
+                    first_line.Str.?.set(self.editor.InitialMarginRight, 'R');
                 } else {
                     while (i <= types.MaxStrLen) : (i += 1) {
                         if (frame.TabStops[@intCast(i)]) {
-                            first_line.Str.?.Set(i, 'T');
+                            first_line.Str.?.set(i, 'T');
                         }
                     }
-                    first_line.Str.?.Set(frame.MarginLeft, 'L');
-                    first_line.Str.?.Set(frame.MarginRight, 'R');
+                    first_line.Str.?.set(frame.MarginLeft, 'L');
+                    first_line.Str.?.set(frame.MarginRight, 'R');
                 }
-                first_line.Used = first_line.Str.?.TrimmedLen(' ', types.MaxStrLen);
+                first_line.Used = first_line.Str.?.trimmedLen(' ', types.MaxStrLen);
                 try line_ops.linesInject(self.allocator, first_line, range.last, frame.Dot.?.Line);
-                try mark_ops.MarkCreate(self.allocator, first_line, frame.Dot.?.Col, &frame.Dot);
+                try mark_ops.markCreate(self.allocator, first_line, frame.Dot.?.Col, &frame.Dot);
                 frame.TextModified = true;
-                try mark_ops.MarkCreate(self.allocator, first_line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+                try mark_ops.markCreate(self.allocator, first_line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
             },
             'R' => {
                 var i: isize = 1;
@@ -451,7 +451,7 @@ const TparParser = struct {
                 const MarginState = enum { none, left, right };
                 var last_margin: MarginState = .none;
                 while (i <= frame.Dot.?.Line.Used and legal) : (i += 1) {
-                    const chi = chars.ChToUpper(frame.Dot.?.Line.Str.?.Get(i));
+                    const chi = chars.chToUpper(frame.Dot.?.Line.Str.?.get(i));
                     legal = chi == 'T' or chi == 'L' or chi == 'R' or chi == ' ';
                     switch (chi) {
                         'L' => {
@@ -473,7 +473,7 @@ const TparParser = struct {
 
                 i = 1;
                 while (i <= frame.Dot.?.Line.Used) : (i += 1) {
-                    const chi = chars.ChToUpper(frame.Dot.?.Line.Str.?.Get(i));
+                    const chi = chars.chToUpper(frame.Dot.?.Line.Str.?.get(i));
                     const value = chi != ' ';
                     if (set_initial) {
                         self.editor.InitialTabStops[@intCast(i)] = value;
@@ -499,7 +499,7 @@ const TparParser = struct {
 
                 const first_line = frame.Dot.?.Line;
                 const dot_col = frame.Dot.?.Col;
-                try mark_ops.MarksSqueeze(self.allocator, first_line, 1, first_line.FLink.?, 1);
+                try mark_ops.marksSqueeze(self.allocator, first_line, 1, first_line.FLink.?, 1);
                 line_ops.linesExtract(first_line, first_line);
                 frame.Dot.?.Col = dot_col;
             },
@@ -783,9 +783,9 @@ fn buildInteractiveParameterLines(
     const default_v_margins = try renderMarginsSummary(allocator, editor.InitialMarginTop, editor.InitialMarginBottom);
     const introducer = try renderCommandIntroducerSummary(editor, allocator);
     const unused_memory = try renderInt(allocator, frame.SpaceLeft, 9);
-    const line_count = try renderInt(allocator, line_ops.LineToNumber(frame.LastGroup.?.LastLine.?) - 1, 9);
+    const line_count = try renderInt(allocator, line_ops.lineToNumber(frame.LastGroup.?.LastLine.?) - 1, 9);
     const input_count = try renderInt(allocator, frame.InputCount, 9);
-    const current_line = try renderInt(allocator, line_ops.LineToNumber(frame.Dot.?.Line), 9);
+    const current_line = try renderInt(allocator, line_ops.lineToNumber(frame.Dot.?.Line), 9);
     const current_space_limit = try renderInt(allocator, frame.SpaceLimit, 9);
     const default_space_limit = try renderInt(allocator, editor.FileData.Space, 9);
     const current_scr_height = try renderInt(allocator, frame.ScrHeight, 9);
@@ -905,7 +905,7 @@ fn showInteractiveParameters(
             }
 
             var request = types.TParObject{
-                .Str = try str_object.NewStrObjectFrom(temp, response),
+                .Str = try str_object.newStrObjectFrom(temp, response),
                 .Len = @intCast(response.len),
             };
             if (!try setParam(editor, temp, frame, &request)) {
@@ -1078,7 +1078,7 @@ test "frame parameter updates batch-safe state values" {
 
     const request = "K=O,O=(I,-N),S=1200,H=24,W=100,M=(5,80),V=(2,3),T=(4,8,12),$S=2200,$W=120";
     var tpar = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, request),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, request),
         .Len = request.len,
     };
     try std.testing.expect(try FrameParameter(&editor, allocator, frame, &tpar));
@@ -1110,7 +1110,7 @@ test "frame parameter accepts named command introducers in screen mode" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
     var tpar = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "C=FUNCTION-1"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "C=FUNCTION-1"),
         .Len = "C=FUNCTION-1".len,
     };
 
@@ -1127,7 +1127,7 @@ test "frame parameter reports unrecognized named introducers" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
     var tpar = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "C=BOGUS"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "C=BOGUS"),
         .Len = "C=BOGUS".len,
     };
 
@@ -1146,21 +1146,21 @@ test "frame parameter queues validation messages in screen mode" {
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
 
     var bad_mode = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "K=X"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "K=X"),
         .Len = "K=X".len,
     };
     try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &bad_mode)));
     try std.testing.expectEqualStrings(mode_error_message, interactive_io.takeStatusMessage().?);
 
     var bad_option = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "O=Z"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "O=Z"),
         .Len = "O=Z".len,
     };
     try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &bad_option)));
     try std.testing.expectEqualStrings(unknown_option_message, interactive_io.takeStatusMessage().?);
 
     var bad_height = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "H=999"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "H=999"),
         .Len = "H=999".len,
     };
     try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &bad_height)));
@@ -1174,27 +1174,27 @@ test "frame parameter tab ruler operations update text and tab stops" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha beta"});
     const frame = fixture.frame;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 3, &frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 3, &frame.Dot);
 
     var insert = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "T=I"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "T=I"),
         .Len = 3,
     };
     try std.testing.expect(try FrameParameter(&editor, allocator, frame, &insert));
     try std.testing.expect(frame.TextModified);
     const ruler_line = frame.FirstGroup.?.FirstLine.?;
     try std.testing.expect(ruler_line != fixture.content_lines[0]);
-    try std.testing.expect(ruler_line.Str.?.Get(frame.MarginLeft) == 'L');
-    try std.testing.expect(ruler_line.Str.?.Get(frame.MarginRight) == 'R');
+    try std.testing.expect(ruler_line.Str.?.get(frame.MarginLeft) == 'L');
+    try std.testing.expect(ruler_line.Str.?.get(frame.MarginRight) == 'R');
 
     const current = frame.Dot.?.Line;
-    try line_ops.LineChangeLength(allocator, current, 12);
+    try line_ops.lineChangeLength(allocator, current, 12);
     try line_ops.setLineContent(current, "L  T   T R");
     current.ScrRowNr = 1;
     frame.ScrHeight = 24;
 
     var apply = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, "T=R"),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "T=R"),
         .Len = 3,
     };
     try std.testing.expect(try FrameParameter(&editor, allocator, frame, &apply));

@@ -27,8 +27,8 @@ pub fn SpanFind(
     }
     if (ptr.* != null and std.mem.eql(u8, ptr.*.?.Name, span_name)) {
         if (ptr.*.?.Frame) |frame| {
-            try mark_ops.MarkCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &ptr.*.?.MarkOne);
-            try mark_ops.MarkCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &ptr.*.?.MarkTwo);
+            try mark_ops.markCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &ptr.*.?.MarkOne);
+            try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &ptr.*.?.MarkTwo);
         }
         return true;
     }
@@ -52,7 +52,7 @@ pub fn SpanCreate(
             return false;
         }
         if (found.?.Code != null) {
-            code_store.CodeDiscard(editor, &found.?.Code);
+            code_store.codeDiscard(editor, &found.?.Code);
         }
         mark_one = found.?.MarkOne;
         mark_two = found.?.MarkTwo;
@@ -74,11 +74,11 @@ pub fn SpanCreate(
         found = span;
     }
 
-    try mark_ops.MarkCreate(allocator, first_mark.Line, first_mark.Col, &mark_one);
-    try mark_ops.MarkCreate(allocator, last_mark.Line, last_mark.Col, &mark_two);
+    try mark_ops.markCreate(allocator, first_mark.Line, first_mark.Col, &mark_one);
+    try mark_ops.markCreate(allocator, last_mark.Line, last_mark.Col, &mark_two);
 
-    const line_nr_first = line_ops.LineToNumber(mark_one.?.Line);
-    const line_nr_last = line_ops.LineToNumber(mark_two.?.Line);
+    const line_nr_first = line_ops.lineToNumber(mark_one.?.Line);
+    const line_nr_last = line_ops.lineToNumber(mark_two.?.Line);
     found.?.Frame = null;
     if (line_nr_first < line_nr_last or (line_nr_first == line_nr_last and mark_one.?.Col < mark_two.?.Col)) {
         found.?.MarkOne = mark_one;
@@ -103,7 +103,7 @@ pub fn SpanDestroy(
         return false;
     }
     if (span.Code != null) {
-        code_store.CodeDiscard(editor, &span.Code);
+        code_store.codeDiscard(editor, &span.Code);
     }
     if (span.BLink) |back| {
         back.FLink = span.FLink;
@@ -113,8 +113,8 @@ pub fn SpanDestroy(
     if (span.FLink) |forward| {
         forward.BLink = span.BLink;
     }
-    mark_ops.MarkDestroy(allocator, &span.MarkOne);
-    mark_ops.MarkDestroy(allocator, &span.MarkTwo);
+    mark_ops.markDestroy(allocator, &span.MarkOne);
+    mark_ops.markDestroy(allocator, &span.MarkTwo);
     span_slot.* = null;
     return true;
 }
@@ -130,12 +130,12 @@ fn renderSpanLine(allocator: std.mem.Allocator, span: *types.SpanObject) ![]cons
             continuation = mark_two.Col - mark_one.Col > types.NameLen;
             const to_copy = @min(mark_two.Col - mark_one.Col, types.NameLen);
             if (to_copy > 0) {
-                preview = mark_one.Line.Str.?.Slice(mark_one.Col, to_copy);
+                preview = mark_one.Line.Str.?.slice(mark_one.Col, to_copy);
             }
         } else {
             const to_copy = @min(mark_one.Line.Used + 1 - mark_one.Col, types.NameLen);
             if (to_copy > 0) {
-                preview = mark_one.Line.Str.?.Slice(mark_one.Col, to_copy);
+                preview = mark_one.Line.Str.?.slice(mark_one.Col, to_copy);
             }
         }
     }
@@ -175,13 +175,13 @@ fn replaceReportFrame(
 
     const sentinel = frame.LastGroup.?.LastLine.?;
     if (lines.len > 0) {
-        const range = try line_ops.LinesCreate(allocator, lines.len);
+        const range = try line_ops.linesCreate(allocator, lines.len);
         try line_ops.linesInject(allocator, range.first, range.last, sentinel);
 
         var line = range.first;
         for (lines, 0..) |content, index| {
             if (content.len > 0) {
-                try line_ops.LineChangeLength(allocator, line, @intCast(content.len));
+                try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
                 try line_ops.setLineContent(line, content);
             } else {
                 line.Used = 0;
@@ -193,11 +193,11 @@ fn replaceReportFrame(
     }
 
     const first_line = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.MarkCreate(allocator, first_line, 1, &span.MarkOne);
-    try mark_ops.MarkCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
-    try mark_ops.MarkCreate(allocator, first_line, 1, &frame.Dot);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkEquals]);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, first_line, 1, &span.MarkOne);
+    try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    try mark_ops.markCreate(allocator, first_line, 1, &frame.Dot);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
     frame.TextModified = false;
     return true;
 }
@@ -432,8 +432,8 @@ test "span create find and destroy maintain ordering" {
     const fixture = try line_ops.setupLinkedLines(allocator, 3);
     var first_mark: ?*types.MarkObject = null;
     var last_mark: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &first_mark);
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 10, &last_mark);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &first_mark);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 10, &last_mark);
 
     try std.testing.expect(try SpanCreate(&editor, allocator, "charlie", first_mark.?, last_mark.?));
     try std.testing.expect(try SpanCreate(&editor, allocator, "alpha", first_mark.?, last_mark.?));
@@ -463,14 +463,14 @@ test "span create normalizes reversed marks and supports redefine" {
     var mark2: ?*types.MarkObject = null;
     var mark3: ?*types.MarkObject = null;
     var mark4: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 15, &mark1);
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 5, &mark2);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 15, &mark1);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 5, &mark2);
     try std.testing.expect(try SpanCreate(&editor, allocator, "ordered", mark1.?, mark2.?));
     try std.testing.expectEqual(@as(isize, 5), editor.FirstSpan.?.MarkOne.?.Col);
     try std.testing.expectEqual(@as(isize, 15), editor.FirstSpan.?.MarkTwo.?.Col);
 
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 7, &mark3);
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[1], 2, &mark4);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 7, &mark3);
+    try mark_ops.markCreate(allocator, fixture.content_lines[1], 2, &mark4);
     try std.testing.expect(try SpanCreate(&editor, allocator, "ordered", mark3.?, mark4.?));
     try std.testing.expect(editor.FirstSpan.?.MarkOne.?.Line == fixture.content_lines[0]);
     try std.testing.expect(editor.FirstSpan.?.MarkTwo.?.Line == fixture.content_lines[1]);
@@ -509,8 +509,8 @@ test "span index writes a non-interactive report into the target frame" {
     });
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, source.content_lines[0], 2, &mark_one);
-    try mark_ops.MarkCreate(allocator, source.content_lines[1], 2, &mark_two);
+    try mark_ops.markCreate(allocator, source.content_lines[0], 2, &mark_one);
+    try mark_ops.markCreate(allocator, source.content_lines[1], 2, &mark_two);
     try std.testing.expect(try SpanCreate(&editor, allocator, "NOTE", mark_one.?, mark_two.?));
 
     const command = (try frame_ops.FrameEdit(&editor, allocator, source.frame, "COMMAND")).?;

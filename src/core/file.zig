@@ -108,13 +108,13 @@ fn replaceReportFrame(
 
     const sentinel = frame.LastGroup.?.LastLine.?;
     if (lines.len > 0) {
-        const range = try line_ops.LinesCreate(allocator, lines.len);
+        const range = try line_ops.linesCreate(allocator, lines.len);
         try line_ops.linesInject(allocator, range.first, range.last, sentinel);
 
         var line = range.first;
         for (lines, 0..) |content, index| {
             if (content.len > 0) {
-                try line_ops.LineChangeLength(allocator, line, @intCast(content.len));
+                try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
                 try line_ops.setLineContent(line, content);
             } else {
                 line.Used = 0;
@@ -126,11 +126,11 @@ fn replaceReportFrame(
     }
 
     const first_line = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.MarkCreate(allocator, first_line, 1, &span.MarkOne);
-    try mark_ops.MarkCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
-    try mark_ops.MarkCreate(allocator, first_line, 1, &frame.Dot);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkEquals]);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, first_line, 1, &span.MarkOne);
+    try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    try mark_ops.markCreate(allocator, first_line, 1, &frame.Dot);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
     frame.TextModified = false;
     return true;
 }
@@ -208,14 +208,14 @@ fn cloneLineRange(
     last: *const types.LineHdrObject,
 ) !line_ops.LineRange {
     const line_count = countRange(first, last) orelse return error.InvalidLineRange;
-    const range = try line_ops.LinesCreate(allocator, line_count);
+    const range = try line_ops.linesCreate(allocator, line_count);
 
     var src = first;
     var dst = range.first;
     while (true) {
         if (src.Used > 0) {
-            try line_ops.LineChangeLength(allocator, dst, src.Used);
-            try line_ops.setLineContent(dst, src.Str.?.Slice(1, src.Used));
+            try line_ops.lineChangeLength(allocator, dst, src.Used);
+            try line_ops.setLineContent(dst, src.Str.?.slice(1, src.Used));
         } else {
             dst.Used = 0;
         }
@@ -247,11 +247,11 @@ fn buildLineRangeFromContents(
         return null;
     }
 
-    const range = try line_ops.LinesCreate(allocator, contents.len);
+    const range = try line_ops.linesCreate(allocator, contents.len);
     var line = range.first;
     for (contents, 0..) |content, index| {
         if (content.len > 0) {
-            try line_ops.LineChangeLength(allocator, line, @intCast(content.len));
+            try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
             try line_ops.setLineContent(line, content);
         } else {
             line.Used = 0;
@@ -384,9 +384,9 @@ fn appendLineBytesToFile(
     file: *types.FileObject,
     content: []const u8,
 ) !void {
-    const range = try line_ops.LinesCreate(allocator, 1);
+    const range = try line_ops.linesCreate(allocator, 1);
     if (content.len > 0) {
-        try line_ops.LineChangeLength(allocator, range.first, @intCast(content.len));
+        try line_ops.lineChangeLength(allocator, range.first, @intCast(content.len));
         try line_ops.setLineContent(range.first, content);
     } else {
         range.first.Used = 0;
@@ -839,8 +839,8 @@ fn computeLineRange(
                     return null;
                 }
             } else {
-                const line_nr = line_ops.LineToNumber(first_line.?);
-                last_line = line_ops.LineFromNumber(frame, line_nr + count - 1) orelse return null;
+                const line_nr = line_ops.lineToNumber(first_line.?);
+                last_line = line_ops.lineFromNumber(frame, line_nr + count - 1) orelse return null;
                 if (last_line.?.FLink == null) {
                     return null;
                 }
@@ -855,12 +855,12 @@ fn computeLineRange(
                     first_line = first_line.?.BLink orelse return null;
                 }
             } else {
-                var line_nr = line_ops.LineToNumber(last_line.?);
+                var line_nr = line_ops.lineToNumber(last_line.?);
                 if (abs_count > line_nr) {
                     return null;
                 }
                 line_nr = line_nr - abs_count + 1;
-                first_line = line_ops.LineFromNumber(frame, line_nr);
+                first_line = line_ops.lineFromNumber(frame, line_nr);
             }
         },
         .LeadParamPIndef => {
@@ -888,8 +888,8 @@ fn computeLineRange(
             } else if (mark_line.Line.BLink == first_line.?) {
                 last_line = first_line.?;
             } else {
-                const mark_line_nr = line_ops.LineToNumber(mark_line.Line);
-                const line_nr = line_ops.LineToNumber(dot.Line);
+                const mark_line_nr = line_ops.lineToNumber(mark_line.Line);
+                const line_nr = line_ops.lineToNumber(dot.Line);
                 if (mark_line_nr < line_nr) {
                     first_line = mark_line.Line;
                     last_line = last_line.?.BLink;
@@ -922,11 +922,11 @@ pub fn fileReadCommand(
     if (read_result.first) |first| {
         const last = read_result.last.?;
         try line_ops.linesInject(allocator, first, last, frame.Dot.?.Line);
-        try mark_ops.MarkCreate(allocator, first, 1, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, first, 1, &frame.Marks[types.MarkEquals]);
         frame.TextModified = true;
         const after = last.FLink.?;
-        try mark_ops.MarkCreate(allocator, after, 1, &frame.Marks[types.MarkModified]);
-        try mark_ops.MarkCreate(allocator, after, 1, &frame.Dot);
+        try mark_ops.markCreate(allocator, after, 1, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, after, 1, &frame.Dot);
     }
     return true;
 }
@@ -966,7 +966,7 @@ pub fn filePage(
             }
         }
         const after = last.FLink orelse return false;
-        try mark_ops.MarksSqueeze(allocator, first, 1, after, 1);
+        try mark_ops.marksSqueeze(allocator, first, 1, after, 1);
         line_ops.linesExtract(first, last);
     }
 
@@ -983,7 +983,7 @@ pub fn filePage(
         }
         try line_ops.linesInject(allocator, read_result.first.?, read_result.last.?, frame.LastGroup.?.LastLine.?);
         if (frame.Dot.?.Line.FLink == null) {
-            try mark_ops.MarkCreate(allocator, read_result.first.?, frame.Dot.?.Col, &frame.Dot);
+            try mark_ops.markCreate(allocator, read_result.first.?, frame.Dot.?.Col, &frame.Dot);
         }
     }
 
@@ -997,8 +997,8 @@ fn refreshFrameSpanMarks(
     frame: *types.FrameObject,
 ) !void {
     if (frame.Span) |span| {
-        try mark_ops.MarkCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-        try mark_ops.MarkCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+        try mark_ops.markCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
+        try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
     }
 }
 
@@ -1009,13 +1009,13 @@ fn clearFrameText(
     const sentinel = frame.LastGroup.?.LastLine.?;
     const last_content = sentinel.BLink;
     if (last_content == null) {
-        try mark_ops.MarkCreate(allocator, sentinel, 1, &frame.Dot);
+        try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
         try refreshFrameSpanMarks(allocator, frame);
         return;
     }
 
     const first_content = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.MarksSqueeze(allocator, first_content, 1, sentinel, 1);
+    try mark_ops.marksSqueeze(allocator, first_content, 1, sentinel, 1);
     first_content.BLink = null;
     last_content.?.FLink = null;
     sentinel.BLink = null;
@@ -1031,8 +1031,8 @@ fn clearFrameText(
     empty_group.FirstLineNr = 1;
     empty_group.NrLines = 0;
 
-    try line_ops.LineChangeLength(allocator, sentinel, 0);
-    try mark_ops.MarkCreate(allocator, sentinel, 1, &frame.Dot);
+    try line_ops.lineChangeLength(allocator, sentinel, 0);
+    try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
     try refreshFrameSpanMarks(allocator, frame);
 }
 
@@ -1063,7 +1063,7 @@ fn injectFileIntoFrame(
         const cloned = try cloneLineRange(allocator, source_first.?, source_last.?);
         try line_ops.linesInject(allocator, cloned.first, cloned.last, frame.LastGroup.?.LastLine.?);
         if (frame.Dot.?.Line.FLink == null) {
-            try mark_ops.MarkCreate(allocator, cloned.first, frame.Dot.?.Col, &frame.Dot);
+            try mark_ops.markCreate(allocator, cloned.first, frame.Dot.?.Col, &frame.Dot);
         }
     }
 
@@ -1291,7 +1291,7 @@ pub fn fileSaveCommand(
     }
 
     frame.TextModified = false;
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkModified]);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
     return true;
 }
 
@@ -1646,7 +1646,7 @@ test "file save appends frame and unread input to output buffer" {
     editor.FilesFrames[2] = fixture.frame;
     fixture.frame.OutputFile = 2;
     fixture.frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].Used + 1, &fixture.frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].Used + 1, &fixture.frame.Marks[types.MarkModified]);
 
     try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
     try std.testing.expect(!fixture.frame.TextModified);
@@ -1765,7 +1765,7 @@ test "file save rotates disk backups and updates memory file" {
     editor.FilesFrames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
     fixture.frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].Used + 1, &fixture.frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].Used + 1, &fixture.frame.Marks[types.MarkModified]);
 
     try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
 

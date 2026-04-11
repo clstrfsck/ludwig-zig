@@ -6,11 +6,11 @@ pub const StrObject = struct {
     allocator: std.mem.Allocator,
     array: []u8,
 
-    pub fn Size(self: *const StrObject) usize {
+    pub fn size(self: *const StrObject) usize {
         return self.array.len;
     }
 
-    pub fn Len(self: *const StrObject) usize {
+    pub fn len(self: *const StrObject) usize {
         return self.array.len;
     }
 
@@ -43,22 +43,22 @@ pub const StrObject = struct {
         return @intCast(index + offset - MinIndex);
     }
 
-    pub fn Get(self: *const StrObject, index: isize) u8 {
+    pub fn get(self: *const StrObject, index: isize) u8 {
         return self.array[self.adjustIndex(index, 0)];
     }
 
-    pub fn Set(self: *StrObject, index: isize, value: u8) void {
+    pub fn set(self: *StrObject, index: isize, value: u8) void {
         self.array[self.adjustIndex(index, 0)] = value;
     }
 
-    pub fn Assign(self: *StrObject, str: []const u8) !void {
+    pub fn assign(self: *StrObject, str: []const u8) !void {
         if (self.array.len < str.len) {
             self.array = try self.allocator.realloc(self.array, str.len);
         }
-        self.FillCopyBytes(str, 1, @intCast(self.array.len), ' ');
+        self.fillCopyBytes(str, 1, @intCast(self.array.len), ' ');
     }
 
-    pub fn Clone(self: *const StrObject) !*StrObject {
+    pub fn clone(self: *const StrObject) !*StrObject {
         const result = try self.allocator.create(StrObject);
         result.* = .{
             .allocator = self.allocator,
@@ -68,7 +68,7 @@ pub const StrObject = struct {
         return result;
     }
 
-    pub fn EqualAt(
+    pub fn equalAt(
         self: *const StrObject,
         other: *const StrObject,
         n: isize,
@@ -89,7 +89,7 @@ pub const StrObject = struct {
         );
     }
 
-    pub fn ApplyN(
+    pub fn applyN(
         self: *StrObject,
         comptime f: fn (u8) u8,
         n: isize,
@@ -105,7 +105,7 @@ pub const StrObject = struct {
         }
     }
 
-    pub fn Copy(
+    pub fn copy(
         self: *StrObject,
         src: *const StrObject,
         srcOffset: isize,
@@ -119,15 +119,15 @@ pub const StrObject = struct {
         self.checkIndex(dstOffset, count - 1);
         const src_idx = src.adjustIndex(srcOffset, 0);
         const dst_idx = self.adjustIndex(dstOffset, 0);
-        const len: usize = @intCast(count);
-        if (@intFromPtr(self.array.ptr) == @intFromPtr(src.array.ptr) and dst_idx > src_idx and src_idx + len > dst_idx) {
-            std.mem.copyBackwards(u8, self.array[dst_idx .. dst_idx + len], src.array[src_idx .. src_idx + len]);
+        const copy_len: usize = @intCast(count);
+        if (@intFromPtr(self.array.ptr) == @intFromPtr(src.array.ptr) and dst_idx > src_idx and src_idx + copy_len > dst_idx) {
+            std.mem.copyBackwards(u8, self.array[dst_idx .. dst_idx + copy_len], src.array[src_idx .. src_idx + copy_len]);
         } else {
-            std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + len], src.array[src_idx .. src_idx + len]);
+            std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src.array[src_idx .. src_idx + copy_len]);
         }
     }
 
-    pub fn CopyN(
+    pub fn copyN(
         self: *StrObject,
         src: []const u8,
         count: isize,
@@ -138,11 +138,11 @@ pub const StrObject = struct {
         }
         self.checkIndex(dstOffset, count - 1);
         const dst_idx = self.adjustIndex(dstOffset, 0);
-        const len: usize = @intCast(count);
-        std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + len], src[0..len]);
+        const copy_len: usize = @intCast(count);
+        std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src[0..copy_len]);
     }
 
-    pub fn Erase(self: *StrObject, n: isize, from: isize) void {
+    pub fn erase(self: *StrObject, n: isize, from: isize) void {
         if (n <= 0) {
             return;
         }
@@ -150,10 +150,10 @@ pub const StrObject = struct {
         const dst_idx = self.adjustIndex(from, 0);
         const count: usize = @intCast(n);
         std.mem.copyForwards(u8, self.array[dst_idx .. self.array.len - count], self.array[dst_idx + count ..]);
-        self.Fill(' ', @intCast(@as(isize, @intCast(self.array.len)) - n + 1), @intCast(self.array.len));
+        self.fill(' ', @intCast(@as(isize, @intCast(self.array.len)) - n + 1), @intCast(self.array.len));
     }
 
-    pub fn Fill(self: *StrObject, value: u8, start: isize, end: isize) void {
+    pub fn fill(self: *StrObject, value: u8, start: isize, end: isize) void {
         if (start > end) {
             return;
         }
@@ -162,14 +162,14 @@ pub const StrObject = struct {
         @memset(self.array[start_idx..end_idx], value);
     }
 
-    pub fn FillN(self: *StrObject, value: u8, n: isize, start: isize) void {
+    pub fn fillN(self: *StrObject, value: u8, n: isize, start: isize) void {
         if (n <= 0) {
             return;
         }
-        self.Fill(value, start, start + n - 1);
+        self.fill(value, start, start + n - 1);
     }
 
-    pub fn FillCopy(
+    pub fn fillCopy(
         self: *StrObject,
         src: *const StrObject,
         srcIndex: isize,
@@ -183,18 +183,18 @@ pub const StrObject = struct {
         }
         self.checkIndex(dstIndex, dstLen - 1);
         const dst_idx = self.adjustIndex(dstIndex, 0);
-        const len: usize = @intCast(@min(srcLen, dstLen));
-        if (len > 0) {
-            src.checkIndex(srcIndex, @intCast(len - 1));
+        const copy_len: usize = @intCast(@min(srcLen, dstLen));
+        if (copy_len > 0) {
+            src.checkIndex(srcIndex, @intCast(copy_len - 1));
             const src_idx = src.adjustIndex(srcIndex, 0);
-            std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + len], src.array[src_idx .. src_idx + len]);
+            std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src.array[src_idx .. src_idx + copy_len]);
         }
-        if (@as(isize, @intCast(len)) < dstLen) {
-            @memset(self.array[dst_idx + len .. dst_idx + @as(usize, @intCast(dstLen))], value);
+        if (@as(isize, @intCast(copy_len)) < dstLen) {
+            @memset(self.array[dst_idx + copy_len .. dst_idx + @as(usize, @intCast(dstLen))], value);
         }
     }
 
-    pub fn FillCopyBytes(
+    pub fn fillCopyBytes(
         self: *StrObject,
         src: []const u8,
         dstIndex: isize,
@@ -208,16 +208,16 @@ pub const StrObject = struct {
         }
         self.checkIndex(dstIndex, clamped_dst_len - 1);
         const dst_idx = self.adjustIndex(dstIndex, 0);
-        const len: usize = @min(src.len, @as(usize, @intCast(clamped_dst_len)));
-        if (len > 0) {
-            std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + len], src[0..len]);
+        const copy_len: usize = @min(src.len, @as(usize, @intCast(clamped_dst_len)));
+        if (copy_len > 0) {
+            std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src[0..copy_len]);
         }
-        if (@as(isize, @intCast(len)) < clamped_dst_len) {
-            @memset(self.array[dst_idx + len .. dst_idx + @as(usize, @intCast(clamped_dst_len))], value);
+        if (@as(isize, @intCast(copy_len)) < clamped_dst_len) {
+            @memset(self.array[dst_idx + copy_len .. dst_idx + @as(usize, @intCast(clamped_dst_len))], value);
         }
     }
 
-    pub fn Insert(self: *StrObject, n: isize, at: isize) void {
+    pub fn insert(self: *StrObject, n: isize, at: isize) void {
         if (n <= 0) {
             return;
         }
@@ -233,7 +233,7 @@ pub const StrObject = struct {
         );
     }
 
-    pub fn TrimmedLen(self: *const StrObject, value: u8, from: isize) isize {
+    pub fn trimmedLen(self: *const StrObject, value: u8, from: isize) isize {
         var cursor = @min(from, @as(isize, @intCast(self.array.len)));
         while (cursor > 0) : (cursor -= 1) {
             if (self.array[@as(usize, @intCast(cursor - 1))] != value) {
@@ -243,7 +243,7 @@ pub const StrObject = struct {
         return 0;
     }
 
-    pub fn Slice(self: *const StrObject, index: isize, length: isize) []const u8 {
+    pub fn slice(self: *const StrObject, index: isize, length: isize) []const u8 {
         if (length == 0) {
             return "";
         }
@@ -252,16 +252,16 @@ pub const StrObject = struct {
         return self.array[idx .. idx + @as(usize, @intCast(length))];
     }
 
-    pub fn String(self: *const StrObject) []const u8 {
+    pub fn string(self: *const StrObject) []const u8 {
         return self.array;
     }
 
-    pub fn TrimmedString(self: *const StrObject) []const u8 {
-        const length = self.TrimmedLen(' ', @intCast(self.array.len));
+    pub fn trimmedString(self: *const StrObject) []const u8 {
+        const length = self.trimmedLen(' ', @intCast(self.array.len));
         return self.array[0..@as(usize, @intCast(length))];
     }
 
-    pub fn Compare(self: *const StrObject, other: *const StrObject) isize {
+    pub fn compare(self: *const StrObject, other: *const StrObject) isize {
         return switch (std.mem.order(u8, self.array, other.array)) {
             .lt => -1,
             .eq => 0,
@@ -269,16 +269,16 @@ pub const StrObject = struct {
         };
     }
 
-    pub fn Equal(self: *const StrObject, other: *const StrObject) bool {
+    pub fn equal(self: *const StrObject, other: *const StrObject) bool {
         return std.mem.eql(u8, self.array, other.array);
     }
 
-    pub fn Bytes(self: *const StrObject) ![]u8 {
+    pub fn bytes(self: *const StrObject) ![]u8 {
         return self.allocator.dupe(u8, self.array);
     }
 };
 
-pub fn NewBlankStrObject(allocator: std.mem.Allocator, size: usize) !*StrObject {
+pub fn newBlankStrObject(allocator: std.mem.Allocator, size: usize) !*StrObject {
     const result = try allocator.create(StrObject);
     result.* = .{
         .allocator = allocator,
@@ -288,7 +288,7 @@ pub fn NewBlankStrObject(allocator: std.mem.Allocator, size: usize) !*StrObject 
     return result;
 }
 
-pub fn NewStrObjectFrom(allocator: std.mem.Allocator, str: []const u8) !*StrObject {
+pub fn newStrObjectFrom(allocator: std.mem.Allocator, str: []const u8) !*StrObject {
     const result = try allocator.create(StrObject);
     result.* = .{
         .allocator = allocator,
@@ -297,27 +297,27 @@ pub fn NewStrObjectFrom(allocator: std.mem.Allocator, str: []const u8) !*StrObje
     return result;
 }
 
-pub fn NewStrObjectCopy(
+pub fn newStrObjectCopy(
     allocator: std.mem.Allocator,
     src: *const StrObject,
     srcIndex: isize,
     srcLen: isize,
     dstLen: isize,
 ) !*StrObject {
-    const result = try NewBlankStrObject(allocator, @intCast(dstLen));
-    result.Copy(src, srcIndex, @min(srcLen, dstLen), 1);
+    const result = try newBlankStrObject(allocator, @intCast(dstLen));
+    result.copy(src, srcIndex, @min(srcLen, dstLen), 1);
     if (srcLen < dstLen) {
-        result.Fill(' ', srcLen + 1, dstLen);
+        result.fill(' ', srcLen + 1, dstLen);
     }
     return result;
 }
 
 test "blank string object contains blanks" {
     const allocator = std.testing.allocator;
-    const s = try NewBlankStrObject(allocator, 8);
+    const s = try newBlankStrObject(allocator, 8);
     defer s.destroy();
 
-    try std.testing.expectEqual(@as(usize, 8), s.Len());
+    try std.testing.expectEqual(@as(usize, 8), s.len());
     for (s.array) |ch| {
         try std.testing.expectEqual(' ', ch);
     }
@@ -325,80 +325,80 @@ test "blank string object contains blanks" {
 
 test "get set and 1-based indexing" {
     const allocator = std.testing.allocator;
-    const s = try NewBlankStrObject(allocator, 10);
+    const s = try newBlankStrObject(allocator, 10);
     defer s.destroy();
 
-    s.Set(1, 'A');
-    s.Set(10, 'Z');
-    try std.testing.expectEqual('A', s.Get(1));
-    try std.testing.expectEqual('Z', s.Get(10));
+    s.set(1, 'A');
+    s.set(10, 'Z');
+    try std.testing.expectEqual('A', s.get(1));
+    try std.testing.expectEqual('Z', s.get(10));
 }
 
 test "assign pads with spaces" {
     const allocator = std.testing.allocator;
-    const s = try NewBlankStrObject(allocator, 8);
+    const s = try newBlankStrObject(allocator, 8);
     defer s.destroy();
 
-    try s.Assign("Hello");
-    try std.testing.expectEqualStrings("Hello", s.Slice(1, 5));
-    try std.testing.expectEqual(' ', s.Get(6));
+    try s.assign("Hello");
+    try std.testing.expectEqualStrings("Hello", s.slice(1, 5));
+    try std.testing.expectEqual(' ', s.get(6));
 }
 
 test "clone produces an independent copy" {
     const allocator = std.testing.allocator;
-    const original = try NewBlankStrObject(allocator, 8);
+    const original = try newBlankStrObject(allocator, 8);
     defer original.destroy();
-    original.Set(2, 'B');
+    original.set(2, 'B');
 
-    const clone = try original.Clone();
+    const clone = try original.clone();
     defer clone.destroy();
-    clone.Set(2, 'X');
+    clone.set(2, 'X');
 
-    try std.testing.expectEqual('B', original.Get(2));
-    try std.testing.expectEqual('X', clone.Get(2));
+    try std.testing.expectEqual('B', original.get(2));
+    try std.testing.expectEqual('X', clone.get(2));
 }
 
 test "erase shifts and fills vacated space" {
     const allocator = std.testing.allocator;
-    const s = try NewStrObjectFrom(allocator, "ABCDEFGHIJ");
+    const s = try newStrObjectFrom(allocator, "ABCDEFGHIJ");
     defer s.destroy();
 
-    s.Erase(3, 4);
-    try std.testing.expectEqualStrings("ABCGHIJ", s.TrimmedString());
-    try std.testing.expectEqual(' ', s.Get(8));
-    try std.testing.expectEqual(' ', s.Get(9));
-    try std.testing.expectEqual(' ', s.Get(10));
+    s.erase(3, 4);
+    try std.testing.expectEqualStrings("ABCGHIJ", s.trimmedString());
+    try std.testing.expectEqual(' ', s.get(8));
+    try std.testing.expectEqual(' ', s.get(9));
+    try std.testing.expectEqual(' ', s.get(10));
 }
 
 test "fill copy bytes truncates and pads" {
     const allocator = std.testing.allocator;
-    const s = try NewBlankStrObject(allocator, 8);
+    const s = try newBlankStrObject(allocator, 8);
     defer s.destroy();
 
-    s.FillCopyBytes("Hello", 1, 8, '-');
-    try std.testing.expectEqualStrings("Hello---", s.String());
+    s.fillCopyBytes("Hello", 1, 8, '-');
+    try std.testing.expectEqualStrings("Hello---", s.string());
 }
 
 test "trimmed length and slice preserve semantics" {
     const allocator = std.testing.allocator;
-    const s = try NewBlankStrObject(allocator, 12);
+    const s = try newBlankStrObject(allocator, 12);
     defer s.destroy();
 
-    try s.Assign("Hello  ");
-    try std.testing.expectEqual(@as(isize, 5), s.TrimmedLen(' ', 12));
-    try std.testing.expectEqualStrings("ell", s.Slice(2, 3));
+    try s.assign("Hello  ");
+    try std.testing.expectEqual(@as(isize, 5), s.trimmedLen(' ', 12));
+    try std.testing.expectEqualStrings("ell", s.slice(2, 3));
 }
 
 test "compare and equal match byte ordering" {
     const allocator = std.testing.allocator;
-    const a = try NewStrObjectFrom(allocator, "AAAA");
+    const a = try newStrObjectFrom(allocator, "AAAA");
     defer a.destroy();
-    const b = try NewStrObjectFrom(allocator, "BBBB");
+    const b = try newStrObjectFrom(allocator, "BBBB");
     defer b.destroy();
-    const c = try NewStrObjectFrom(allocator, "AAAA");
+    const c = try newStrObjectFrom(allocator, "AAAA");
     defer c.destroy();
 
-    try std.testing.expect(a.Compare(b) < 0);
-    try std.testing.expect(a.Equal(c));
-    try std.testing.expect(!a.Equal(b));
+    try std.testing.expect(a.compare(b) < 0);
+    try std.testing.expect(a.equal(c));
+    try std.testing.expect(!a.equal(b));
 }

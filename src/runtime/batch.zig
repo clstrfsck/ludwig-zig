@@ -124,9 +124,9 @@ fn makeBatchCommandSpan(
     const fixture = try line_ops.createContentFrame(allocator, lines.items);
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &mark_one);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &mark_one);
     const last = fixture.content_lines[fixture.content_lines.len - 1];
-    try mark_ops.MarkCreate(allocator, last, last.Used + 1, &mark_two);
+    try mark_ops.markCreate(allocator, last, last.Used + 1, &mark_two);
 
     const span = try allocator.create(types.SpanObject);
     span.* = .{
@@ -146,7 +146,7 @@ pub fn startUp(
     input: ?*types.FileObject,
     output: ?*types.FileObject,
 ) !Session {
-    defaults.SetRegularTabStops(editor, editor.FileData.TabWidth);
+    defaults.setRegularTabStops(editor, editor.FileData.TabWidth);
     configureBatchTerminal(editor);
 
     var special_frames: types.SpecialFrames = .{};
@@ -255,7 +255,7 @@ test "batch runtime can edit a file from stdin commands" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-M", "-I", file_path };
-    const parse = try filesys.FileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const parse = try filesys.fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
     try std.testing.expect(parse.ok);
     editor.BatchOutputEnabled = false;
 

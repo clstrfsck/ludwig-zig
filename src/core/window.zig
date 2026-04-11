@@ -15,7 +15,7 @@ fn moveDotTo(
     if (frame.Dot == null) {
         return false;
     }
-    try mark_ops.MarkCreate(allocator, target_line, frame.Dot.?.Col, &frame.Dot);
+    try mark_ops.markCreate(allocator, target_line, frame.Dot.?.Col, &frame.Dot);
     return true;
 }
 
@@ -118,7 +118,7 @@ fn clearVisibleRows(editor: *state.Editor) void {
 }
 
 fn clampTopLine(frame: *types.FrameObject, top_number: isize, height: isize) isize {
-    const last_number = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
     const max_top = @max(@as(isize, 1), last_number - height + 1);
     return @min(@max(top_number, 1), max_top);
 }
@@ -131,7 +131,7 @@ fn setViewport(
 ) void {
     clearVisibleRows(editor);
 
-    const top_line = line_ops.LineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
+    const top_line = line_ops.lineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
     var current = top_line;
     var row: isize = 1;
     var bot_line = top_line;
@@ -153,8 +153,8 @@ fn setViewport(
 
 fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    const dot_number = line_ops.LineToNumber(frame.Dot.?.Line);
-    const last_number = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
+    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
 
     var desired_row = frame.ScrDotLine;
     if (desired_row < 1) {
@@ -177,8 +177,8 @@ fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn positionViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    var top_number = if (editor.Screen.TopLine) |top_line| line_ops.LineToNumber(top_line) else @as(isize, 1);
-    const dot_number = line_ops.LineToNumber(frame.Dot.?.Line);
+    var top_number = if (editor.Screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
+    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
     const bottom_limit = @max(@as(isize, 1), height - frame.MarginBottom);
 
     top_number = clampTopLine(frame, top_number, height);
@@ -230,7 +230,7 @@ fn invalidateViewport(editor: *state.Editor) void {
 
 fn scrollViewport(editor: *state.Editor, frame: *types.FrameObject, count: isize) void {
     syncViewport(editor, frame);
-    const top_number = if (editor.Screen.TopLine) |top_line| line_ops.LineToNumber(top_line) else @as(isize, 1);
+    const top_number = if (editor.Screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
     const height = displayHeight(editor, frame);
     setViewport(editor, frame, clampTopLine(frame, top_number + count, height), height);
 }
@@ -336,19 +336,19 @@ pub fn WindowCommand(
         .CmdWindowBackward => blk: {
             if (frame.Dot == null or count < 0) break :blk false;
             const step = frame.ScrHeight * count;
-            const current_nr = line_ops.LineToNumber(frame.Dot.?.Line);
+            const current_nr = line_ops.lineToNumber(frame.Dot.?.Line);
             const target_nr = if (current_nr <= step) @as(isize, 1) else current_nr - step;
-            const target_line = line_ops.LineFromNumber(frame, target_nr) orelse frame.FirstGroup.?.FirstLine.?;
+            const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.FirstGroup.?.FirstLine.?;
             break :blk try moveDotTo(allocator, frame, target_line);
         },
         .CmdWindowEnd => try moveDotTo(allocator, frame, frame.LastGroup.?.LastLine.?),
         .CmdWindowForward => blk: {
             if (frame.Dot == null or count < 0) break :blk false;
             const step = frame.ScrHeight * count;
-            const current_nr = line_ops.LineToNumber(frame.Dot.?.Line);
-            const last_nr = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+            const current_nr = line_ops.lineToNumber(frame.Dot.?.Line);
+            const last_nr = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
             const target_nr = @min(last_nr, current_nr + step);
-            const target_line = line_ops.LineFromNumber(frame, target_nr) orelse frame.LastGroup.?.LastLine.?;
+            const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.LastGroup.?.LastLine.?;
             break :blk try moveDotTo(allocator, frame, target_line);
         },
         .CmdWindowLeft => blk: {
@@ -375,7 +375,7 @@ pub fn WindowCommand(
         },
         .CmdWindowNew => blk: {
             if (editor.Screen.Frame == frame) {
-                const top_number = if (editor.Screen.TopLine) |top_line| line_ops.LineToNumber(top_line) else line_ops.LineToNumber(frame.Dot.?.Line);
+                const top_number = if (editor.Screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else line_ops.lineToNumber(frame.Dot.?.Line);
                 invalidateViewport(editor);
                 const height = displayHeight(editor, frame);
                 setViewport(editor, frame, clampTopLine(frame, top_number, height), height);
@@ -480,7 +480,7 @@ test "window command moves dot by screen height and clamps" {
         "five",
     });
     fixture.frame.ScrHeight = 2;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
 
     try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowForward, .LeadParamNone, 1, false));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[4]);
@@ -503,14 +503,14 @@ test "window command adjusts horizontal offset on active screen frame" {
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
     fixture.frame.ScrWidth = 10;
     fixture.frame.ScrOffset = 5;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.Dot);
     editor.Screen.Frame = fixture.frame;
 
     try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowLeft, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.ScrOffset);
     try std.testing.expectEqual(@as(isize, 10), fixture.frame.Dot.?.Col);
 
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.Dot);
     try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowRight, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 5), fixture.frame.ScrOffset);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.Dot.?.Col);
@@ -548,7 +548,7 @@ test "window resize updates terminal dimensions and frame sizing" {
     fixture.frame.MarginBottom = 4;
     fixture.frame.MarginRight = 80;
     fixture.frame.ScrOffset = 70;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 90, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 90, &fixture.frame.Dot);
 
     const span = try allocator.create(types.SpanObject);
     span.* = .{
@@ -583,7 +583,7 @@ test "window middle recenters the dot on the active screen" {
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
     });
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[8], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[8], 1, &fixture.frame.Dot);
     fixture.frame.ScrHeight = 10;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
@@ -602,7 +602,7 @@ test "window scroll supports stay-behind up and takeback" {
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1", "2", "3", "4", "5", "6", "7",
     });
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
     fixture.frame.ScrHeight = 5;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
@@ -610,7 +610,7 @@ test "window scroll supports stay-behind up and takeback" {
     defer interactive_io.testing.clearInput();
 
     try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowScroll, .LeadParamNone, 1, false));
-    try std.testing.expectEqualStrings("2", editor.Screen.TopLine.?.Str.?.Slice(1, 1));
+    try std.testing.expectEqualStrings("2", editor.Screen.TopLine.?.Str.?.slice(1, 1));
     try std.testing.expectEqual(@as(isize, 2), fixture.frame.Dot.?.Line.ScrRowNr);
     try std.testing.expectEqual(@as(?isize, 'Q'), interactive_io.testing.readInputKey());
 }

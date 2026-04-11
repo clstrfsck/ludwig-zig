@@ -27,10 +27,10 @@ fn prepareLiteralTarget(
     exactcase: bool,
     target: *str_object.StrObject,
 } {
-    const target = try tpar.Str.?.Clone();
+    const target = try tpar.Str.?.clone();
     const exactcase = tpar.Dlm == types.TpdExact;
     if (!exactcase) {
-        target.ApplyN(chars.ChToUpper, tpar.Len, 1);
+        target.applyN(chars.chToUpper, tpar.Len, 1);
     }
     return .{
         .exactcase = exactcase,
@@ -40,7 +40,7 @@ fn prepareLiteralTarget(
 
 pub fn eqsgetrepSamePatternDef(pattern1: *const types.PatternDefType, pattern2: *const types.PatternDefType) bool {
     if (pattern1.Length != 0 and pattern2.Length != 0 and pattern1.Length == pattern2.Length) {
-        return pattern1.Strng.?.EqualAt(pattern2.Strng.?, pattern1.Length, 1, 1);
+        return pattern1.Strng.?.equalAt(pattern2.Strng.?, pattern1.Length, 1, 1);
     }
     return false;
 }
@@ -79,12 +79,12 @@ pub fn eqsgetrepPatternBuild(
         false;
 
     if (!already_built) {
-        if (!try dfa.PatternDFATableInitialize(allocator, pattern_ptr, pattern_definition)) {
+        if (!try dfa.patternDFATableInitialize(allocator, pattern_ptr, pattern_definition)) {
             return false;
         }
         var dfa_start: isize = 0;
         var dfa_end: isize = 0;
-        if (!try dfa.PatternDFAConvert(
+        if (!try dfa.patternDFAConvert(
             &nfa_table,
             pattern_ptr.*.?,
             first_pattern_start,
@@ -134,7 +134,7 @@ pub fn EqsGetRepEqs(
             else => false,
         };
         if (success and rept != .LeadParamMinus) {
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, end_pos, &frame.Marks[types.MarkEquals]);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_pos, &frame.Marks[types.MarkEquals]);
         }
         return success;
     }
@@ -152,7 +152,7 @@ pub fn EqsGetRepEqs(
     };
 
     var nch_ident: isize = 0;
-    const result = chars.ChCompareStr(
+    const result = chars.chCompareStr(
         prepared.target,
         1,
         tpar.Len,
@@ -170,7 +170,7 @@ pub fn EqsGetRepEqs(
         else => false,
     };
     if (success and rept != .LeadParamMinus) {
-        try mark_ops.MarkCreate(
+        try mark_ops.markCreate(
             allocator,
             frame.Dot.?.Line,
             frame.Dot.?.Col + nch_ident,
@@ -196,7 +196,7 @@ pub fn eqsgetrepDumbGet(
     defer prepared.target.destroy();
 
     var new_len = tpar.Len;
-    const tail_space = new_len > 1 and prepared.target.Get(new_len) == ' ';
+    const tail_space = new_len > 1 and prepared.target.get(new_len) == ' ';
     if (tail_space) {
         new_len -= 1;
     }
@@ -208,7 +208,7 @@ pub fn eqsgetrepDumbGet(
     defer if (reverse_pattern) |tmp| tmp.destroy();
 
     if (backwards) {
-        reverse_pattern = try str_object.NewBlankStrObject(allocator, types.MaxStrLen);
+        reverse_pattern = try str_object.newBlankStrObject(allocator, types.MaxStrLen);
         chars.ChReverseStr(prepared.target, reverse_pattern.?, new_len);
         pattern = reverse_pattern.?;
     }
@@ -228,7 +228,7 @@ pub fn eqsgetrepDumbGet(
         var found = false;
         var offset: isize = 0;
         if (length != 0) {
-            found = try chars.ChSearchStr(
+            found = try chars.chSearchStr(
                 allocator,
                 pattern,
                 1,
@@ -247,7 +247,7 @@ pub fn eqsgetrepDumbGet(
             if (tail_space) {
                 var tail_char: u8 = 0;
                 if (start_col + offset + new_len <= line.Used) {
-                    tail_char = line.Str.?.Get(start_col + offset + new_len);
+                    tail_char = line.Str.?.get(start_col + offset + new_len);
                 } else if (start_col + offset + new_len == line.Used + 1) {
                     tail_char = if (line.Used + 1 == types.MaxStrLenP) 0 else ' ';
                 }
@@ -268,11 +268,11 @@ pub fn eqsgetrepDumbGet(
                 }
                 count_mut -= 1;
                 if (count_mut == 0) {
-                    try mark_ops.MarkCreate(allocator, line, start_col, &frame.Dot);
+                    try mark_ops.markCreate(allocator, line, start_col, &frame.Dot);
                     if (backwards) {
-                        try mark_ops.MarkCreate(allocator, line, start_col + tpar.Len, &frame.Marks[types.MarkEquals]);
+                        try mark_ops.markCreate(allocator, line, start_col + tpar.Len, &frame.Marks[types.MarkEquals]);
                     } else {
-                        try mark_ops.MarkCreate(allocator, line, start_col - tpar.Len, &frame.Marks[types.MarkEquals]);
+                        try mark_ops.markCreate(allocator, line, start_col - tpar.Len, &frame.Marks[types.MarkEquals]);
                     }
                     return true;
                 }
@@ -343,11 +343,11 @@ pub fn eqsgetrepPatternGet(
                 count_mut -= 1;
                 if (count_mut == 0) {
                     if (backwards) {
-                        try mark_ops.MarkCreate(allocator, line, matched_start_col, &frame.Dot);
-                        try mark_ops.MarkCreate(allocator, line, matched_finish_col, &frame.Marks[types.MarkEquals]);
+                        try mark_ops.markCreate(allocator, line, matched_start_col, &frame.Dot);
+                        try mark_ops.markCreate(allocator, line, matched_finish_col, &frame.Marks[types.MarkEquals]);
                     } else {
-                        try mark_ops.MarkCreate(allocator, line, matched_finish_col, &frame.Dot);
-                        try mark_ops.MarkCreate(allocator, line, matched_start_col, &frame.Marks[types.MarkEquals]);
+                        try mark_ops.markCreate(allocator, line, matched_finish_col, &frame.Dot);
+                        try mark_ops.markCreate(allocator, line, matched_start_col, &frame.Marks[types.MarkEquals]);
                     }
                     return true;
                 }
@@ -388,8 +388,8 @@ pub fn EqsGetRepGet(
 }
 
 fn markPrecedes(left: *types.MarkObject, right: *types.MarkObject) bool {
-    const left_line_nr = line_ops.LineToNumber(left.Line);
-    const right_line_nr = line_ops.LineToNumber(right.Line);
+    const left_line_nr = line_ops.lineToNumber(left.Line);
+    const right_line_nr = line_ops.lineToNumber(right.Line);
     return left_line_nr < right_line_nr or (left_line_nr == right_line_nr and left.Col <= right.Col);
 }
 
@@ -431,13 +431,13 @@ pub fn EqsGetRepRep(
     var old_dot: ?*types.MarkObject = null;
     var old_equals: ?*types.MarkObject = null;
     defer {
-        mark_ops.MarkDestroy(allocator, &old_dot);
-        mark_ops.MarkDestroy(allocator, &old_equals);
+        mark_ops.markDestroy(allocator, &old_dot);
+        mark_ops.markDestroy(allocator, &old_equals);
     }
 
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_dot);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_dot);
     if (frame.Marks[types.MarkEquals]) |eql| {
-        try mark_ops.MarkCreate(allocator, eql.Line, eql.Col, &old_equals);
+        try mark_ops.markCreate(allocator, eql.Line, eql.Col, &old_equals);
     }
 
     if (tpar.Dlm == types.TpdSmart) {
@@ -470,13 +470,13 @@ pub fn EqsGetRepRep(
         var replace_start: ?*types.MarkObject = null;
         var replace_end: ?*types.MarkObject = null;
         defer {
-            mark_ops.MarkDestroy(allocator, &replace_start);
-            mark_ops.MarkDestroy(allocator, &replace_end);
+            mark_ops.markDestroy(allocator, &replace_start);
+            mark_ops.markDestroy(allocator, &replace_end);
         }
 
         const range = normalizeMatchRange(frame);
-        try mark_ops.MarkCreate(allocator, range.start_line, range.start_col, &replace_start);
-        try mark_ops.MarkCreate(allocator, range.end_line, range.end_col, &replace_end);
+        try mark_ops.markCreate(allocator, range.start_line, range.start_col, &replace_start);
+        try mark_ops.markCreate(allocator, range.end_line, range.end_col, &replace_end);
 
         if (!try text.TextRemove(allocator, replace_start.?, replace_end.?)) {
             return result;
@@ -491,30 +491,30 @@ pub fn EqsGetRepRep(
         const inserted_end_col = replace_start.?.Col;
 
         if (getcount > 0) {
-            try mark_ops.MarkCreate(allocator, inserted_end_line, inserted_end_col, &frame.Dot);
-            try mark_ops.MarkCreate(allocator, inserted_start_line, inserted_start_col, &frame.Marks[types.MarkEquals]);
+            try mark_ops.markCreate(allocator, inserted_end_line, inserted_end_col, &frame.Dot);
+            try mark_ops.markCreate(allocator, inserted_start_line, inserted_start_col, &frame.Marks[types.MarkEquals]);
         } else {
-            try mark_ops.MarkCreate(allocator, inserted_start_line, inserted_start_col, &frame.Dot);
-            try mark_ops.MarkCreate(allocator, inserted_end_line, inserted_end_col, &frame.Marks[types.MarkEquals]);
+            try mark_ops.markCreate(allocator, inserted_start_line, inserted_start_col, &frame.Dot);
+            try mark_ops.markCreate(allocator, inserted_end_line, inserted_end_col, &frame.Marks[types.MarkEquals]);
         }
 
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_dot);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_dot);
         if (frame.Marks[types.MarkEquals]) |eql| {
-            try mark_ops.MarkCreate(allocator, eql.Line, eql.Col, &old_equals);
+            try mark_ops.markCreate(allocator, eql.Line, eql.Col, &old_equals);
         } else {
-            mark_ops.MarkDestroy(allocator, &old_equals);
+            mark_ops.markDestroy(allocator, &old_equals);
         }
 
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
         remaining -= 1;
     }
 
-    try mark_ops.MarkCreate(allocator, old_dot.?.Line, old_dot.?.Col, &frame.Dot);
+    try mark_ops.markCreate(allocator, old_dot.?.Line, old_dot.?.Col, &frame.Dot);
     if (old_equals) |eql| {
-        try mark_ops.MarkCreate(allocator, eql.Line, eql.Col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, eql.Line, eql.Col, &frame.Marks[types.MarkEquals]);
     } else {
-        mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkEquals]);
+        mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
     }
     result = remaining == 0 or rept == .LeadParamPIndef or rept == .LeadParamNIndef;
     return result;
@@ -526,19 +526,19 @@ test "eqs get rep eqs supports smart patterns and literal comparisons" {
     const allocator = arena.allocator();
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"Hello WORLD"});
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 7, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 7, &fixture.frame.Dot);
 
     var smart = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "'world'"),
+        .Str = try str_object.newStrObjectFrom(allocator, "'world'"),
         .Len = 7,
         .Dlm = types.TpdSmart,
     };
     try std.testing.expect(try EqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &smart));
     try std.testing.expectEqual(@as(isize, 12), fixture.frame.Marks[types.MarkEquals].?.Col);
 
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
     var literal = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "HELLO"),
+        .Str = try str_object.newStrObjectFrom(allocator, "HELLO"),
         .Len = 5,
         .Dlm = types.TpdLit,
     };
@@ -557,10 +557,10 @@ test "eqs get rep get searches forward and backward for smart and literal target
         "hello world test",
     });
 
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
     const email_pattern = "+a'@'+a'.'+a";
     var smart = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, email_pattern),
+        .Str = try str_object.newStrObjectFrom(allocator, email_pattern),
         .Len = email_pattern.len,
         .Dlm = types.TpdSmart,
     };
@@ -569,9 +569,9 @@ test "eqs get rep get searches forward and backward for smart and literal target
     try std.testing.expectEqual(@as(isize, 12), fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.Marks[types.MarkEquals].?.Col);
 
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[2], 12, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[2], 12, &fixture.frame.Dot);
     var literal = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "world"),
+        .Str = try str_object.newStrObjectFrom(allocator, "world"),
         .Len = 5,
         .Dlm = types.TpdLit,
     };
@@ -587,11 +587,11 @@ test "eqs get rep get prefers the longest bounded repeat at the first match colu
     const allocator = arena.allocator();
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"1234def"});
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
 
     const pattern = "[,3]N";
     var smart = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, pattern),
+        .Str = try str_object.newStrObjectFrom(allocator, pattern),
         .Len = pattern.len,
         .Dlm = types.TpdSmart,
     };
@@ -607,13 +607,13 @@ test "eqs get rep get does not match visible eop labels as text" {
     const allocator = arena.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"abc"});
-    try line_ops.LineChangeLength(allocator, fixture.sentinel_line, @intCast("<End of File>  ".len));
+    try line_ops.lineChangeLength(allocator, fixture.sentinel_line, @intCast("<End of File>  ".len));
     try line_ops.setLineContent(fixture.sentinel_line, "<End of File>  ");
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
 
     const pattern = "U";
     var smart = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, pattern),
+        .Str = try str_object.newStrObjectFrom(allocator, pattern),
         .Len = pattern.len,
         .Dlm = types.TpdSmart,
     };
@@ -626,28 +626,28 @@ test "eqs get rep replace updates content and preserves forward and backward cur
     const allocator = arena.allocator();
 
     const forward_fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"hello world test"});
-    try mark_ops.MarkCreate(allocator, forward_fixture.content_lines[0], 1, &forward_fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, forward_fixture.content_lines[0], 1, &forward_fixture.frame.Dot);
     var target = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "world"),
+        .Str = try str_object.newStrObjectFrom(allocator, "world"),
         .Len = 5,
         .Dlm = types.TpdLit,
     };
     var replacement = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "earth"),
+        .Str = try str_object.newStrObjectFrom(allocator, "earth"),
         .Len = 5,
         .Dlm = types.TpdLit,
     };
     try std.testing.expect(try EqsGetRepRep(allocator, forward_fixture.frame, .LeadParamPlus, 1, &target, &replacement, true));
-    try std.testing.expectEqualStrings("hello earth test", forward_fixture.content_lines[0].Str.?.Slice(1, 16));
+    try std.testing.expectEqualStrings("hello earth test", forward_fixture.content_lines[0].Str.?.slice(1, 16));
     try std.testing.expectEqual(@as(isize, 12), forward_fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 7), forward_fixture.frame.Marks[types.MarkEquals].?.Col);
     try std.testing.expect(forward_fixture.frame.TextModified);
     try std.testing.expect(forward_fixture.frame.Marks[types.MarkModified] != null);
 
     const backward_fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"hello world test"});
-    try mark_ops.MarkCreate(allocator, backward_fixture.content_lines[0], 12, &backward_fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, backward_fixture.content_lines[0], 12, &backward_fixture.frame.Dot);
     try std.testing.expect(try EqsGetRepRep(allocator, backward_fixture.frame, .LeadParamMinus, -1, &target, &replacement, true));
-    try std.testing.expectEqualStrings("hello earth test", backward_fixture.content_lines[0].Str.?.Slice(1, 16));
+    try std.testing.expectEqualStrings("hello earth test", backward_fixture.content_lines[0].Str.?.slice(1, 16));
     try std.testing.expectEqual(@as(isize, 7), backward_fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 12), backward_fixture.frame.Marks[types.MarkEquals].?.Col);
 }
@@ -658,25 +658,25 @@ test "eqs get rep replace supports multiline replacement chains" {
     const allocator = arena.allocator();
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"Hello World"});
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
 
     var target = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "World"),
+        .Str = try str_object.newStrObjectFrom(allocator, "World"),
         .Len = 5,
         .Dlm = types.TpdLit,
     };
     var repl2 = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "Line2"),
+        .Str = try str_object.newStrObjectFrom(allocator, "Line2"),
         .Len = 5,
     };
     var repl1 = types.TParObject{
-        .Str = try str_object.NewStrObjectFrom(allocator, "Line1"),
+        .Str = try str_object.newStrObjectFrom(allocator, "Line1"),
         .Len = 5,
         .Con = &repl2,
     };
 
     try std.testing.expect(try EqsGetRepRep(allocator, fixture.frame, .LeadParamPlus, 1, &target, &repl1, true));
-    try std.testing.expectEqualStrings("Hello Line1", fixture.content_lines[0].Str.?.Slice(1, 11));
+    try std.testing.expectEqualStrings("Hello Line1", fixture.content_lines[0].Str.?.slice(1, 11));
     try std.testing.expect(fixture.content_lines[0].FLink != null);
-    try std.testing.expectEqualStrings("Line2", fixture.content_lines[0].FLink.?.Str.?.Slice(1, 5));
+    try std.testing.expectEqualStrings("Line2", fixture.content_lines[0].FLink.?.Str.?.slice(1, 5));
 }
