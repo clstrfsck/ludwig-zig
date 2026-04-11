@@ -477,7 +477,7 @@ fn ensureRegistry(allocator: std.mem.Allocator) !*Registry {
     return &registry.?;
 }
 
-// clearFrameHighlighting resets highlight state on all lines, retaining the HlMatch
+// clearFrameHighlighting resets highlight state on all lines, retaining the hl_match
 // backing buffers for reuse on the next highlight pass.
 fn clearFrameHighlighting(frame: *types.FrameObject) void {
     if (frame.first_group == null) {
@@ -496,7 +496,7 @@ fn clearFrameHighlighting(frame: *types.FrameObject) void {
     frame.highlighter = null;
 }
 
-// freeFrameHighlighting releases the HlMatch backing buffers using the provided allocator.
+// freeFrameHighlighting releases the hl_match backing buffers using the provided allocator.
 // Use this when highlight data will not be immediately rebuilt (shutdown, or when
 // highlighting is disabled/inapplicable for this frame).
 fn freeFrameHighlighting(allocator: std.mem.Allocator, frame: *types.FrameObject) void {
