@@ -1,10 +1,6 @@
 const std = @import("std");
 const StrObject = @import("str_object.zig").StrObject;
 
-comptime {
-    @setEvalBranchQuota(20_000);
-}
-
 pub const LudwigVersion = "X5.0-006";
 
 pub const MaxInt = std.math.maxInt(isize);

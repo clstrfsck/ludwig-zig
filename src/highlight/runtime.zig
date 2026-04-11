@@ -445,7 +445,7 @@ fn clearFrameHighlighting(frame: *types.FrameObject) void {
     frame.Highlighter = null;
 }
 
-// freeFrameHighlighting releases the HlMatch backing buffers from base_allocator.
+// freeFrameHighlighting releases the HlMatch backing buffers using the provided allocator.
 // Use this when highlight data will not be immediately rebuilt (shutdown, or when
 // highlighting is disabled/inapplicable for this frame).
 fn freeFrameHighlighting(allocator: std.mem.Allocator, frame: *types.FrameObject) void {

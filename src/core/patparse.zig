@@ -2,10 +2,6 @@ const std = @import("std");
 const chars = @import("chars.zig");
 const types = @import("types.zig");
 
-comptime {
-    @setEvalBranchQuota(10_000);
-}
-
 pub const quotedSet = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     set[types.TpdLit] = true;
