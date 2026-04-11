@@ -92,30 +92,12 @@ pub const ParseType = enum(u16) {
     ParseExecute,
 };
 
-pub const FrameOptionsElts = enum(u16) {
-    OptAutoIndent,
-    OptAutoWrap,
-    OptNewLine,
-    OptSpecialFrame,
+pub const FrameOptions = packed struct {
+    autoIndent: bool = false,
+    autoWrap: bool = false,
+    newLine: bool = false,
+    specialFrame: bool = false,
 };
-
-pub const FrameOptions = u32;
-
-pub fn frameOptionMask(option: FrameOptionsElts) FrameOptions {
-    return @as(FrameOptions, 1) << @intCast(@intFromEnum(option));
-}
-
-pub fn frameOptionsHas(value: FrameOptions, option: FrameOptionsElts) bool {
-    return (value & frameOptionMask(option)) != 0;
-}
-
-pub fn frameOptionsSet(value: *FrameOptions, option: FrameOptionsElts) void {
-    value.* |= frameOptionMask(option);
-}
-
-pub fn frameOptionsClear(value: *FrameOptions, option: FrameOptionsElts) void {
-    value.* &= ~frameOptionMask(option);
-}
 
 pub const Commands = enum(u16) {
     CmdNoop,
@@ -496,7 +478,7 @@ pub const FrameObject = struct {
     MarginTop: isize = 0,
     MarginBottom: isize = 0,
     TabStops: TabArray = [_]bool{false} ** (MaxStrLenP + 1),
-    Options: FrameOptions = 0,
+    Options: FrameOptions = .{},
     InputFile: isize = 0,
     OutputFile: isize = 0,
     GetTpar: TParObject = .{},

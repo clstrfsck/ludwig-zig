@@ -32,7 +32,7 @@ fn makeSpecialFrame(
     name: []const u8,
 ) !*types.FrameObject {
     const frame = (try frame_ops.FrameEdit(editor, allocator, null, name)).?;
-    types.frameOptionsSet(&frame.Options, .OptSpecialFrame);
+    frame.Options.specialFrame = true;
     return frame;
 }
 
@@ -63,7 +63,7 @@ fn executeCommandFrameFile(
 ) !code_ops.InterpretResult {
     const cmd_frame = special_frames.Cmd orelse return error.MissingCommandFrame;
     const cmd_span = cmd_frame.Span orelse return error.MissingCommandSpan;
-    if (!try file_ops.LoadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
+    if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
     if (!try code_ops.CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
@@ -159,7 +159,7 @@ pub fn startUp(
     var current_frame = (try frame_ops.FrameEdit(editor, allocator, null, types.DefaultFrameName)).?;
     attachStartupFiles(editor, current_frame, input, output);
 
-    if (current_frame.InputFile != 0 and !try file_ops.FilePage(editor, allocator, current_frame)) {
+    if (current_frame.InputFile != 0 and !try file_ops.filePage(editor, allocator, current_frame)) {
         return error.BatchStartupFailed;
     }
 
@@ -225,7 +225,7 @@ pub fn runBatchCommands(
     }
 
     if (!editor.QuitRequested) {
-        _ = try file_ops.QuitCloseFiles(editor, allocator);
+        _ = try file_ops.quitCloseFiles(editor, allocator);
     } else {
         editor.QuitRequested = false;
     }

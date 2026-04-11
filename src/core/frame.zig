@@ -119,7 +119,7 @@ pub fn FrameKill(
     }
 
     const target_frame = span_ptr.?.Frame.?;
-    if (target_frame == current_frame or target_frame == editor.Screen.Frame or types.frameOptionsHas(target_frame.Options, .OptSpecialFrame)) {
+    if (target_frame == current_frame or target_frame == editor.Screen.Frame or target_frame.Options.specialFrame) {
         return false;
     }
     if (target_frame.InputFile != 0 or target_frame.OutputFile != 0) {
@@ -157,7 +157,7 @@ pub fn FrameKill(
 
     const last_content = target_frame.LastGroup.?.LastLine.?.BLink;
     if (last_content != null) {
-        line_ops.LinesExtract(target_frame.FirstGroup.?.FirstLine.?, last_content.?);
+        line_ops.linesExtract(target_frame.FirstGroup.?.FirstLine.?, last_content.?);
     }
 
     target_frame.FirstGroup = null;
@@ -440,7 +440,7 @@ const TparParser = struct {
                     first_line.Str.?.Set(frame.MarginRight, 'R');
                 }
                 first_line.Used = first_line.Str.?.TrimmedLen(' ', types.MaxStrLen);
-                try line_ops.LinesInject(self.allocator, first_line, range.last, frame.Dot.?.Line);
+                try line_ops.linesInject(self.allocator, first_line, range.last, frame.Dot.?.Line);
                 try mark_ops.MarkCreate(self.allocator, first_line, frame.Dot.?.Col, &frame.Dot);
                 frame.TextModified = true;
                 try mark_ops.MarkCreate(self.allocator, first_line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
@@ -500,7 +500,7 @@ const TparParser = struct {
                 const first_line = frame.Dot.?.Line;
                 const dot_col = frame.Dot.?.Col;
                 try mark_ops.MarksSqueeze(self.allocator, first_line, 1, first_line.FLink.?, 1);
-                line_ops.LinesExtract(first_line, first_line);
+                line_ops.linesExtract(first_line, first_line);
                 frame.Dot.?.Col = dot_col;
             },
             'S' => {
@@ -625,9 +625,9 @@ fn setOpt(frame: *types.FrameObject, ch: u8, set_on: bool, options: *types.Frame
     _ = frame;
     switch (ch) {
         'S' => return true,
-        'I' => if (set_on) types.frameOptionsSet(options, .OptAutoIndent) else types.frameOptionsClear(options, .OptAutoIndent),
-        'W' => if (set_on) types.frameOptionsSet(options, .OptAutoWrap) else types.frameOptionsClear(options, .OptAutoWrap),
-        'N' => if (set_on) types.frameOptionsSet(options, .OptNewLine) else types.frameOptionsClear(options, .OptNewLine),
+        'I' => options.autoIndent = set_on,
+        'W' => options.autoWrap = set_on,
+        'N' => options.newLine = set_on,
         else => return false,
     }
     return true;
@@ -661,15 +661,15 @@ fn renderOptionsSummary(allocator: std.mem.Allocator, options: types.FrameOption
     try buffer.append(allocator, ' ');
     var count: usize = 1;
     var first = true;
-    if (types.frameOptionsHas(options, .OptAutoIndent)) {
+    if (options.autoIndent) {
         try appendDisplayOption(allocator, &buffer, 'I', &first);
         count += 2;
     }
-    if (types.frameOptionsHas(options, .OptAutoWrap)) {
+    if (options.autoWrap) {
         try appendDisplayOption(allocator, &buffer, 'W', &first);
         count += 2;
     }
-    if (types.frameOptionsHas(options, .OptNewLine)) {
+    if (options.newLine) {
         try appendDisplayOption(allocator, &buffer, 'N', &first);
         count += 2;
     }
@@ -1053,7 +1053,7 @@ test "frame kill rejects current and special frames" {
     try std.testing.expect(!try FrameKill(&editor, allocator, current_named, "CURRENT"));
 
     const special = (try FrameEdit(&editor, allocator, origin, "SPECIAL")).?;
-    types.frameOptionsSet(&special.Options, .OptSpecialFrame);
+    special.Options.specialFrame = true;
     try std.testing.expect(!try FrameKill(&editor, allocator, origin, "SPECIAL"));
 }
 
@@ -1083,8 +1083,8 @@ test "frame parameter updates batch-safe state values" {
     };
     try std.testing.expect(try FrameParameter(&editor, allocator, frame, &tpar));
     try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.EditMode);
-    try std.testing.expect(types.frameOptionsHas(frame.Options, .OptAutoIndent));
-    try std.testing.expect(!types.frameOptionsHas(frame.Options, .OptNewLine));
+    try std.testing.expect(frame.Options.autoIndent);
+    try std.testing.expect(!frame.Options.newLine);
     try std.testing.expectEqual(@as(isize, 2200), frame.SpaceLimit);
     try std.testing.expectEqual(@as(isize, 24), frame.ScrHeight);
     try std.testing.expectEqual(@as(isize, 120), frame.ScrWidth);

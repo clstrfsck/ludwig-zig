@@ -185,7 +185,7 @@ pub fn WordFill(
                         if (frame.Dot.?.Line.FLink.?.Used == 0) {
                             const this_line = frame.Dot.?.Line.FLink.?;
                             try mark_ops.MarksSqueeze(allocator, frame.Dot.?.Line.FLink.?, 1, frame.Dot.?.Line.FLink.?.FLink.?, 1);
-                            line_ops.LinesExtract(this_line, this_line);
+                            line_ops.linesExtract(this_line, this_line);
                             count_mut -= 1;
                             if (count_mut > 0) {
                                 continue;

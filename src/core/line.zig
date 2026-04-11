@@ -64,7 +64,8 @@ pub fn LinesCreate(
     };
 }
 
-pub fn LinesInject(
+/// Inject `first_line` through `last_line` before `before_line`.
+pub fn linesInject(
     allocator: std.mem.Allocator,
     first_line: *types.LineHdrObject,
     last_line: *types.LineHdrObject,
@@ -202,7 +203,7 @@ pub fn LinesInject(
     this_frame.SpaceLeft -= space;
 }
 
-pub fn LinesExtract(
+pub fn linesExtract(
     first_line: *types.LineHdrObject,
     last_line: *types.LineHdrObject,
 ) void {
