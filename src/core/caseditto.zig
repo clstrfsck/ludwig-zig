@@ -12,14 +12,6 @@ pub const CommandType = enum {
     unknown_command,
 };
 
-fn getCommandType(command: types.Commands) CommandType {
-    return switch (command) {
-        .CmdCaseUp, .CmdCaseLow, .CmdCaseEdit => .case_command,
-        .CmdDittoUp, .CmdDittoDown => .ditto_command,
-        else => .unknown_command,
-    };
-}
-
 pub fn caseDittoCommand(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -30,7 +22,6 @@ pub fn caseDittoCommand(
     edit_mode: types.ModeType,
     previous_mode: types.ModeType,
 ) !bool {
-    _ = getCommandType(command);
     const insert = (command == .CmdDittoUp or command == .CmdDittoDown) and
         (edit_mode == .ModeInsert or (edit_mode == .ModeCommand and previous_mode == .ModeInsert));
 
