@@ -6,7 +6,7 @@ const str_object = @import("str_object.zig");
 pub const phase_label = "phase2-foundation-layer";
 pub const PromptCount = @as(usize, @intFromEnum(types.PromptType.PatternSetPrompt)) + 1;
 
-pub fn SetRegularTabStops(editor: anytype, width: isize) void {
+pub fn setRegularTabStops(editor: anytype, width: isize) void {
     const clamped_width = @max(@as(isize, 2), @min(@as(isize, 8), width));
     for (&editor.DefaultTabStops, 0..) |*slot, index| {
         slot.* = @mod(@as(isize, @intCast(index)), clamped_width) == 1;
@@ -82,5 +82,5 @@ pub fn setupInitialValues(editor: anytype) !void {
         .TabWidth = 8,
     };
 
-    editor.BlankString = try str_object.NewBlankStrObject(editor.allocator(), types.MaxStrLen);
+    editor.BlankString = try str_object.newBlankStrObject(editor.allocator(), types.MaxStrLen);
 }

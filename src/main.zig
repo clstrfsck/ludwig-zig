@@ -28,7 +28,7 @@ pub fn main() !void {
 
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
-    const parse = try filesys.FileCreateOpen(&editor, editor.allocator(), args[1..], .ParseCommand, &input, &output);
+    const parse = try filesys.fileCreateOpen(&editor, editor.allocator(), args[1..], .ParseCommand, &input, &output);
     if (!parse.ok) {
         const writer = if (parse.show_usage)
             std.fs.File.stdout().deprecatedWriter()

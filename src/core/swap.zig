@@ -17,9 +17,9 @@ pub fn SwapLine(
     var top_mark: ?*types.MarkObject = null;
     var end_mark: ?*types.MarkObject = null;
     var dest_mark: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &top_mark);
-    defer mark_ops.MarkDestroy(allocator, &end_mark);
-    defer mark_ops.MarkDestroy(allocator, &dest_mark);
+    defer mark_ops.markDestroy(allocator, &top_mark);
+    defer mark_ops.markDestroy(allocator, &end_mark);
+    defer mark_ops.markDestroy(allocator, &dest_mark);
 
     var dest_line: *types.LineHdrObject = undefined;
     switch (rept) {
@@ -45,15 +45,15 @@ pub fn SwapLine(
         },
     }
 
-    try mark_ops.MarkCreate(allocator, this_line, 1, &top_mark);
-    try mark_ops.MarkCreate(allocator, next_line, 1, &end_mark);
-    try mark_ops.MarkCreate(allocator, dest_line, 1, &dest_mark);
+    try mark_ops.markCreate(allocator, this_line, 1, &top_mark);
+    try mark_ops.markCreate(allocator, next_line, 1, &end_mark);
+    try mark_ops.markCreate(allocator, dest_line, 1, &dest_mark);
     if (!try text.TextMove(allocator, false, 1, top_mark.?, end_mark.?, dest_mark.?, &frame.Dot, &top_mark)) {
         return false;
     }
     frame.TextModified = true;
     frame.Dot.?.Col = dot_col;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     return true;
 }
 
@@ -128,7 +128,7 @@ test "swap line supports marker destination and preserves dot column" {
     try line_ops.setLineContent(fixture.content_lines[4], "fifth");
     fixture.frame.Dot = try allocator.create(types.MarkObject);
     fixture.frame.Dot.?.* = .{ .Line = fixture.content_lines[0], .Col = 7 };
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.Marks[types.MarkEquals]);
+    try mark_ops.markCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.Marks[types.MarkEquals]);
 
     try std.testing.expect(try SwapLine(allocator, fixture.frame, .LeadParamMarker, types.MarkEquals));
     try std.testing.expectEqual(@as(isize, 7), fixture.frame.Dot.?.Col);

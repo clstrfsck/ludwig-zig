@@ -5,14 +5,14 @@ const str_object = @import("str_object.zig");
 const types = @import("types.zig");
 
 fn markLineDirty(frame: *types.FrameObject, line: *types.LineHdrObject) void {
-    const line_number = line_ops.LineToNumber(line);
+    const line_number = line_ops.lineToNumber(line);
     if (frame.DirtyLine == 0 or line_number < frame.DirtyLine) {
         frame.DirtyLine = line_number;
     }
 }
 
 fn newBlankString(allocator: std.mem.Allocator) !*str_object.StrObject {
-    return str_object.NewBlankStrObject(allocator, types.MaxStrLen);
+    return str_object.newBlankStrObject(allocator, types.MaxStrLen);
 }
 
 pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: bool) isize {
@@ -30,9 +30,9 @@ pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: 
         }
 
         while (true) : (new_col += 1) {
-            if (new_col <= used1 and str1.Get(new_col) != ' ') break;
+            if (new_col <= used1 and str1.get(new_col) != ' ') break;
             if (new_col <= used2) {
-                if (str2.Get(new_col) != ' ') break;
+                if (str2.get(new_col) != ' ') break;
             } else if (new_col >= used1) {
                 break;
             }
@@ -42,13 +42,13 @@ pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: 
 }
 
 pub fn TextRealizeNull(allocator: std.mem.Allocator, old_null: *types.LineHdrObject) !void {
-    const range = try line_ops.LinesCreate(allocator, 1);
+    const range = try line_ops.linesCreate(allocator, 1);
     try line_ops.linesInject(allocator, range.first, range.last, old_null);
-    try mark_ops.MarksShift(allocator, old_null, 1, types.MaxStrLenP, range.first, 1);
+    try mark_ops.marksShift(allocator, old_null, 1, types.MaxStrLenP, range.first, 1);
     const frame = range.first.Group.?.Frame;
     frame.TextModified = true;
     if (frame.Dot) |dot| {
-        try mark_ops.MarkCreate(allocator, dot.Line, dot.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, dot.Line, dot.Col, &frame.Marks[types.MarkModified]);
     }
 }
 
@@ -85,13 +85,13 @@ pub fn TextInsert(
     }
 
     if (final_len > dst_line.Len()) {
-        try line_ops.LineChangeLength(allocator, dst_line, final_len);
+        try line_ops.lineChangeLength(allocator, dst_line, final_len);
     }
-    try mark_ops.MarksShift(allocator, dst_line, dst_col, types.MaxStrLenP - dst_col, dst_line, dst_col + insert_len);
+    try mark_ops.marksShift(allocator, dst_line, dst_col, types.MaxStrLenP - dst_col, dst_line, dst_col + insert_len);
     if (tail_len > 0) {
         var i = dst_line.Used;
         while (i >= dst_col) : (i -= 1) {
-            dst_line.Str.?.Set(i + insert_len, dst_line.Str.?.Get(i));
+            dst_line.Str.?.set(i + insert_len, dst_line.Str.?.get(i));
             if (i == dst_col) break;
         }
     }
@@ -99,12 +99,12 @@ pub fn TextInsert(
     var new_col = dst_col;
     var repetitions: isize = 0;
     while (repetitions < count) : (repetitions += 1) {
-        dst_line.Str.?.Copy(buf, 1, buf_len, new_col);
+        dst_line.Str.?.copy(buf, 1, buf_len, new_col);
         new_col += buf_len;
     }
 
     if (tail_len == 0) {
-        dst_line.Used = dst_line.Str.?.TrimmedLen(' ', @intCast(dst_line.Len()));
+        dst_line.Used = dst_line.Str.?.trimmedLen(' ', @intCast(dst_line.Len()));
     } else {
         dst_line.Used += insert_len;
     }
@@ -137,18 +137,18 @@ pub fn TextOvertype(
     }
 
     if (final_len > dst_line.Len()) {
-        try line_ops.LineChangeLength(allocator, dst_line, final_len);
+        try line_ops.lineChangeLength(allocator, dst_line, final_len);
     }
 
     var new_col = dst.Col;
     var repetitions: isize = 0;
     while (repetitions < count) : (repetitions += 1) {
-        dst_line.Str.?.Copy(buf, 1, buf_len, new_col);
+        dst_line.Str.?.copy(buf, 1, buf_len, new_col);
         new_col += buf_len;
     }
 
     if (new_col > dst_line.Used) {
-        dst_line.Used = dst_line.Str.?.TrimmedLen(' ', @intCast(dst_line.Len()));
+        dst_line.Used = dst_line.Str.?.trimmedLen(' ', @intCast(dst_line.Len()));
     }
     markLineDirty(dst_line.Group.?.Frame, dst_line);
     dst.Col += overtype_len;
@@ -165,7 +165,7 @@ pub fn TextInsertTpar(
         if (!try TextInsert(allocator, true, 1, tp.Str.?, tp.Len, before_mark)) {
             return false;
         }
-        try mark_ops.MarkCreate(allocator, before_mark.Line, before_mark.Col - tp.Len, equals_mark);
+        try mark_ops.markCreate(allocator, before_mark.Line, before_mark.Col - tp.Len, equals_mark);
         return true;
     }
 
@@ -186,7 +186,7 @@ pub fn TextInsertTpar(
     var first_line: ?*types.LineHdrObject = null;
     var last_line: ?*types.LineHdrObject = null;
     if (line_count > 0) {
-        const range = try line_ops.LinesCreate(allocator, @intCast(line_count));
+        const range = try line_ops.linesCreate(allocator, @intCast(line_count));
         first_line = range.first;
         last_line = range.last;
     }
@@ -206,9 +206,9 @@ pub fn TextInsertTpar(
     var tmp_line = first_line;
     var lines_written: isize = 0;
     while (lines_written < line_count) : (lines_written += 1) {
-        try line_ops.LineChangeLength(allocator, tmp_line.?, tmp_tp.Len);
-        tmp_line.?.Str.?.Copy(tmp_tp.Str.?, 1, tmp_tp.Len, 1);
-        tmp_line.?.Used = if (tmp_tp.Len == 0) 0 else tmp_line.?.Str.?.TrimmedLen(' ', tmp_tp.Len);
+        try line_ops.lineChangeLength(allocator, tmp_line.?, tmp_tp.Len);
+        tmp_line.?.Str.?.copy(tmp_tp.Str.?, 1, tmp_tp.Len, 1);
+        tmp_line.?.Used = if (tmp_tp.Len == 0) 0 else tmp_line.?.Str.?.trimmedLen(' ', tmp_tp.Len);
         tmp_tp = tmp_tp.Con.?;
         tmp_line = tmp_line.?.FLink;
     }
@@ -230,8 +230,8 @@ fn textIntraRemove(
     const line = mark_one.Line;
     const col_one = mark_one.Col;
     const col_two = col_one + size;
-    try mark_ops.MarksSqueeze(allocator, line, col_one, line, col_two);
-    try mark_ops.MarksShift(allocator, line, col_two, types.MaxStrLenP + 1 - col_two, line, col_one);
+    try mark_ops.marksSqueeze(allocator, line, col_one, line, col_two);
+    try mark_ops.marksShift(allocator, line, col_two, types.MaxStrLenP + 1 - col_two, line, col_one);
     if (size == 0) {
         return;
     }
@@ -244,19 +244,19 @@ fn textIntraRemove(
     if (col_two <= old_used) {
         var i: isize = 0;
         while (i < old_used + 1 - col_two) : (i += 1) {
-            line.Str.?.Set(col_one + i, line.Str.?.Get(col_two + i));
+            line.Str.?.set(col_one + i, line.Str.?.get(col_two + i));
         }
         i = old_used + 1 - col_two;
         while (i < dst_len) : (i += 1) {
-            line.Str.?.Set(col_one + i, ' ');
+            line.Str.?.set(col_one + i, ' ');
         }
     } else {
         var i: isize = 0;
         while (i < dst_len) : (i += 1) {
-            line.Str.?.Set(col_one + i, ' ');
+            line.Str.?.set(col_one + i, ' ');
         }
     }
-    line.Used = line.Str.?.TrimmedLen(' ', old_used);
+    line.Used = line.Str.?.trimmedLen(' ', old_used);
     markLineDirty(line.Group.?.Frame, line);
 }
 
@@ -271,8 +271,8 @@ fn textInterRemove(
         const extr_one = line_one.FLink.?;
         const extr_two = mark_two.Line;
         try textIntraRemove(allocator, mark_one, types.MaxStrLenP - mark_one.Col);
-        try mark_ops.MarksSqueeze(allocator, line_one, col_one, mark_two.Line, mark_two.Col);
-        try mark_ops.MarksShift(allocator, mark_two.Line, mark_two.Col, types.MaxStrLenP + 1 - mark_two.Col, line_one, col_one);
+        try mark_ops.marksSqueeze(allocator, line_one, col_one, mark_two.Line, mark_two.Col);
+        try mark_ops.marksShift(allocator, mark_two.Line, mark_two.Col, types.MaxStrLenP + 1 - mark_two.Col, line_one, col_one);
         if (extr_one != extr_two) {
             line_ops.linesExtract(extr_one, extr_two.BLink.?);
         }
@@ -280,7 +280,7 @@ fn textInterRemove(
     }
 
     var mark_start: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &mark_start);
+    defer mark_ops.markDestroy(allocator, &mark_start);
 
     var text_len = mark_one.Line.Used;
     if (mark_one.Col <= text_len) {
@@ -290,25 +290,25 @@ fn textInterRemove(
     const strng = try newBlankString(allocator);
     defer strng.destroy();
     if (mark_one.Col > 1) {
-        strng.FillCopy(mark_one.Line.Str.?, 1, text_len, 1, mark_one.Col - 1, ' ');
+        strng.fillCopy(mark_one.Line.Str.?, 1, text_len, 1, mark_one.Col - 1, ' ');
     }
 
     text_len = mark_one.Col - 1;
     const delta = mark_one.Col - mark_two.Col;
     if (delta < 0) {
-        try mark_ops.MarkCreate(allocator, mark_two.Line, mark_one.Col, &mark_start);
+        try mark_ops.markCreate(allocator, mark_two.Line, mark_one.Col, &mark_start);
         try textIntraRemove(allocator, mark_start.?, mark_two.Col - mark_start.?.Col);
     } else if (delta > 0) {
         const strng_tail = try newBlankString(allocator);
         defer strng_tail.destroy();
-        strng_tail.Copy(strng, mark_two.Col, delta, 1);
+        strng_tail.copy(strng, mark_two.Col, delta, 1);
         if (!try TextInsert(allocator, true, 1, strng_tail, delta, mark_two)) {
             return false;
         }
         text_len -= delta;
     }
 
-    try mark_ops.MarkCreate(allocator, mark_two.Line, 1, &mark_start);
+    try mark_ops.markCreate(allocator, mark_two.Line, 1, &mark_start);
     if (text_len > 0) {
         if (!try TextOvertype(allocator, true, 1, strng, text_len, mark_start.?)) {
             return false;
@@ -318,9 +318,9 @@ fn textInterRemove(
     const col_one = mark_one.Col;
     const extr_one = mark_one.Line;
     const extr_two = mark_two.Line.BLink.?;
-    try mark_ops.MarksSqueeze(allocator, extr_one, col_one, mark_two.Line, mark_two.Col);
+    try mark_ops.marksSqueeze(allocator, extr_one, col_one, mark_two.Line, mark_two.Col);
     if (col_one > 1) {
-        try mark_ops.MarksShift(allocator, extr_one, 1, col_one - 1, mark_two.Line, 1);
+        try mark_ops.marksShift(allocator, extr_one, 1, col_one - 1, mark_two.Line, 1);
     }
     line_ops.linesExtract(extr_one, extr_two);
     return true;
@@ -365,12 +365,12 @@ fn textIntraMove(
         } else if (col_two > mark_one.Line.Used) {
             text_len = mark_one.Line.Used + 1 - col_one;
         }
-        text_str.FillCopy(mark_one.Line.Str.?, col_one, text_len, 1, full_len, ' ');
+        text_str.fillCopy(mark_one.Line.Str.?, col_one, text_len, 1, full_len, ' ');
         text_len = full_len;
 
         var i: isize = 1;
         while (i < count) : (i += 1) {
-            text_str.Copy(text_str, 1, text_len, 1 + full_len);
+            text_str.copy(text_str, 1, text_len, 1 + full_len);
             full_len += text_len;
         }
     }
@@ -407,8 +407,8 @@ fn textIntraMove(
         return false;
     }
     const dst_col = dst.Col;
-    try mark_ops.MarkCreate(allocator, dst.Line, dst_col - full_len, new_start);
-    try mark_ops.MarkCreate(allocator, dst.Line, dst_col, new_end);
+    try mark_ops.markCreate(allocator, dst.Line, dst_col - full_len, new_start);
+    try mark_ops.markCreate(allocator, dst.Line, dst_col, new_end);
     return true;
 }
 
@@ -421,8 +421,8 @@ fn createMarks(
     last_col: isize,
     new_end: *?*types.MarkObject,
 ) !void {
-    try mark_ops.MarkCreate(allocator, dst_line, dst_col, new_start);
-    try mark_ops.MarkCreate(allocator, last_line, last_col, new_end);
+    try mark_ops.markCreate(allocator, dst_line, dst_col, new_start);
+    try mark_ops.markCreate(allocator, last_line, last_col, new_end);
 }
 
 fn textInterMove(
@@ -442,13 +442,13 @@ fn textInterMove(
     const col_one = mark_one.Col;
     const line_two = mark_two.Line;
     const col_two = mark_two.Col;
-    const line_one_nr = line_ops.LineToNumber(line_one);
-    const line_two_nr = line_ops.LineToNumber(line_two);
+    const line_one_nr = line_ops.lineToNumber(line_one);
+    const line_two_nr = line_ops.lineToNumber(line_two);
 
     var dst_col = dst.Col;
     var dst_used = dst.Line.Used;
     if (!copy_text and dst.Line.Group.?.Frame == line_one.Group.?.Frame) {
-        const line_dst_nr = line_ops.LineToNumber(dst.Line);
+        const line_dst_nr = line_ops.lineToNumber(dst.Line);
         if (line_one_nr <= line_dst_nr and line_dst_nr <= line_two_nr) {
             if (line_two_nr == line_dst_nr and dst_col >= col_two) {
                 dst_col = col_one + dst_col - col_two;
@@ -473,14 +473,14 @@ fn textInterMove(
     if (!copy_text) {
         lines_required -= line_two_nr - line_one_nr - 1;
     }
-    const range = try line_ops.LinesCreate(allocator, @intCast(lines_required));
+    const range = try line_ops.linesCreate(allocator, @intCast(lines_required));
     var first_line = range.first;
     var last_line = range.last;
 
     var text_len: isize = 0;
     if (col_one <= line_one.Used) {
         text_len = line_one.Used + 1 - col_one;
-        text_str.Copy(line_one.Str.?, col_one, text_len, 1);
+        text_str.copy(line_one.Str.?, col_one, text_len, 1);
     }
 
     var i = count - 1;
@@ -498,7 +498,7 @@ fn textInterMove(
         if (i == 0 and !copy_text and (line_two_nr - line_one_nr > 1)) {
             const first_nicked = line_one.FLink.?;
             const last_nicked = line_two.BLink.?;
-            try mark_ops.MarksSqueeze(allocator, first_nicked, 1, last_nicked.FLink.?, 1);
+            try mark_ops.marksSqueeze(allocator, first_nicked, 1, last_nicked.FLink.?, 1);
             line_ops.linesExtract(first_nicked, last_nicked);
             last_nicked.FLink = next_dst_line;
             first_nicked.BLink = next_dst_line.BLink;
@@ -513,29 +513,29 @@ fn textInterMove(
         }
 
         while (next_src_line != line_two) {
-            try line_ops.LineChangeLength(allocator, next_dst_line, next_src_line.Used);
-            next_dst_line.Str.?.Copy(next_src_line.Str.?, 1, next_src_line.Used, 1);
+            try line_ops.lineChangeLength(allocator, next_dst_line, next_src_line.Used);
+            next_dst_line.Str.?.copy(next_src_line.Str.?, 1, next_src_line.Used, 1);
             next_dst_line.Used = next_src_line.Used;
             next_src_line = next_src_line.FLink.?;
             next_dst_line = next_dst_line.FLink.?;
         }
 
         if (i != 0) {
-            try line_ops.LineChangeLength(allocator, next_dst_line, col_two - 1 + text_len);
-            next_dst_line.Str.?.Copy(text_str, 1, text_len, col_two);
+            try line_ops.lineChangeLength(allocator, next_dst_line, col_two - 1 + text_len);
+            next_dst_line.Str.?.copy(text_str, 1, text_len, col_two);
         } else {
-            try line_ops.LineChangeLength(allocator, next_dst_line, col_two - 1);
+            try line_ops.lineChangeLength(allocator, next_dst_line, col_two - 1);
         }
 
         if (col_two > 1) {
             if (col_two <= next_src_line.Used) {
-                next_dst_line.Str.?.Copy(next_src_line.Str.?, 1, col_two - 1, 1);
+                next_dst_line.Str.?.copy(next_src_line.Str.?, 1, col_two - 1, 1);
             } else {
-                next_dst_line.Str.?.FillCopy(next_src_line.Str.?, 1, next_src_line.Used, 1, col_two - 1, ' ');
+                next_dst_line.Str.?.fillCopy(next_src_line.Str.?, 1, next_src_line.Used, 1, col_two - 1, ' ');
             }
         }
         next_dst_line.Used = if (i != 0)
-            next_dst_line.Str.?.TrimmedLen(' ', col_two - 1 + text_len)
+            next_dst_line.Str.?.trimmedLen(' ', col_two - 1 + text_len)
         else
             col_two - 1;
     }
@@ -550,11 +550,11 @@ fn textInterMove(
     const last_line_length = last_line.Used;
     const tail_len = dst_line.Used + 1 - dst_col;
     if (tail_len > 0) {
-        try line_ops.LineChangeLength(allocator, last_line, last_line.Used + tail_len);
-        last_line.Str.?.Copy(dst_line.Str.?, dst_col, tail_len, last_line_length + 1);
-        last_line.Used = last_line.Str.?.TrimmedLen(' ', last_line_length + tail_len);
+        try line_ops.lineChangeLength(allocator, last_line, last_line.Used + tail_len);
+        last_line.Str.?.copy(dst_line.Str.?, dst_col, tail_len, last_line_length + 1);
+        last_line.Used = last_line.Str.?.trimmedLen(' ', last_line_length + tail_len);
     } else if (last_line_length > 0) {
-        last_line.Used = last_line.Str.?.TrimmedLen(' ', last_line_length);
+        last_line.Used = last_line.Str.?.trimmedLen(' ', last_line_length);
     }
 
     if (dst_line.FLink == null) {
@@ -573,8 +573,8 @@ fn textInterMove(
             }
 
             if (text_len > 0) {
-                try line_ops.LineChangeLength(allocator, first_line, text_len);
-                first_line.Str.?.FillCopy(text_str, 1, text_len, 1, first_line.Len(), ' ');
+                try line_ops.lineChangeLength(allocator, first_line, text_len);
+                first_line.Str.?.fillCopy(text_str, 1, text_len, 1, first_line.Len(), ' ');
                 first_line.Used = text_len;
             }
             try line_ops.linesInject(allocator, first_line, last_line, dst_line);
@@ -587,15 +587,15 @@ fn textInterMove(
     }
 
     try line_ops.linesInject(allocator, first_line, last_line, dst_line.FLink.?);
-    try mark_ops.MarksShift(allocator, dst_line, dst_col, types.MaxStrLenP + 1 - dst_col, last_line, col_two);
+    try mark_ops.marksShift(allocator, dst_line, dst_col, types.MaxStrLenP + 1 - dst_col, last_line, col_two);
     if (text_len > 0) {
-        try line_ops.LineChangeLength(allocator, dst_line, dst_col + text_len - 1);
-        dst_line.Str.?.FillCopy(text_str, 1, text_len, dst_col, dst_line.Len() + 1 - dst_col, ' ');
+        try line_ops.lineChangeLength(allocator, dst_line, dst_col + text_len - 1);
+        dst_line.Str.?.fillCopy(text_str, 1, text_len, dst_col, dst_line.Len() + 1 - dst_col, ' ');
         dst_line.Used = dst_col + text_len - 1;
         markLineDirty(dst_line.Group.?.Frame, dst_line);
     } else if (dst_col <= dst_line.Used) {
-        dst_line.Str.?.Fill(' ', dst_col, dst_line.Used);
-        dst_line.Used = dst_line.Str.?.TrimmedLen(' ', dst_col);
+        dst_line.Str.?.fill(' ', dst_col, dst_line.Used);
+        dst_line.Used = dst_line.Str.?.trimmedLen(' ', dst_col);
         markLineDirty(dst_line.Group.?.Frame, dst_line);
     }
 
@@ -624,10 +624,10 @@ pub fn TextMove(
         }
         if (!copy_text) {
             mark_two.Line.Group.?.Frame.TextModified = true;
-            try mark_ops.MarkCreate(allocator, mark_two.Line, mark_two.Col, &mark_two.Line.Group.?.Frame.Marks[types.MarkModified]);
+            try mark_ops.markCreate(allocator, mark_two.Line, mark_two.Col, &mark_two.Line.Group.?.Frame.Marks[types.MarkModified]);
         }
         new_end.*.?.Line.Group.?.Frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, new_end.*.?.Line, new_end.*.?.Col, &new_end.*.?.Line.Group.?.Frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, new_end.*.?.Line, new_end.*.?.Col, &new_end.*.?.Line.Group.?.Frame.Marks[types.MarkModified]);
     }
     return true;
 }
@@ -654,7 +654,7 @@ pub fn TextSplitLine(
         return false;
     }
 
-    const range = try line_ops.LinesCreate(allocator, 1);
+    const range = try line_ops.linesCreate(allocator, 1);
     const new_line = range.first;
 
     var shift = new_col - before_mark.Col;
@@ -675,16 +675,16 @@ pub fn TextSplitLine(
         equals_col = before_mark.Col;
         equals_line = before_mark.Line;
         if (length > 0) {
-            try line_ops.LineChangeLength(allocator, new_line, new_col + length - 1);
-            new_line.Str.?.FillN(' ', new_col - 1, 1);
-            new_line.Str.?.Copy(before_mark.Line.Str.?, before_mark.Col, length, new_col);
-            before_mark.Line.Str.?.Fill(' ', before_mark.Col, before_mark.Col + length - 1);
-            before_mark.Line.Used = before_mark.Line.Str.?.TrimmedLen(' ', before_mark.Line.Used);
+            try line_ops.lineChangeLength(allocator, new_line, new_col + length - 1);
+            new_line.Str.?.fillN(' ', new_col - 1, 1);
+            new_line.Str.?.copy(before_mark.Line.Str.?, before_mark.Col, length, new_col);
+            before_mark.Line.Str.?.fill(' ', before_mark.Col, before_mark.Col + length - 1);
+            before_mark.Line.Used = before_mark.Line.Str.?.trimmedLen(' ', before_mark.Line.Used);
             markLineDirty(before_mark.Line.Group.?.Frame, before_mark.Line);
             new_line.Used = new_col + length - 1;
         }
         try line_ops.linesInject(allocator, new_line, new_line, before_mark.Line.FLink.?);
-        try mark_ops.MarksShift(allocator, before_mark.Line, before_mark.Col, types.MaxStrLenP + 1 - before_mark.Col, new_line, new_col);
+        try mark_ops.marksShift(allocator, before_mark.Line, before_mark.Col, types.MaxStrLenP + 1 - before_mark.Col, new_line, new_col);
     } else {
         equals_col = before_mark.Col;
         equals_line = new_line;
@@ -696,15 +696,15 @@ pub fn TextSplitLine(
         }
 
         if (shift > 0) {
-            try line_ops.LineChangeLength(allocator, new_line, shift);
-            new_line.Str.?.Copy(before_mark.Line.Str.?, 1, shift, 1);
-            new_line.Used = new_line.Str.?.TrimmedLen(' ', shift);
+            try line_ops.lineChangeLength(allocator, new_line, shift);
+            new_line.Str.?.copy(before_mark.Line.Str.?, 1, shift, 1);
+            new_line.Used = new_line.Str.?.trimmedLen(' ', shift);
         }
 
         try line_ops.linesInject(allocator, new_line, new_line, before_mark.Line);
         markLineDirty(new_line.Group.?.Frame, new_line);
         if (before_mark.Col > 1) {
-            try mark_ops.MarksShift(allocator, before_mark.Line, 1, before_mark.Col - 1, new_line, 1);
+            try mark_ops.marksShift(allocator, before_mark.Line, 1, before_mark.Col - 1, new_line, 1);
         }
 
         shift = new_col - before_mark.Col;
@@ -741,8 +741,8 @@ pub fn TextSplitLine(
     }
 
     before_mark.Line.Group.?.Frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, before_mark.Line, before_mark.Col, &before_mark.Line.Group.?.Frame.Marks[types.MarkModified]);
-    try mark_ops.MarkCreate(allocator, equals_line, equals_col, equals_mark);
+    try mark_ops.markCreate(allocator, before_mark.Line, before_mark.Col, &before_mark.Line.Group.?.Frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, equals_line, equals_col, equals_mark);
     return true;
 }
 
@@ -772,20 +772,20 @@ test "text insert handles empty middle and null lines" {
 
     var empty_fixture = try line_ops.setupLinkedLines(allocator, 2);
     var insert_mark = types.MarkObject{ .Line = empty_fixture.content_lines[0], .Col = 1 };
-    const hello = try str_object.NewStrObjectFrom(allocator, "Hi");
+    const hello = try str_object.newStrObjectFrom(allocator, "Hi");
     try std.testing.expect(try TextInsert(allocator, false, 1, hello, 2, &insert_mark));
     try expectLineContent(empty_fixture.content_lines[0], "Hi");
 
     const middle_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
     var middle_mark = types.MarkObject{ .Line = middle_fixture.content_lines[0], .Col = 4 };
-    const xy = try str_object.NewStrObjectFrom(allocator, "XY");
+    const xy = try str_object.newStrObjectFrom(allocator, "XY");
     try std.testing.expect(try TextInsert(allocator, false, 1, xy, 2, &middle_mark));
     try expectLineContent(middle_fixture.content_lines[0], "HelXYlo");
 
     empty_fixture.frame.Dot = try allocator.create(types.MarkObject);
     empty_fixture.frame.Dot.?.* = .{ .Line = empty_fixture.sentinel_line, .Col = 1 };
     var null_mark = types.MarkObject{ .Line = empty_fixture.sentinel_line, .Col = 1 };
-    const z = try str_object.NewStrObjectFrom(allocator, "Z");
+    const z = try str_object.newStrObjectFrom(allocator, "Z");
     try std.testing.expect(try TextInsert(allocator, false, 1, z, 1, &null_mark));
     try std.testing.expect(empty_fixture.frame.TextModified);
 }
@@ -797,7 +797,7 @@ test "text overtype advances destination mark" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
     var mark = types.MarkObject{ .Line = fixture.content_lines[0], .Col = 2 };
-    const xy = try str_object.NewStrObjectFrom(allocator, "XY");
+    const xy = try str_object.newStrObjectFrom(allocator, "XY");
     try std.testing.expect(try TextOvertype(allocator, false, 1, xy, 2, &mark));
     try expectLineContent(fixture.content_lines[0], "HXYlo");
     try std.testing.expectEqual(@as(isize, 4), mark.Col);
@@ -903,7 +903,7 @@ test "text insert tpar handles simple and multiline chains" {
 
     const simple_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{""});
     var before_mark = types.MarkObject{ .Line = simple_fixture.content_lines[0], .Col = 1 };
-    const hello = try str_object.NewStrObjectFrom(allocator, "Hello");
+    const hello = try str_object.newStrObjectFrom(allocator, "Hello");
     var simple_tpar = types.TParObject{ .Len = 5, .Str = hello };
     var equals_mark: ?*types.MarkObject = null;
     try std.testing.expect(try TextInsertTpar(allocator, &simple_tpar, &before_mark, &equals_mark));
@@ -911,10 +911,10 @@ test "text insert tpar handles simple and multiline chains" {
 
     const multi_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello World"});
     var mark: ?*types.MarkObject = null;
-    try mark_ops.MarkCreate(allocator, multi_fixture.content_lines[0], 7, &mark);
-    const line1 = try str_object.NewStrObjectFrom(allocator, "Line1");
-    const line2 = try str_object.NewStrObjectFrom(allocator, "Line2");
-    const line3 = try str_object.NewStrObjectFrom(allocator, "Line3");
+    try mark_ops.markCreate(allocator, multi_fixture.content_lines[0], 7, &mark);
+    const line1 = try str_object.newStrObjectFrom(allocator, "Line1");
+    const line2 = try str_object.newStrObjectFrom(allocator, "Line2");
+    const line3 = try str_object.newStrObjectFrom(allocator, "Line3");
     var tpar3 = types.TParObject{ .Len = 5, .Str = line3 };
     var tpar2 = types.TParObject{ .Len = 5, .Str = line2, .Con = &tpar3 };
     var tpar1 = types.TParObject{ .Len = 5, .Str = line1, .Con = &tpar2 };

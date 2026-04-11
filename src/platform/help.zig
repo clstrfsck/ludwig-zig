@@ -180,8 +180,8 @@ fn refreshFrameSpanMarks(
     frame: *types.FrameObject,
 ) !void {
     if (frame.Span) |span| {
-        try mark_ops.MarkCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-        try mark_ops.MarkCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+        try mark_ops.markCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
+        try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
     }
 }
 
@@ -192,13 +192,13 @@ fn clearFrameText(
     const sentinel = frame.LastGroup.?.LastLine.?;
     const last_content = sentinel.BLink;
     if (last_content == null) {
-        try mark_ops.MarkCreate(allocator, sentinel, 1, &frame.Dot);
+        try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
         try refreshFrameSpanMarks(allocator, frame);
         return;
     }
 
     const first_content = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.MarksSqueeze(allocator, first_content, 1, sentinel, 1);
+    try mark_ops.marksSqueeze(allocator, first_content, 1, sentinel, 1);
     first_content.BLink = null;
     last_content.?.FLink = null;
     sentinel.BLink = null;
@@ -214,8 +214,8 @@ fn clearFrameText(
     empty_group.FirstLineNr = 1;
     empty_group.NrLines = 0;
 
-    try line_ops.LineChangeLength(allocator, sentinel, 0);
-    try mark_ops.MarkCreate(allocator, sentinel, 1, &frame.Dot);
+    try line_ops.lineChangeLength(allocator, sentinel, 0);
+    try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
     try refreshFrameSpanMarks(allocator, frame);
 }
 
@@ -227,13 +227,13 @@ fn replaceReportFrame(
     try clearFrameText(allocator, frame);
     const sentinel = frame.LastGroup.?.LastLine.?;
     if (lines.len > 0) {
-        const range = try line_ops.LinesCreate(allocator, lines.len);
+        const range = try line_ops.linesCreate(allocator, lines.len);
         try line_ops.linesInject(allocator, range.first, range.last, sentinel);
 
         var line = range.first;
         for (lines, 0..) |content, index| {
             if (content.len > 0) {
-                try line_ops.LineChangeLength(allocator, line, @intCast(content.len));
+                try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
                 try line_ops.setLineContent(line, content);
             } else {
                 line.Used = 0;
@@ -246,9 +246,9 @@ fn replaceReportFrame(
 
     try refreshFrameSpanMarks(allocator, frame);
     const first_line = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.MarkCreate(allocator, first_line, 1, &frame.Dot);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkEquals]);
-    mark_ops.MarkDestroy(allocator, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, first_line, 1, &frame.Dot);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
+    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
     frame.TextModified = false;
     return true;
 }
@@ -356,8 +356,8 @@ fn makeReportFrame(allocator: std.mem.Allocator, name: []const u8) !line_ops.Fra
         .Frame = fixture.frame,
     };
     fixture.frame.Span = span;
-    try mark_ops.MarkCreate(allocator, fixture.frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-    try mark_ops.MarkCreate(allocator, fixture.frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    try mark_ops.markCreate(allocator, fixture.frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
+    try mark_ops.markCreate(allocator, fixture.frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
     return fixture;
 }
 

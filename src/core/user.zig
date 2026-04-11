@@ -47,9 +47,9 @@ pub fn ResolveUserKeyCode(editor: *const state.Editor, key: *const types.TParObj
         return null;
     }
     if (key.Len == 1) {
-        return key.Str.?.Get(1);
+        return key.Str.?.get(1);
     }
-    return UserKeyNameToCode(editor, key.Str.?.Slice(1, key.Len));
+    return UserKeyNameToCode(editor, key.Str.?.slice(1, key.Len));
 }
 
 fn ensureKeyName(
@@ -94,7 +94,7 @@ fn registerKey(
 fn newPromptTpar(allocator: std.mem.Allocator) !*types.TParObject {
     const tpar = try allocator.create(types.TParObject);
     tpar.* = .{
-        .Str = try str_object.NewBlankStrObject(allocator, 0),
+        .Str = try str_object.newBlankStrObject(allocator, 0),
         .Dlm = types.TpdPrompt,
     };
     return tpar;
@@ -280,14 +280,14 @@ pub fn UserCommandIntroducer(
 ) !bool {
     if (editor.CommandIntroducer < 0 or
         editor.CommandIntroducer > types.MaxSetRange or
-        !chars.ChIsPrintable(@intCast(editor.CommandIntroducer)))
+        !chars.chIsPrintable(@intCast(editor.CommandIntroducer)))
     {
         emitMessage(editor, nonprintable_introducer_message);
         return false;
     }
 
-    const temp = try str_object.NewBlankStrObject(allocator, 1);
-    temp.Set(1, @intCast(editor.CommandIntroducer));
+    const temp = try str_object.newBlankStrObject(allocator, 1);
+    temp.set(1, @intCast(editor.CommandIntroducer));
 
     const cmd_success = switch (editor.EditMode) {
         .ModeInsert => try text.TextInsert(allocator, true, 1, temp, 1, frame.Dot.?),
@@ -300,7 +300,7 @@ pub fn UserCommandIntroducer(
 
     if (cmd_success) {
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return cmd_success;
 }
@@ -316,7 +316,7 @@ pub fn BindCompiledKey(
 
     const binding = &editor.Lookup[@intCast(key_code)];
     if (binding.Code != null) {
-        code_store.CodeDiscard(editor, &binding.Code);
+        code_store.codeDiscard(editor, &binding.Code);
     }
     binding.Code = null;
     binding.Tpar = null;
@@ -352,14 +352,14 @@ test "user key lookup uses editor key name list" {
     try std.testing.expectEqualStrings("TAB", UserKeyCodeToName(&editor, 9).?);
     try std.testing.expectEqual(@as(?isize, 9), UserKeyNameToCode(&editor, "TAB"));
 
-    const named = try str_object.NewStrObjectFrom(allocator, "TAB");
+    const named = try str_object.newStrObjectFrom(allocator, "TAB");
     var named_tpar = types.TParObject{
         .Str = named,
         .Len = 3,
     };
     try std.testing.expectEqual(@as(?isize, 9), ResolveUserKeyCode(&editor, &named_tpar));
 
-    const literal = try str_object.NewStrObjectFrom(allocator, "A");
+    const literal = try str_object.newStrObjectFrom(allocator, "A");
     var literal_tpar = types.TParObject{
         .Str = literal,
         .Len = 1,
@@ -374,7 +374,7 @@ test "user command introducer inserts in insert mode" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
     editor.CommandIntroducer = '@';
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.Dot);
 
     try std.testing.expect(try UserCommandIntroducer(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings("a@b", line_ops.getLineContent(fixture.content_lines[0]));
@@ -392,7 +392,7 @@ test "user command introducer overtypes in command mode after overtype" {
     editor.CommandIntroducer = '@';
     editor.EditMode = .ModeCommand;
     editor.PreviousMode = .ModeOvertype;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.Dot);
 
     try std.testing.expect(try UserCommandIntroducer(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings("a@", line_ops.getLineContent(fixture.content_lines[0]));

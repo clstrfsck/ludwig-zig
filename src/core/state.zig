@@ -68,7 +68,7 @@ pub const Editor = struct {
             .base_allocator = base_allocator,
             .arena = std.heap.ArenaAllocator.init(base_allocator),
         };
-        defaults.SetRegularTabStops(&editor, 8);
+        defaults.setRegularTabStops(&editor, 8);
         try defaults.setupInitialValues(&editor);
         try editor.initializeCompilerHeader();
         command_tables.initializeCommandAttributes(&editor);
@@ -121,7 +121,7 @@ test "editor init ports value.go defaults and compiler state" {
     try std.testing.expect(editor.Screen.StdinReaderInitialized);
     try std.testing.expect(!editor.QuitRequested);
     try std.testing.expect(editor.BlankString != null);
-    try std.testing.expectEqual(@as(usize, types.MaxStrLen), editor.BlankString.?.Len());
+    try std.testing.expectEqual(@as(usize, types.MaxStrLen), editor.BlankString.?.len());
     try std.testing.expect(editor.CodeList != null);
     try std.testing.expect(editor.CodeList.?.FLink == editor.CodeList);
     try std.testing.expect(editor.CodeList.?.BLink == editor.CodeList);

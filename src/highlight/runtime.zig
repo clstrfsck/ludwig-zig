@@ -145,7 +145,7 @@ const Highlighter = struct {
         line: *types.LineHdrObject,
     ) anyerror!void {
         line.HlMatch.clearRetainingCapacity();
-        const text = if (line.Str) |str| str.Slice(1, line.Used) else "";
+        const text = if (line.Str) |str| str.slice(1, line.Used) else "";
 
         var entries: std.ArrayListUnmanaged(types.HighlightMatchEntry) = .{};
         if (self.last_region) |region| {
@@ -541,7 +541,7 @@ fn frameFirstLine(frame: *types.FrameObject) []const u8 {
     if (line.FLink == null or line.Str == null) {
         return "";
     }
-    return line.Str.?.Slice(1, line.Used);
+    return line.Str.?.slice(1, line.Used);
 }
 
 pub fn deinit() void {

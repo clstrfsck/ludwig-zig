@@ -164,7 +164,7 @@ const RepeatSpec = struct {
 
 fn patternCharAt(pattern: *types.TParObject, pos: isize) ?u8 {
     if (pattern.Str == null or pos < 1 or pos > pattern.Len) return null;
-    return pattern.Str.?.Get(pos);
+    return pattern.Str.?.get(pos);
 }
 
 fn skipSpaces(pattern: *types.TParObject, pos: *isize) void {
@@ -241,7 +241,7 @@ fn parseQuotedLiteral(
             var reps_left = if (repeat.min > 0) repeat.min else 1;
             while (reps_left > 0) : (reps_left -= 1) {
                 for (literal.items, 0..) |item, idx| {
-                    const accept = singletonSet(if (delimiter == types.TpdExact) item else chars.ChToUpper(item));
+                    const accept = singletonSet(if (delimiter == types.TpdExact) item else chars.chToUpper(item));
                     const indefinite = repeat.indefinite and reps_left == 1 and idx == literal.items.len - 1;
                     if (!emitAcceptState(nfa_table, current_state, accept, indefinite)) return false;
                 }
@@ -397,7 +397,7 @@ fn parseAtom(
             pos.* += 1;
         },
         else => {
-            const upper = chars.ChToUpper(actual);
+            const upper = chars.chToUpper(actual);
             switch (upper) {
                 'S' => accept = spaceSet,
                 'C' => accept = printableSet,
@@ -540,7 +540,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
 
     const single_class = "s";
     const tpar = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, single_class),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, single_class),
         .Len = single_class.len,
     };
     var nfa_table: types.NFATableType = [_]types.NFATransitionType{.{}} ** (types.MaxNFAStateRange + 1);
@@ -557,14 +557,14 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
 
     const email_like = "+a'@'+a'.'+a";
     var literal = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, email_like),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, email_like),
         .Len = email_like.len,
     };
     try std.testing.expect(PatternParser(null, &literal, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
 
     const context_source = "'a','b','c'";
     var context_pattern = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, context_source),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, context_source),
         .Len = context_source.len,
     };
     try std.testing.expect(PatternParser(null, &context_pattern, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
@@ -573,7 +573,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
 
     const trailing_bar_source = "('+'|'-'|)+n";
     var trailing_bar = types.TParObject{
-        .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, trailing_bar_source),
+        .Str = try @import("str_object.zig").newStrObjectFrom(allocator, trailing_bar_source),
         .Len = trailing_bar_source.len,
     };
     try std.testing.expect(PatternParser(null, &trailing_bar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
@@ -611,7 +611,7 @@ test "pattern parser rejects malformed inputs and enforces nesting limits" {
         "#",
     }) |content| {
         var tpar = types.TParObject{
-            .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, content),
+            .Str = try @import("str_object.zig").newStrObjectFrom(allocator, content),
             .Len = @intCast(content.len),
         };
         try std.testing.expect(!PatternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
@@ -627,7 +627,7 @@ test "pattern parser rejects malformed inputs and enforces nesting limits" {
         "(((((((((a)))))))))",
     }) |content| {
         var tpar = types.TParObject{
-            .Str = try @import("str_object.zig").NewStrObjectFrom(allocator, content),
+            .Str = try @import("str_object.zig").newStrObjectFrom(allocator, content),
             .Len = @intCast(content.len),
         };
         try std.testing.expect(PatternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));

@@ -482,7 +482,7 @@ fn frameDisplayWidth(editor: *const state.Editor, frame: *const types.FrameObjec
 }
 
 fn clampTopLine(frame: *const types.FrameObject, top_number: isize, height: isize) isize {
-    const last_number = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
     const max_top = @max(@as(isize, 1), last_number - height + 1);
     return @min(@max(top_number, 1), max_top);
 }
@@ -656,7 +656,7 @@ fn restorePromptLines(editor: *state.Editor, frame: *types.FrameObject, max_tp: 
 }
 
 fn initialVerifyTopLine(frame: *const types.FrameObject, height: isize) isize {
-    const dot_number = line_ops.LineToNumber(frame.Dot.?.Line);
+    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
     const desired_row = if (height > 1) @as(isize, 2) else 1;
     return clampTopLine(frame, dot_number - desired_row + 1, height);
 }
@@ -668,7 +668,7 @@ fn expandVerifyViewport(
     delta: isize,
     max_height: isize,
 ) void {
-    const last_number = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
     const target_height = @min(max_height, height.* + delta);
     var top = top_number.*;
     var current_height = height.*;
@@ -711,7 +711,7 @@ fn drawVerifyViewport(
 
     clearScreen();
     var row: isize = 1;
-    var line: ?*types.LineHdrObject = line_ops.LineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
+    var line: ?*types.LineHdrObject = line_ops.lineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
     while (row <= height and row < terminal_height) : (row += 1) {
         if (line) |current| {
             drawFrameLine(editor, frame, row, current);
@@ -726,7 +726,7 @@ fn drawVerifyViewport(
 
     drawLine(terminal_height, prompt);
 
-    const dot_number = line_ops.LineToNumber(frame.Dot.?.Line);
+    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
     const cursor_row = @min(@max(dot_number - top_number + 1, 1), @min(height, terminal_height));
     const cursor_col = @min(@max(frame.Dot.?.Col - frame.ScrOffset, 1), width);
     moveCursor(cursor_col, cursor_row);

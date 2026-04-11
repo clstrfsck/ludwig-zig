@@ -1,7 +1,7 @@
 const state = @import("state.zig");
 const types = @import("types.zig");
 
-pub fn CodeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
+pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
     if (code_head.* == null) {
         return;
     }
@@ -14,7 +14,7 @@ pub fn CodeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
         var source = start;
         while (source < start + size) : (source += 1) {
             if (editor.CompilerCode[@intCast(source)].Code != null) {
-                CodeDiscard(editor, &editor.CompilerCode[@intCast(source)].Code);
+                codeDiscard(editor, &editor.CompilerCode[@intCast(source)].Code);
             }
             editor.CompilerCode[@intCast(source)].Tpar = null;
         }

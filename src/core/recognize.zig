@@ -295,7 +295,7 @@ const Parser = struct {
             },
             else => {
                 token.kind = .char;
-                token.accept = switch (chars.ChToUpper(actual)) {
+                token.accept = switch (chars.chToUpper(actual)) {
                     'S' => patparse.spaceSet,
                     'C' => patparse.printableSet,
                     'A' => patparse.alphaSet,
@@ -329,14 +329,14 @@ const Parser = struct {
             }
             self.index += 1;
             var accept: types.AcceptSet = .{};
-            if (delimiter == types.TpdExact or !chars.ChIsLetter(ch)) {
+            if (delimiter == types.TpdExact or !chars.chIsLetter(ch)) {
                 patparse.setAdd(&accept, ch);
-            } else if (chars.ChIsLower(ch)) {
+            } else if (chars.chIsLower(ch)) {
                 patparse.setAdd(&accept, ch);
-                patparse.setAdd(&accept, chars.ChToUpper(ch));
+                patparse.setAdd(&accept, chars.chToUpper(ch));
             } else {
                 patparse.setAdd(&accept, ch);
-                patparse.setAdd(&accept, chars.ChToLower(ch));
+                patparse.setAdd(&accept, chars.chToLower(ch));
             }
             try pieces.append(self.allocator, try self.makeNode(.{
                 .token = .{
@@ -481,7 +481,7 @@ fn buildEvents(
         if (col <= used) {
             try events.append(allocator, .{
                 .kind = .char,
-                .ch = line.Str.?.Get(col),
+                .ch = line.Str.?.get(col),
                 .before_col = col,
                 .after_col = col + 1,
             });
@@ -651,7 +651,7 @@ fn matchCompiledPattern(
 }
 
 fn patternSource(definition: types.PatternDefType) []const u8 {
-    return definition.Strng.?.Slice(1, definition.Length);
+    return definition.Strng.?.slice(1, definition.Length);
 }
 
 pub fn PatternRecognize(
@@ -717,7 +717,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
 
     var dfa: types.DFATableObject = .{
         .Definition = .{
-            .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, "'world'"),
+            .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'world'"),
             .Length = 7,
         },
     };
@@ -729,7 +729,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
     try std.testing.expectEqual(@as(isize, 12), finish_pos);
 
     dfa.Definition = .{
-        .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, "<+a>"),
+        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "<+a>"),
         .Length = 4,
     };
     try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
@@ -737,7 +737,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
     try std.testing.expectEqual(@as(isize, 4), finish_pos);
 
     dfa.Definition = .{
-        .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, "'a','b','c'"),
+        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a','b','c'"),
         .Length = 11,
     };
     try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
@@ -746,7 +746,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
 
     const email_pattern = "+a'@'+a'.'+a";
     dfa.Definition = .{
-        .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, email_pattern),
+        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, email_pattern),
         .Length = email_pattern.len,
     };
     try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[2], 1, &mark_flag, &start_pos, &finish_pos));
@@ -760,12 +760,12 @@ test "pattern recognize handles positional marks and initial mark flag skipping"
     const allocator = arena.allocator();
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"abc"});
-    try @import("mark.zig").MarkCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Marks[1]);
+    try @import("mark.zig").markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Marks[1]);
     fixture.frame.MarginLeft = 1;
 
     var dfa: types.DFATableObject = .{
         .Definition = .{
-            .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, "@1"),
+            .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "@1"),
             .Length = 2,
         },
     };
@@ -777,7 +777,7 @@ test "pattern recognize handles positional marks and initial mark flag skipping"
     try std.testing.expectEqual(@as(isize, 1), finish_pos);
 
     dfa.Definition = .{
-        .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, "'a'"),
+        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a'"),
         .Length = 3,
     };
     mark_flag = true;
@@ -795,7 +795,7 @@ test "pattern recognize keeps the longest same-column repeat match" {
     const pattern = "[,3]N";
     var dfa: types.DFATableObject = .{
         .Definition = .{
-            .Strng = try @import("str_object.zig").NewStrObjectFrom(allocator, pattern),
+            .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, pattern),
             .Length = pattern.len,
         },
     };

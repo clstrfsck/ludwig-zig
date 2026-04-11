@@ -115,7 +115,7 @@ pub fn startUp(
     input: ?*types.FileObject,
     output: ?*types.FileObject,
 ) !*Session {
-    defaults.SetRegularTabStops(editor, editor.FileData.TabWidth);
+    defaults.setRegularTabStops(editor, editor.FileData.TabWidth);
 
     const session = try allocator.create(Session);
     session.* = .{
@@ -202,7 +202,7 @@ fn clearVisibleRows(editor: *state.Editor) void {
 }
 
 fn clampTopLine(frame: *types.FrameObject, top_number: isize, height: isize) isize {
-    const last_number = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
     const max_top = @max(@as(isize, 1), last_number - height + 1);
     return @min(@max(top_number, 1), max_top);
 }
@@ -215,7 +215,7 @@ fn setViewport(
 ) void {
     clearVisibleRows(editor);
 
-    const top_line = line_ops.LineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
+    const top_line = line_ops.lineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
     var current = top_line;
     var row: isize = 1;
     var bot_line = top_line;
@@ -237,8 +237,8 @@ fn setViewport(
 
 fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    const dot_number = line_ops.LineToNumber(frame.Dot.?.Line);
-    const last_number = line_ops.LineToNumber(frame.LastGroup.?.LastLine.?);
+    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
+    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
 
     var desired_row = frame.ScrDotLine;
     if (desired_row < 1) {
@@ -261,8 +261,8 @@ fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn positionViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    var top_number = if (editor.Screen.TopLine) |top_line| line_ops.LineToNumber(top_line) else @as(isize, 1);
-    const dot_number = line_ops.LineToNumber(frame.Dot.?.Line);
+    var top_number = if (editor.Screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
+    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
     const bottom_limit = @max(@as(isize, 1), height - frame.MarginBottom);
 
     top_number = clampTopLine(frame, top_number, height);
@@ -493,8 +493,8 @@ fn markTextChange(
     frame: *types.FrameObject,
 ) !void {
     frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - 1, &frame.Marks[types.MarkEquals]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - 1, &frame.Marks[types.MarkEquals]);
 }
 
 fn autoWrapIfNeeded(
@@ -512,7 +512,7 @@ fn autoWrapIfNeeded(
     const next_key_opt = try interactive_io.readInputKey();
     const next_key = next_key_opt orelse return;
     if (next_key < 0 or next_key > std.math.maxInt(u8) or
-        !chars.ChIsPrintable(@intCast(next_key)) or
+        !chars.chIsPrintable(@intCast(next_key)) or
         next_key == editor.CommandIntroducer)
     {
         interactive_io.takeBackInputKey(next_key);
@@ -522,11 +522,11 @@ fn autoWrapIfNeeded(
 
     var split_col = frame.MarginRight;
     if (next_byte != ' ') {
-        while (frame.Dot.?.Line.Str.?.Get(split_col) != ' ' and split_col > frame.MarginLeft) {
+        while (frame.Dot.?.Line.Str.?.get(split_col) != ' ' and split_col > frame.MarginLeft) {
             split_col -= 1;
         }
         var last_non_space = split_col;
-        while (frame.Dot.?.Line.Str.?.Get(last_non_space) == ' ' and last_non_space > frame.MarginLeft) {
+        while (frame.Dot.?.Line.Str.?.get(last_non_space) == ' ' and last_non_space > frame.MarginLeft) {
             last_non_space -= 1;
         }
         if (last_non_space == frame.MarginLeft) {
@@ -547,8 +547,8 @@ fn insertPrintable(
     key: u8,
 ) !bool {
     const frame = session.current_frame;
-    const temp = try str_object.NewBlankStrObject(allocator, 1);
-    temp.Set(1, key);
+    const temp = try str_object.newBlankStrObject(allocator, 1);
+    temp.set(1, key);
 
     const ok = switch (editor.EditMode) {
         .ModeInsert => try text.TextInsert(allocator, false, 1, temp, 1, frame.Dot.?),
@@ -624,7 +624,7 @@ fn positionDotAtModifiedMark(
     frame: *types.FrameObject,
 ) !void {
     const modified = frame.Marks[types.MarkModified] orelse return;
-    try mark_ops.MarkCreate(allocator, modified.Line, modified.Col, &frame.Dot);
+    try mark_ops.markCreate(allocator, modified.Line, modified.Col, &frame.Dot);
 }
 
 fn confirmQuitRequest(
@@ -696,7 +696,7 @@ pub fn run(
                 editor.TtControlC = true;
             } else if (key == editor.CommandIntroducer) {
                 cmd_success = try executeCompiledCommand(editor, allocator, session);
-            } else if (key >= 0 and key <= std.math.maxInt(u8) and chars.ChIsPrintable(@intCast(key))) {
+            } else if (key >= 0 and key <= std.math.maxInt(u8) and chars.chIsPrintable(@intCast(key))) {
                 cmd_success = try insertPrintable(editor, allocator, session, @intCast(key));
                 trace("[rt:text] dot_col={} quit={}\n", .{
                     session.current_frame.Dot.?.Col,
@@ -788,7 +788,7 @@ test "interactive testing snapshot paints top and bottom markers for clipped fra
         "6",
     });
     fixture.frame.ScrHeight = 4;
-    try mark_ops.MarkCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.Dot);
     setViewport(&editor, fixture.frame, 2, displayHeight(&editor, fixture.frame));
 
     var storage: [2048]u8 = undefined;
@@ -831,7 +831,7 @@ test "interactive quit confirmation repositions dot at modified mark" {
     editor.FilesFrames[1] = modified_fixture.frame;
     modified_fixture.frame.InputFile = 1;
     modified_fixture.frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, modified_fixture.content_lines[0], 3, &modified_fixture.frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, modified_fixture.content_lines[0], 3, &modified_fixture.frame.Marks[types.MarkModified]);
 
     var session = Session{
         .current_frame = current_fixture.frame,
@@ -892,7 +892,7 @@ test "interactive quit confirmation accepts more-context replies without extra b
     editor.FilesFrames[1] = modified_fixture.frame;
     modified_fixture.frame.InputFile = 1;
     modified_fixture.frame.TextModified = true;
-    try mark_ops.MarkCreate(allocator, modified_fixture.content_lines[0], 2, &modified_fixture.frame.Marks[types.MarkModified]);
+    try mark_ops.markCreate(allocator, modified_fixture.content_lines[0], 2, &modified_fixture.frame.Marks[types.MarkModified]);
 
     var session = Session{
         .current_frame = current_fixture.frame,

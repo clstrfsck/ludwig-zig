@@ -6,7 +6,7 @@ const text = @import("text.zig");
 const types = @import("types.zig");
 
 fn blankString(allocator: std.mem.Allocator) !*str_object.StrObject {
-    return str_object.NewBlankStrObject(allocator, types.MaxStrLen);
+    return str_object.newBlankStrObject(allocator, types.MaxStrLen);
 }
 
 fn normalizeLineCommandRepeat(rept: *types.LeadParam, count: *isize) void {
@@ -35,7 +35,7 @@ fn moveDot(
     line: *types.LineHdrObject,
     col: isize,
 ) !void {
-    try mark_ops.MarkCreate(allocator, line, col, &frame.Dot);
+    try mark_ops.markCreate(allocator, line, col, &frame.Dot);
 }
 
 pub fn WordFill(
@@ -46,8 +46,8 @@ pub fn WordFill(
 ) !bool {
     var here: ?*types.MarkObject = null;
     var there: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &here);
-    defer mark_ops.MarkDestroy(allocator, &there);
+    defer mark_ops.markDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &there);
 
     const blank = try blankString(allocator);
     defer blank.destroy();
@@ -73,29 +73,29 @@ pub fn WordFill(
 
         if (frame.Dot.?.Line.BLink != null and frame.Dot.?.Line.BLink.?.Used != 0) {
             var start_char: isize = 1;
-            while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
+            while (frame.Dot.?.Line.Str.?.get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
                 start_char += 1;
             }
             if (start_char < frame.MarginLeft and start_char < frame.Dot.?.Line.Used) {
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &here);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
                 if (!try text.TextInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) {
                     return false;
                 }
-                mark_ops.MarkDestroy(allocator, &here);
+                mark_ops.markDestroy(allocator, &here);
             } else {
                 var end_char = frame.MarginLeft;
                 if (end_char < frame.Dot.?.Line.Used) {
-                    while (frame.Dot.?.Line.Str.?.Get(end_char) == ' ' and end_char < frame.Dot.?.Line.Used) {
+                    while (frame.Dot.?.Line.Str.?.get(end_char) == ' ' and end_char < frame.Dot.?.Line.Used) {
                         end_char += 1;
                     }
                     if (end_char > 1) {
-                        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-                        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, end_char, &there);
+                        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
+                        try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char, &there);
                         if (!try text.TextRemove(allocator, here.?, there.?)) {
                             return false;
                         }
-                        mark_ops.MarkDestroy(allocator, &here);
-                        mark_ops.MarkDestroy(allocator, &there);
+                        mark_ops.markDestroy(allocator, &here);
+                        mark_ops.markDestroy(allocator, &there);
                     }
                 }
             }
@@ -103,8 +103,8 @@ pub fn WordFill(
 
         if (frame.Dot.?.Line.Used > frame.MarginRight) {
             var end_char = frame.MarginRight + 1;
-            if (frame.Dot.?.Line.Str.?.Get(end_char) != ' ') {
-                while (frame.Dot.?.Line.Str.?.Get(end_char) != ' ' and end_char > frame.MarginLeft) {
+            if (frame.Dot.?.Line.Str.?.get(end_char) != ' ') {
+                while (frame.Dot.?.Line.Str.?.get(end_char) != ' ' and end_char > frame.MarginLeft) {
                     end_char -= 1;
                 }
                 if (end_char == frame.MarginLeft) {
@@ -112,24 +112,24 @@ pub fn WordFill(
                 }
             }
             var start_char = end_char;
-            while (frame.Dot.?.Line.Str.?.Get(end_char) == ' ' and end_char > frame.MarginLeft) {
+            while (frame.Dot.?.Line.Str.?.get(end_char) == ' ' and end_char > frame.MarginLeft) {
                 end_char -= 1;
             }
             if (end_char == frame.MarginLeft) {
                 return false;
             }
-            while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ') {
+            while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
                 start_char += 1;
             }
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &here);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
             if (frame.Dot.?.Col > end_char) {
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, end_char, &frame.Dot);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char, &frame.Dot);
             }
             if (!try text.TextSplitLine(allocator, here.?, frame.MarginLeft, &there)) {
                 return false;
             }
-            mark_ops.MarkDestroy(allocator, &here);
-            mark_ops.MarkDestroy(allocator, &there);
+            mark_ops.markDestroy(allocator, &here);
+            mark_ops.markDestroy(allocator, &there);
             if (rept_mut != .LeadParamPIndef) {
                 count_mut += 1;
             }
@@ -139,16 +139,16 @@ pub fn WordFill(
                 if (space_to_add > 0 and frame.Dot.?.Line.FLink.?.Used != 0) {
                     const next_line = frame.Dot.?.Line.FLink.?;
                     var start_char: isize = 1;
-                    while (next_line.Str.?.Get(start_char) == ' ') {
+                    while (next_line.Str.?.get(start_char) == ' ') {
                         start_char += 1;
                     }
                     var end_char = start_char;
                     var old_end = end_char;
                     while (end_char <= next_line.Used) {
-                        while (next_line.Str.?.Get(end_char) == ' ') {
+                        while (next_line.Str.?.get(end_char) == ' ') {
                             end_char += 1;
                         }
-                        while (next_line.Str.?.Get(end_char) != ' ' and end_char < next_line.Used) {
+                        while (next_line.Str.?.get(end_char) != ' ' and end_char < next_line.Used) {
                             end_char += 1;
                         }
                         if (end_char == next_line.Used) {
@@ -164,27 +164,27 @@ pub fn WordFill(
                     if ((old_end - start_char) <= space_to_add and old_end != start_char) {
                         var old_here: ?*types.MarkObject = null;
                         var old_there: ?*types.MarkObject = null;
-                        defer mark_ops.MarkDestroy(allocator, &old_here);
-                        defer mark_ops.MarkDestroy(allocator, &old_there);
+                        defer mark_ops.markDestroy(allocator, &old_here);
+                        defer mark_ops.markDestroy(allocator, &old_there);
 
-                        try mark_ops.MarkCreate(allocator, next_line, start_char, &here);
-                        try mark_ops.MarkCreate(allocator, next_line, start_char, &old_here);
-                        try mark_ops.MarkCreate(allocator, next_line, old_end, &there);
-                        try mark_ops.MarkCreate(allocator, next_line, old_end, &old_there);
+                        try mark_ops.markCreate(allocator, next_line, start_char, &here);
+                        try mark_ops.markCreate(allocator, next_line, start_char, &old_here);
+                        try mark_ops.markCreate(allocator, next_line, old_end, &there);
+                        try mark_ops.markCreate(allocator, next_line, old_end, &old_there);
                         frame.Dot.?.Col = frame.Dot.?.Line.Used + 2;
                         if (!try text.TextMove(allocator, true, 1, here.?, there.?, frame.Dot.?, &here, &there)) {
                             return false;
                         }
-                        try mark_ops.MarksShift(allocator, next_line, old_here.?.Col, old_there.?.Col - old_here.?.Col, here.?.Line, here.?.Col);
-                        try mark_ops.MarkCreate(allocator, next_line, 1, &old_here);
-                        try mark_ops.MarkCreate(allocator, next_line, old_end, &old_there);
+                        try mark_ops.marksShift(allocator, next_line, old_here.?.Col, old_there.?.Col - old_here.?.Col, here.?.Line, here.?.Col);
+                        try mark_ops.markCreate(allocator, next_line, 1, &old_here);
+                        try mark_ops.markCreate(allocator, next_line, old_end, &old_there);
                         if (!try text.TextRemove(allocator, old_here.?, old_there.?)) {
                             return false;
                         }
 
                         if (frame.Dot.?.Line.FLink.?.Used == 0) {
                             const this_line = frame.Dot.?.Line.FLink.?;
-                            try mark_ops.MarksSqueeze(allocator, frame.Dot.?.Line.FLink.?, 1, frame.Dot.?.Line.FLink.?.FLink.?, 1);
+                            try mark_ops.marksSqueeze(allocator, frame.Dot.?.Line.FLink.?, 1, frame.Dot.?.Line.FLink.?.FLink.?, 1);
                             line_ops.linesExtract(this_line, this_line);
                             count_mut -= 1;
                             if (count_mut > 0) {
@@ -197,24 +197,24 @@ pub fn WordFill(
                     if (count_mut > 0 and frame.Dot.?.Line.FLink.?.Used != 0) {
                         const next_line_after_pull = frame.Dot.?.Line.FLink.?;
                         var next_start_char: isize = 1;
-                        while (next_line_after_pull.Str.?.Get(next_start_char) == ' ') {
+                        while (next_line_after_pull.Str.?.get(next_start_char) == ' ') {
                             next_start_char += 1;
                         }
-                        try mark_ops.MarkCreate(allocator, next_line_after_pull, next_start_char, &there);
+                        try mark_ops.markCreate(allocator, next_line_after_pull, next_start_char, &there);
                         if (next_start_char < frame.MarginLeft) {
                             if (!try text.TextInsert(allocator, true, 1, blank, frame.MarginLeft - next_start_char, there.?)) {
                                 return false;
                             }
                         } else {
-                            try mark_ops.MarkCreate(allocator, next_line_after_pull, frame.MarginLeft, &here);
+                            try mark_ops.markCreate(allocator, next_line_after_pull, frame.MarginLeft, &here);
                             if (!try text.TextRemove(allocator, here.?, there.?)) {
                                 return false;
                             }
                         }
                     }
                 }
-                mark_ops.MarkDestroy(allocator, &here);
-                mark_ops.MarkDestroy(allocator, &there);
+                mark_ops.markDestroy(allocator, &here);
+                mark_ops.markDestroy(allocator, &there);
                 break;
             }
         }
@@ -224,7 +224,7 @@ pub fn WordFill(
             try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
         }
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -237,8 +237,8 @@ pub fn WordCentre(
 ) !bool {
     var here: ?*types.MarkObject = null;
     var there: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &here);
-    defer mark_ops.MarkDestroy(allocator, &there);
+    defer mark_ops.markDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &there);
 
     const blank = try blankString(allocator);
     defer blank.destroy();
@@ -255,25 +255,25 @@ pub fn WordCentre(
         if (frame.Dot.?.Line.Used < frame.MarginLeft or frame.Dot.?.Line.Used > frame.MarginRight) return false;
 
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ') {
+        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
             start_char += 1;
         }
         if (start_char < frame.MarginLeft) return false;
 
         const space_to_add = @divTrunc(frame.MarginRight - frame.MarginLeft - (frame.Dot.?.Line.Used - start_char), 2) - (start_char - frame.MarginLeft);
         if (space_to_add > 0) {
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
             if (!try text.TextInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
         } else if (space_to_add < 0) {
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.MarginLeft - space_to_add, &there);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft - space_to_add, &there);
             if (!try text.TextRemove(allocator, here.?, there.?)) return false;
         }
 
         count_mut -= 1;
         try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -285,7 +285,7 @@ pub fn WordJustify(
     count: isize,
 ) !bool {
     var here: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &here);
 
     const blank = try blankString(allocator);
     defer blank.destroy();
@@ -304,16 +304,16 @@ pub fn WordJustify(
 
             var space_to_add = frame.MarginRight - frame.Dot.?.Line.Used;
             var start_char = frame.MarginLeft;
-            while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
+            while (frame.Dot.?.Line.Str.?.get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
                 start_char += 1;
             }
             const end_char = start_char;
             var holes: isize = 0;
             while (true) {
-                while (frame.Dot.?.Line.Str.?.Get(start_char) != ' ' and start_char < frame.Dot.?.Line.Used) {
+                while (frame.Dot.?.Line.Str.?.get(start_char) != ' ' and start_char < frame.Dot.?.Line.Used) {
                     start_char += 1;
                 }
-                while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
+                while (frame.Dot.?.Line.Str.?.get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
                     start_char += 1;
                 }
                 holes += 1;
@@ -329,19 +329,19 @@ pub fn WordJustify(
             start_char = end_char;
             var i: isize = 1;
             while (i <= holes) : (i += 1) {
-                while (frame.Dot.?.Line.Str.?.Get(start_char) != ' ') {
+                while (frame.Dot.?.Line.Str.?.get(start_char) != ' ') {
                     start_char += 1;
                 }
                 debit += fill_ratio;
                 space_to_add = @intFromFloat(debit + 0.5);
                 if (space_to_add > 0) {
                     here = null;
-                    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &here);
+                    try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
                     if (!try text.TextInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
-                    mark_ops.MarkDestroy(allocator, &here);
+                    mark_ops.markDestroy(allocator, &here);
                     debit -= @as(f64, @floatFromInt(space_to_add));
                 }
-                while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ') {
+                while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
                     start_char += 1;
                 }
             }
@@ -350,7 +350,7 @@ pub fn WordJustify(
         count_mut -= 1;
         try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -363,8 +363,8 @@ pub fn WordSqueeze(
 ) !bool {
     var here: ?*types.MarkObject = null;
     var there: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &here);
-    defer mark_ops.MarkDestroy(allocator, &there);
+    defer mark_ops.markDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &there);
 
     var rept_mut = rept;
     var count_mut = count;
@@ -376,23 +376,23 @@ pub fn WordSqueeze(
     while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
         if (frame.Dot.?.Line.FLink == null) return false;
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ') {
+        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
             start_char += 1;
         }
         while (true) {
-            while (frame.Dot.?.Line.Str.?.Get(start_char) != ' ' and start_char < frame.Dot.?.Line.Used) {
+            while (frame.Dot.?.Line.Str.?.get(start_char) != ' ' and start_char < frame.Dot.?.Line.Used) {
                 start_char += 1;
             }
-            if (frame.Dot.?.Line.Str.?.Get(start_char) != ' ') break;
+            if (frame.Dot.?.Line.Str.?.get(start_char) != ' ') break;
             var end_char = start_char;
-            while (frame.Dot.?.Line.Str.?.Get(end_char) == ' ') {
+            while (frame.Dot.?.Line.Str.?.get(end_char) == ' ') {
                 end_char += 1;
             }
             if ((end_char - start_char) > 1) {
                 here = null;
                 there = null;
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, end_char - 1, &there);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char - 1, &there);
                 if (!try text.TextRemove(allocator, here.?, there.?)) return false;
                 start_char = here.?.Col;
             } else {
@@ -403,7 +403,7 @@ pub fn WordSqueeze(
         count_mut -= 1;
         try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -416,8 +416,8 @@ pub fn WordRight(
 ) !bool {
     var here: ?*types.MarkObject = null;
     var there: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &here);
-    defer mark_ops.MarkDestroy(allocator, &there);
+    defer mark_ops.markDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &there);
 
     const blank = try blankString(allocator);
     defer blank.destroy();
@@ -434,25 +434,25 @@ pub fn WordRight(
         if (frame.Dot.?.Line.Used < frame.MarginLeft or frame.Dot.?.Line.Used > frame.MarginRight) return false;
 
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ') {
+        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
             start_char += 1;
         }
         if (start_char < frame.MarginLeft) return false;
 
         const space_to_add = frame.MarginRight - frame.Dot.?.Line.Used;
         if (space_to_add > 0) {
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &here);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
             if (!try text.TextInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
         } else if (space_to_add < 0) {
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &there);
-            try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char - space_to_add, &here);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &there);
+            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char - space_to_add, &here);
             if (!try text.TextRemove(allocator, there.?, here.?)) return false;
         }
 
         count_mut -= 1;
         try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -465,8 +465,8 @@ pub fn WordLeft(
 ) !bool {
     var here: ?*types.MarkObject = null;
     var there: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &here);
-    defer mark_ops.MarkDestroy(allocator, &there);
+    defer mark_ops.markDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &there);
 
     const blank = try blankString(allocator);
     defer blank.destroy();
@@ -483,16 +483,16 @@ pub fn WordLeft(
         if (frame.Dot.?.Line.Used < frame.MarginLeft or frame.Dot.?.Line.Used > frame.MarginRight) return false;
 
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.Get(start_char) == ' ') {
+        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
             start_char += 1;
         }
         if (start_char != frame.MarginLeft) {
             if (start_char < frame.MarginLeft) {
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &here);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
                 if (!try text.TextInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) return false;
             } else {
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-                try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, start_char, &there);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
+                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &there);
                 if (!try text.TextRemove(allocator, here.?, there.?)) return false;
             }
         }
@@ -500,7 +500,7 @@ pub fn WordLeft(
         count_mut -= 1;
         try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
         frame.TextModified = true;
-        try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -531,7 +531,7 @@ pub fn WordAdvanceWord(
         outer: while (count_mut > 0) {
             while (true) {
                 if (pos < this_line.Used) {
-                    if (this_line.Str.?.Get(pos) != ' ') {
+                    if (this_line.Str.?.get(pos) != ' ') {
                         pos += 1;
                     } else {
                         break;
@@ -552,7 +552,7 @@ pub fn WordAdvanceWord(
                     if (!(this_line.Used <= 0)) break;
                 }
             }
-            while (this_line.Str.?.Get(pos) == ' ') {
+            while (this_line.Str.?.get(pos) == ' ') {
                 pos += 1;
             }
             count_mut -= 1;
@@ -570,7 +570,7 @@ pub fn WordAdvanceWord(
             if (this_line.FLink == null) return false;
             this_line = this_line.FLink.?;
         }
-        while (this_line.Str.?.Get(pos) == ' ') {
+        while (this_line.Str.?.get(pos) == ' ') {
             pos += 1;
         }
         try moveDot(allocator, frame, this_line, pos);
@@ -588,10 +588,10 @@ pub fn WordAdvanceWord(
                     if (pos > 0) break;
                 }
             }
-            while (this_line.Str.?.Get(pos) == ' ' and pos > 1) {
+            while (this_line.Str.?.get(pos) == ' ' and pos > 1) {
                 pos -= 1;
             }
-            if (pos == 1 and this_line.Str.?.Get(1) == ' ') {
+            if (pos == 1 and this_line.Str.?.get(1) == ' ') {
                 while (true) {
                     if (this_line.BLink == null) return false;
                     this_line = this_line.BLink.?;
@@ -599,12 +599,12 @@ pub fn WordAdvanceWord(
                     if (!(pos <= 0)) break;
                 }
             }
-            while (this_line.Str.?.Get(pos) != ' ' and pos > 1) {
+            while (this_line.Str.?.get(pos) != ' ' and pos > 1) {
                 pos -= 1;
             }
             count_mut -= 1;
             if (count_mut < 0) {
-                if (this_line.Str.?.Get(pos) == ' ') pos += 1;
+                if (this_line.Str.?.get(pos) == ' ') pos += 1;
             } else {
                 pos -= 1;
             }
@@ -625,28 +625,28 @@ pub fn WordDeleteWord(
     var old_pos: ?*types.MarkObject = null;
     var here: ?*types.MarkObject = null;
     var other_mark: ?*types.MarkObject = null;
-    defer mark_ops.MarkDestroy(allocator, &old_pos);
-    defer mark_ops.MarkDestroy(allocator, &here);
-    defer mark_ops.MarkDestroy(allocator, &other_mark);
+    defer mark_ops.markDestroy(allocator, &old_pos);
+    defer mark_ops.markDestroy(allocator, &here);
+    defer mark_ops.markDestroy(allocator, &other_mark);
 
     if (rept == .LeadParamMarker) {
         return false;
     }
 
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_pos);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_pos);
     if (!try WordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) {
         return false;
     }
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &here);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &here);
     if (!try WordAdvanceWord(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
         return false;
     }
 
     const old_dot_col = frame.Dot.?.Col;
-    try mark_ops.MarkCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &other_mark);
-    const line_nr = line_ops.LineToNumber(frame.Dot.?.Line);
-    const new_line_nr = line_ops.LineToNumber(here.?.Line);
+    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &other_mark);
+    const line_nr = line_ops.lineToNumber(frame.Dot.?.Line);
+    const new_line_nr = line_ops.lineToNumber(here.?.Line);
     if (line_nr > new_line_nr or (line_nr == new_line_nr and frame.Dot.?.Col > here.?.Col)) {
         const another_mark = here;
         here = other_mark;
@@ -656,7 +656,7 @@ pub fn WordDeleteWord(
     var result = false;
     if (frame != frame_oops) {
         if (frame_oops.Span == null) return false;
-        try mark_ops.MarkCreate(allocator, frame_oops.LastGroup.?.LastLine.?, 1, &frame_oops.Span.?.MarkTwo);
+        try mark_ops.markCreate(allocator, frame_oops.LastGroup.?.LastLine.?, 1, &frame_oops.Span.?.MarkTwo);
         result = try text.TextMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
     } else {
         result = try text.TextRemove(allocator, other_mark.?, here.?);
