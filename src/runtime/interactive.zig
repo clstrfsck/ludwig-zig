@@ -91,7 +91,7 @@ fn executeCommandFrameFile(
 ) !code_ops.InterpretResult {
     const cmd_frame = special_frames.Cmd orelse return error.MissingCommandFrame;
     const cmd_span = cmd_frame.Span orelse return error.MissingCommandSpan;
-    if (!try file_ops.LoadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
+    if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
     if (!try code_ops.CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
@@ -145,7 +145,7 @@ pub fn startUp(
     if (session.current_frame.InputFile != 0) {
         interactive_io.queueStatusMessage(startup_loading_message);
     }
-    if (session.current_frame.InputFile != 0 and !try file_ops.FilePage(editor, allocator, session.current_frame)) {
+    if (session.current_frame.InputFile != 0 and !try file_ops.filePage(editor, allocator, session.current_frame)) {
         return error.InteractiveStartupFailed;
     }
 
@@ -447,7 +447,7 @@ fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session
     if (editor.QuitRequested) {
         editor.QuitRequested = false;
     }
-    _ = try file_ops.QuitCloseFiles(editor, allocator);
+    _ = try file_ops.quitCloseFiles(editor, allocator);
 }
 
 fn executeCompiledCommand(

@@ -320,7 +320,7 @@ fn pageFileWithLoadingMessage(
         interactive_io.queueStatusMessage(loading_file_message);
     }
     defer interactive_io.clearStatusMessage();
-    return FilePage(editor, allocator, frame);
+    return filePage(editor, allocator, frame);
 }
 
 fn emitInputClosedMessage(editor: *const state.Editor, file: *const types.FileObject) void {
@@ -529,7 +529,7 @@ fn makeDiskOutputFile(
     return file;
 }
 
-pub fn OpenDiskInputFile(
+pub fn openDiskInputFile(
     editor: *const state.Editor,
     allocator: std.mem.Allocator,
     file_name: []const u8,
@@ -537,7 +537,7 @@ pub fn OpenDiskInputFile(
     return makeDiskInputFile(editor, allocator, file_name);
 }
 
-pub fn OpenDiskOutputFile(
+pub fn openDiskOutputFile(
     editor: *const state.Editor,
     allocator: std.mem.Allocator,
     file_name: []const u8,
@@ -906,7 +906,7 @@ fn computeLineRange(
     };
 }
 
-pub fn FileReadCommand(
+pub fn fileReadCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -931,7 +931,7 @@ pub fn FileReadCommand(
     return true;
 }
 
-pub fn FileWriteCommand(
+pub fn fileWriteCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -950,7 +950,7 @@ pub fn FileWriteCommand(
     return true;
 }
 
-pub fn FilePage(
+pub fn filePage(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1099,7 +1099,7 @@ fn requireFileSlot(editor: *state.Editor, slot: isize, output_flag: bool) ?*type
     return file;
 }
 
-pub fn FileOpenCommand(
+pub fn fileOpenCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1173,7 +1173,7 @@ pub fn FileOpenCommand(
     };
 }
 
-pub fn FileRewindCommand(
+pub fn fileRewindCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1185,10 +1185,10 @@ pub fn FileRewindCommand(
     if (frame.Dot.?.Line.FLink == null) {
         try clearFrameText(allocator, frame);
     }
-    return FilePage(editor, allocator, frame);
+    return filePage(editor, allocator, frame);
 }
 
-pub fn FileGlobalRewindCommand(
+pub fn fileGlobalRewindCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
@@ -1196,7 +1196,7 @@ pub fn FileGlobalRewindCommand(
     return loadFileQueueFromSnapshot(allocator, input_file);
 }
 
-pub fn LoadBufferedFileIntoFrameByName(
+pub fn loadBufferedFileIntoFrameByName(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1248,7 +1248,7 @@ fn detachFileSlot(
     return true;
 }
 
-pub fn FileSaveCommand(
+pub fn fileSaveCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1295,7 +1295,7 @@ pub fn FileSaveCommand(
     return true;
 }
 
-pub fn FileKillCommand(
+pub fn fileKillCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1314,7 +1314,7 @@ pub fn FileKillCommand(
     return true;
 }
 
-pub fn FileGlobalKillCommand(
+pub fn fileGlobalKillCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
@@ -1332,7 +1332,7 @@ pub fn FileGlobalKillCommand(
     return true;
 }
 
-pub fn FileCloseCommand(
+pub fn fileCloseCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -1346,7 +1346,7 @@ pub fn FileCloseCommand(
         .CmdFileOutput => blk: {
             const output_file = requireFileSlot(editor, frame.OutputFile, true) orelse break :blk false;
             const had_modifications = frame.TextModified;
-            if (had_modifications and !try FileSaveCommand(editor, allocator, frame)) {
+            if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
                 break :blk false;
             }
             if (!had_modifications and !try persistDiskBackedOutputFile(editor, allocator, output_file)) {
@@ -1357,7 +1357,7 @@ pub fn FileCloseCommand(
         .CmdFileEdit => blk: {
             _ = requireFileSlot(editor, frame.InputFile, false) orelse break :blk false;
             _ = requireFileSlot(editor, frame.OutputFile, true) orelse break :blk false;
-            if (frame.TextModified and !try FileSaveCommand(editor, allocator, frame)) {
+            if (frame.TextModified and !try fileSaveCommand(editor, allocator, frame)) {
                 break :blk false;
             }
             if (!try detachFileSlot(editor, allocator, frame.OutputFile)) {
@@ -1402,7 +1402,7 @@ fn closeFrameFilesForQuit(
         const output_file = requireFileSlot(editor, output_slot, true) orelse return false;
         const had_modifications = frame.TextModified;
 
-        if (had_modifications and !try FileSaveCommand(editor, allocator, frame)) {
+        if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
             return false;
         }
 
@@ -1477,7 +1477,7 @@ fn closeUnattachedSlotForQuit(
     return detachFileSlot(editor, allocator, slot);
 }
 
-pub fn QuitCloseFiles(
+pub fn quitCloseFiles(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
@@ -1517,7 +1517,7 @@ pub fn QuitCloseFiles(
     return true;
 }
 
-pub fn MakeBufferedFile(
+pub fn makeBufferedFile(
     allocator: std.mem.Allocator,
     contents: []const []const u8,
     output_flag: bool,
@@ -1631,7 +1631,7 @@ test "file save appends frame and unread input to output buffer" {
         "visible1",
         "visible2",
     });
-    const input = try MakeBufferedFile(allocator, &[_][]const u8{
+    const input = try makeBufferedFile(allocator, &[_][]const u8{
         "tail1",
         "tail2",
     }, false);
@@ -1639,7 +1639,7 @@ test "file save appends frame and unread input to output buffer" {
     editor.FilesFrames[1] = fixture.frame;
     fixture.frame.InputFile = 1;
 
-    const output = try MakeBufferedFile(allocator, &[_][]const u8{
+    const output = try makeBufferedFile(allocator, &[_][]const u8{
         "paged",
     }, true);
     editor.Files[2] = output;
@@ -1648,7 +1648,7 @@ test "file save appends frame and unread input to output buffer" {
     fixture.frame.TextModified = true;
     try mark_ops.MarkCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].Used + 1, &fixture.frame.Marks[types.MarkModified]);
 
-    try std.testing.expect(try FileSaveCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
     try std.testing.expect(!fixture.frame.TextModified);
     try std.testing.expect(fixture.frame.Marks[types.MarkModified] == null);
     try std.testing.expectEqual(@as(isize, 5), output.LineCount);
@@ -1665,12 +1665,12 @@ test "file kill detaches current output file" {
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const output = try MakeBufferedFile(allocator, &[_][]const u8{}, true);
+    const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     editor.Files[1] = output;
     editor.FilesFrames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
 
-    try std.testing.expect(try FileKillCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.OutputFile);
     try std.testing.expect(editor.Files[1] == null);
     try std.testing.expect(editor.FilesFrames[1] == null);
@@ -1683,14 +1683,14 @@ test "file kill queues interactive deleted status message" {
     editor.LudwigMode = .LudwigScreen;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const output = try MakeBufferedFile(allocator, &[_][]const u8{}, true);
+    const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     output.Filename = "output.txt";
     output.Tnm = "output.txt-lw";
     editor.Files[1] = output;
     editor.FilesFrames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
 
-    try std.testing.expect(try FileKillCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings(
         "Output file output.txt-lw deleted.",
         interactive_io.takeStatusMessage().?,
@@ -1705,7 +1705,7 @@ test "file kill queues no-file-open status message when no output is attached" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
 
-    try std.testing.expect(!try FileKillCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(!try fileKillCommand(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings(no_file_open_message, interactive_io.takeStatusMessage().?);
 }
 
@@ -1715,12 +1715,12 @@ test "file close detaches current input file and marks eof" {
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const input = try MakeBufferedFile(allocator, &[_][]const u8{"tail"}, false);
+    const input = try makeBufferedFile(allocator, &[_][]const u8{"tail"}, false);
     editor.Files[1] = input;
     editor.FilesFrames[1] = fixture.frame;
     fixture.frame.InputFile = 1;
 
-    try std.testing.expect(try FileCloseCommand(&editor, allocator, fixture.frame, .CmdFileInput));
+    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileInput));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.InputFile);
     try std.testing.expect(editor.Files[1] == null);
     try std.testing.expectEqualStrings("<End of File>", line_ops.getDisplayLineContent(fixture.frame.LastGroup.?.LastLine.?));
@@ -1731,12 +1731,12 @@ test "file close detaches global output file" {
     defer editor.deinit();
     const allocator = editor.allocator();
 
-    const output = try MakeBufferedFile(allocator, &[_][]const u8{}, true);
+    const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     editor.Files[1] = output;
     editor.FgoFile = 1;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    try std.testing.expect(try FileCloseCommand(&editor, allocator, fixture.frame, .CmdFileGlobalOutput));
+    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileGlobalOutput));
     try std.testing.expectEqual(@as(isize, 0), editor.FgoFile);
     try std.testing.expect(editor.Files[1] == null);
 }
@@ -1760,14 +1760,14 @@ test "file save rotates disk backups and updates memory file" {
     try tmp_dir.dir.writeFile(.{ .sub_path = "save.txt~1", .data = "older\n" });
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"new"});
-    const output = (try OpenDiskOutputFile(&editor, allocator, file_path, .{ .memory = expanded_memory })) orelse return error.TestUnexpectedResult;
+    const output = (try openDiskOutputFile(&editor, allocator, file_path, .{ .memory = expanded_memory })) orelse return error.TestUnexpectedResult;
     editor.Files[1] = output;
     editor.FilesFrames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
     fixture.frame.TextModified = true;
     try mark_ops.MarkCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].Used + 1, &fixture.frame.Marks[types.MarkModified]);
 
-    try std.testing.expect(try FileSaveCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
 
     const saved = try std.fs.cwd().readFileAlloc(allocator, file_path, std.math.maxInt(usize));
     try std.testing.expectEqualStrings("new\n", saved);

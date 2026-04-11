@@ -52,7 +52,7 @@ fn openInputFile(
     allocator: std.mem.Allocator,
     file_name: []const u8,
 ) !?*types.FileObject {
-    return file_ops.OpenDiskInputFile(editor, allocator, file_name);
+    return file_ops.openDiskInputFile(editor, allocator, file_name);
 }
 
 fn openOutputFile(
@@ -70,7 +70,7 @@ fn openOutputFile(
         (try sys_ops.expandFilename(allocator, memory)) orelse return null
     else
         null;
-    const output = (try file_ops.OpenDiskOutputFile(editor, allocator, file_name, .{
+    const output = (try file_ops.openDiskOutputFile(editor, allocator, file_name, .{
         .related_name = related_name,
         .create = create,
         .memory = expanded_memory,

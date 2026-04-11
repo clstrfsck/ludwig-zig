@@ -1556,7 +1556,7 @@ fn Execute(
             if (request.Len == 0) {
                 return false;
             }
-            if (!try file_ops.LoadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, request.Str.?.Slice(1, request.Len))) {
+            if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, request.Str.?.Slice(1, request.Len))) {
                 return false;
             }
             if (!try CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
@@ -1982,7 +1982,7 @@ fn Execute(
                 cmd_success = true;
             } else {
                 editor.LudwigAborted = false;
-                if (try file_ops.QuitCloseFiles(editor, allocator)) {
+                if (try file_ops.quitCloseFiles(editor, allocator)) {
                     editor.Hangup = true;
                     editor.QuitRequested = true;
                     cmd_success = true;
@@ -2099,28 +2099,28 @@ fn Execute(
             cmd_success = try window_ops.WindowCommand(editor, allocator, current_frame, command, rept, count, from_span);
         },
         .CmdFileRead => {
-            cmd_success = try file_ops.FileReadCommand(editor, allocator, current_frame, rept, count);
+            cmd_success = try file_ops.fileReadCommand(editor, allocator, current_frame, rept, count);
         },
         .CmdFileWrite => {
-            cmd_success = try file_ops.FileWriteCommand(editor, allocator, current_frame, rept, count, the_mark);
+            cmd_success = try file_ops.fileWriteCommand(editor, allocator, current_frame, rept, count, the_mark);
         },
         .CmdFileRewind => {
-            cmd_success = try file_ops.FileRewindCommand(editor, allocator, current_frame);
+            cmd_success = try file_ops.fileRewindCommand(editor, allocator, current_frame);
         },
         .CmdFileGlobalRewind => {
-            cmd_success = try file_ops.FileGlobalRewindCommand(editor, allocator);
+            cmd_success = try file_ops.fileGlobalRewindCommand(editor, allocator);
         },
         .CmdPage => {
-            cmd_success = try file_ops.FilePage(editor, allocator, current_frame);
+            cmd_success = try file_ops.filePage(editor, allocator, current_frame);
         },
         .CmdFileSave => {
-            cmd_success = try file_ops.FileSaveCommand(editor, allocator, current_frame);
+            cmd_success = try file_ops.fileSaveCommand(editor, allocator, current_frame);
         },
         .CmdFileKill => {
-            cmd_success = try file_ops.FileKillCommand(editor, allocator, current_frame);
+            cmd_success = try file_ops.fileKillCommand(editor, allocator, current_frame);
         },
         .CmdFileGlobalKill => {
-            cmd_success = try file_ops.FileGlobalKillCommand(editor, allocator);
+            cmd_success = try file_ops.fileGlobalKillCommand(editor, allocator);
         },
         .CmdFileInput,
         .CmdFileOutput,
@@ -2129,14 +2129,14 @@ fn Execute(
         .CmdFileGlobalOutput,
         => {
             if (rept == .LeadParamMinus) {
-                cmd_success = try file_ops.FileCloseCommand(editor, allocator, current_frame, command);
+                cmd_success = try file_ops.fileCloseCommand(editor, allocator, current_frame, command);
             } else {
                 var request: types.TParObject = .{};
                 if (!try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                     return false;
                 }
                 const file_name = if (request.Len == 0) "" else request.Str.?.Slice(1, request.Len);
-                cmd_success = try file_ops.FileOpenCommand(editor, allocator, current_frame, command, file_name);
+                cmd_success = try file_ops.fileOpenCommand(editor, allocator, current_frame, command, file_name);
             }
         },
         .CmdFileTable => {
@@ -2434,7 +2434,7 @@ fn makeBufferedFile(
     contents: []const []const u8,
     output_flag: bool,
 ) !*types.FileObject {
-    return file_ops.MakeBufferedFile(allocator, contents, output_flag);
+    return file_ops.makeBufferedFile(allocator, contents, output_flag);
 }
 
 fn tmpFilePath(allocator: std.mem.Allocator, tmp_dir: *std.testing.TmpDir, name: []const u8) ![]const u8 {
