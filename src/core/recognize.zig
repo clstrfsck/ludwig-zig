@@ -70,7 +70,7 @@ const Parser = struct {
     index: usize = 0,
 
     fn parse(self: *Parser) ParseError!CompiledPattern {
-        var segments = std.ArrayListUnmanaged(*Node){};
+        var segments = std.ArrayList(*Node){};
         defer segments.deinit(self.allocator);
 
         try segments.append(self.allocator, try self.parseExpression(false));
@@ -107,7 +107,7 @@ const Parser = struct {
     }
 
     fn parseExpression(self: *Parser, stop_at_rparen: bool) ParseError!*Node {
-        var alternatives = std.ArrayListUnmanaged(*Node){};
+        var alternatives = std.ArrayList(*Node){};
         defer alternatives.deinit(self.allocator);
 
         try alternatives.append(self.allocator, try self.parseSequence(stop_at_rparen));
@@ -125,7 +125,7 @@ const Parser = struct {
     }
 
     fn parseSequence(self: *Parser, stop_at_rparen: bool) ParseError!*Node {
-        var pieces = std.ArrayListUnmanaged(*Node){};
+        var pieces = std.ArrayList(*Node){};
         defer pieces.deinit(self.allocator);
 
         self.skipSpaces();
@@ -296,13 +296,13 @@ const Parser = struct {
             else => {
                 token.kind = .char;
                 token.accept = switch (chars.chToUpper(actual)) {
-                    'S' => patparse.spaceSet,
-                    'C' => patparse.printableSet,
-                    'A' => patparse.alphaSet,
-                    'L' => patparse.lowerSet,
-                    'U' => patparse.upperSet,
-                    'N' => patparse.numericSet,
-                    'P' => patparse.punctuationSet,
+                    'S' => patparse.space_set,
+                    'C' => patparse.printable_set,
+                    'A' => patparse.alpha_set,
+                    'L' => patparse.lower_set,
+                    'U' => patparse.upper_set,
+                    'N' => patparse.numeric_set,
+                    'P' => patparse.punctuation_set,
                     else => return PatternError.InvalidPattern,
                 };
                 if (negate) {
@@ -318,7 +318,7 @@ const Parser = struct {
 
     fn parseQuotedLiteral(self: *Parser, delimiter: u8) ParseError!*Node {
         self.index += 1;
-        var pieces = std.ArrayListUnmanaged(*Node){};
+        var pieces = std.ArrayList(*Node){};
         defer pieces.deinit(self.allocator);
 
         while (true) {
@@ -413,7 +413,7 @@ const Parser = struct {
     }
 };
 
-fn appendCursorUnique(list: *std.ArrayListUnmanaged(Cursor), allocator: std.mem.Allocator, cursor: Cursor) !void {
+fn appendCursorUnique(list: *std.ArrayList(Cursor), allocator: std.mem.Allocator, cursor: Cursor) !void {
     for (list.items) |existing| {
         if (existing.event_index == cursor.event_index and existing.column == cursor.column) {
             return;
@@ -441,7 +441,7 @@ fn buildEvents(
     frame: *types.FrameObject,
     line: *types.LineHdrObject,
 ) ![]Event {
-    var events = std.ArrayListUnmanaged(Event){};
+    var events = std.ArrayList(Event){};
     const used = searchableLineUsed(line);
     const final_col = used + 1;
     var col: isize = 1;
@@ -548,7 +548,7 @@ const Matcher = struct {
     fn matchSequence(self: *Matcher, nodes: []const *Node, cursor: Cursor) MatchError![]Cursor {
         var cursors = try self.allocator.dupe(Cursor, &.{cursor});
         for (nodes) |child| {
-            var next = std.ArrayListUnmanaged(Cursor){};
+            var next = std.ArrayList(Cursor){};
             for (cursors) |current| {
                 const results = try self.matchNode(child, current);
                 for (results) |result| {
@@ -564,7 +564,7 @@ const Matcher = struct {
     }
 
     fn matchAlternatives(self: *Matcher, nodes: []const *Node, cursor: Cursor) MatchError![]Cursor {
-        var results = std.ArrayListUnmanaged(Cursor){};
+        var results = std.ArrayList(Cursor){};
         for (nodes) |child| {
             const child_results = try self.matchNode(child, cursor);
             for (child_results) |result| {
@@ -575,7 +575,7 @@ const Matcher = struct {
     }
 
     fn matchRepeatNode(self: *Matcher, repeat_node: RepeatNode, cursor: Cursor) MatchError![]Cursor {
-        var results = std.ArrayListUnmanaged(Cursor){};
+        var results = std.ArrayList(Cursor){};
         try self.matchRepeatRecursive(repeat_node, cursor, 0, &results);
         return results.toOwnedSlice(self.allocator);
     }
@@ -585,7 +585,7 @@ const Matcher = struct {
         repeat_node: RepeatNode,
         cursor: Cursor,
         count: usize,
-        out: *std.ArrayListUnmanaged(Cursor),
+        out: *std.ArrayList(Cursor),
     ) MatchError!void {
         if (count >= repeat_node.min) {
             try appendCursorUnique(out, self.allocator, cursor);
@@ -654,7 +654,7 @@ fn patternSource(definition: types.PatternDefType) []const u8 {
     return definition.Strng.?.slice(1, definition.Length);
 }
 
-pub fn PatternRecognize(
+pub fn patternRecognize(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     dfa_table_pointer: *types.DFATableObject,
@@ -724,7 +724,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
     var mark_flag = false;
     var start_pos: isize = 0;
     var finish_pos: isize = 0;
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 7), start_pos);
     try std.testing.expectEqual(@as(isize, 12), finish_pos);
 
@@ -732,7 +732,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
         .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "<+a>"),
         .Length = 4,
     };
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 4), finish_pos);
 
@@ -740,7 +740,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
         .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a','b','c'"),
         .Length = 11,
     };
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 2), start_pos);
     try std.testing.expectEqual(@as(isize, 3), finish_pos);
 
@@ -749,7 +749,7 @@ test "pattern recognize matches literals classes and anchored contexts" {
         .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, email_pattern),
         .Length = email_pattern.len,
     };
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[2], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[2], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 12), finish_pos);
 }
@@ -772,7 +772,7 @@ test "pattern recognize handles positional marks and initial mark flag skipping"
     var mark_flag = false;
     var start_pos: isize = 0;
     var finish_pos: isize = 0;
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 1), finish_pos);
 
@@ -781,7 +781,7 @@ test "pattern recognize handles positional marks and initial mark flag skipping"
         .Length = 3,
     };
     mark_flag = true;
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 2), finish_pos);
 }
@@ -803,7 +803,7 @@ test "pattern recognize keeps the longest same-column repeat match" {
     var start_pos: isize = 0;
     var finish_pos: isize = 0;
 
-    try std.testing.expect(try PatternRecognize(
+    try std.testing.expect(try patternRecognize(
         allocator,
         fixture.frame,
         &dfa,

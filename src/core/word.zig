@@ -38,7 +38,7 @@ fn moveDot(
     try mark_ops.markCreate(allocator, line, col, &frame.Dot);
 }
 
-pub fn WordFill(
+pub fn wordFill(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -78,7 +78,7 @@ pub fn WordFill(
             }
             if (start_char < frame.MarginLeft and start_char < frame.Dot.?.Line.Used) {
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                if (!try text.TextInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) {
+                if (!try text.textInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) {
                     return false;
                 }
                 mark_ops.markDestroy(allocator, &here);
@@ -91,7 +91,7 @@ pub fn WordFill(
                     if (end_char > 1) {
                         try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
                         try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char, &there);
-                        if (!try text.TextRemove(allocator, here.?, there.?)) {
+                        if (!try text.textRemove(allocator, here.?, there.?)) {
                             return false;
                         }
                         mark_ops.markDestroy(allocator, &here);
@@ -125,7 +125,7 @@ pub fn WordFill(
             if (frame.Dot.?.Col > end_char) {
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char, &frame.Dot);
             }
-            if (!try text.TextSplitLine(allocator, here.?, frame.MarginLeft, &there)) {
+            if (!try text.textSplitLine(allocator, here.?, frame.MarginLeft, &there)) {
                 return false;
             }
             mark_ops.markDestroy(allocator, &here);
@@ -172,13 +172,13 @@ pub fn WordFill(
                         try mark_ops.markCreate(allocator, next_line, old_end, &there);
                         try mark_ops.markCreate(allocator, next_line, old_end, &old_there);
                         frame.Dot.?.Col = frame.Dot.?.Line.Used + 2;
-                        if (!try text.TextMove(allocator, true, 1, here.?, there.?, frame.Dot.?, &here, &there)) {
+                        if (!try text.textMove(allocator, true, 1, here.?, there.?, frame.Dot.?, &here, &there)) {
                             return false;
                         }
                         try mark_ops.marksShift(allocator, next_line, old_here.?.Col, old_there.?.Col - old_here.?.Col, here.?.Line, here.?.Col);
                         try mark_ops.markCreate(allocator, next_line, 1, &old_here);
                         try mark_ops.markCreate(allocator, next_line, old_end, &old_there);
-                        if (!try text.TextRemove(allocator, old_here.?, old_there.?)) {
+                        if (!try text.textRemove(allocator, old_here.?, old_there.?)) {
                             return false;
                         }
 
@@ -202,12 +202,12 @@ pub fn WordFill(
                         }
                         try mark_ops.markCreate(allocator, next_line_after_pull, next_start_char, &there);
                         if (next_start_char < frame.MarginLeft) {
-                            if (!try text.TextInsert(allocator, true, 1, blank, frame.MarginLeft - next_start_char, there.?)) {
+                            if (!try text.textInsert(allocator, true, 1, blank, frame.MarginLeft - next_start_char, there.?)) {
                                 return false;
                             }
                         } else {
                             try mark_ops.markCreate(allocator, next_line_after_pull, frame.MarginLeft, &here);
-                            if (!try text.TextRemove(allocator, here.?, there.?)) {
+                            if (!try text.textRemove(allocator, here.?, there.?)) {
                                 return false;
                             }
                         }
@@ -229,7 +229,7 @@ pub fn WordFill(
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
 
-pub fn WordCentre(
+pub fn wordCentre(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -263,11 +263,11 @@ pub fn WordCentre(
         const space_to_add = @divTrunc(frame.MarginRight - frame.MarginLeft - (frame.Dot.?.Line.Used - start_char), 2) - (start_char - frame.MarginLeft);
         if (space_to_add > 0) {
             try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-            if (!try text.TextInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
+            if (!try text.textInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
         } else if (space_to_add < 0) {
             try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
             try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft - space_to_add, &there);
-            if (!try text.TextRemove(allocator, here.?, there.?)) return false;
+            if (!try text.textRemove(allocator, here.?, there.?)) return false;
         }
 
         count_mut -= 1;
@@ -278,7 +278,7 @@ pub fn WordCentre(
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
 
-pub fn WordJustify(
+pub fn wordJustify(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -337,7 +337,7 @@ pub fn WordJustify(
                 if (space_to_add > 0) {
                     here = null;
                     try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                    if (!try text.TextInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
+                    if (!try text.textInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
                     mark_ops.markDestroy(allocator, &here);
                     debit -= @as(f64, @floatFromInt(space_to_add));
                 }
@@ -355,7 +355,7 @@ pub fn WordJustify(
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
 
-pub fn WordSqueeze(
+pub fn wordSqueeze(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -393,7 +393,7 @@ pub fn WordSqueeze(
                 there = null;
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char - 1, &there);
-                if (!try text.TextRemove(allocator, here.?, there.?)) return false;
+                if (!try text.textRemove(allocator, here.?, there.?)) return false;
                 start_char = here.?.Col;
             } else {
                 start_char = end_char;
@@ -408,7 +408,7 @@ pub fn WordSqueeze(
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
 
-pub fn WordRight(
+pub fn wordRight(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -442,11 +442,11 @@ pub fn WordRight(
         const space_to_add = frame.MarginRight - frame.Dot.?.Line.Used;
         if (space_to_add > 0) {
             try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-            if (!try text.TextInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
+            if (!try text.textInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
         } else if (space_to_add < 0) {
             try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &there);
             try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char - space_to_add, &here);
-            if (!try text.TextRemove(allocator, there.?, here.?)) return false;
+            if (!try text.textRemove(allocator, there.?, here.?)) return false;
         }
 
         count_mut -= 1;
@@ -457,7 +457,7 @@ pub fn WordRight(
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
 
-pub fn WordLeft(
+pub fn wordLeft(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -489,11 +489,11 @@ pub fn WordLeft(
         if (start_char != frame.MarginLeft) {
             if (start_char < frame.MarginLeft) {
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                if (!try text.TextInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) return false;
+                if (!try text.textInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) return false;
             } else {
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
                 try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &there);
-                if (!try text.TextRemove(allocator, here.?, there.?)) return false;
+                if (!try text.textRemove(allocator, here.?, there.?)) return false;
             }
         }
 
@@ -505,7 +505,7 @@ pub fn WordLeft(
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
 
-pub fn WordAdvanceWord(
+pub fn wordAdvanceWord(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -615,7 +615,7 @@ pub fn WordAdvanceWord(
     return true;
 }
 
-pub fn WordDeleteWord(
+pub fn wordDeleteWord(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     frame_oops: *types.FrameObject,
@@ -634,11 +634,11 @@ pub fn WordDeleteWord(
     }
 
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_pos);
-    if (!try WordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) {
+    if (!try wordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) {
         return false;
     }
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &here);
-    if (!try WordAdvanceWord(allocator, frame, rept, count)) {
+    if (!try wordAdvanceWord(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
         return false;
     }
@@ -657,12 +657,12 @@ pub fn WordDeleteWord(
     if (frame != frame_oops) {
         if (frame_oops.Span == null) return false;
         try mark_ops.markCreate(allocator, frame_oops.LastGroup.?.LastLine.?, 1, &frame_oops.Span.?.MarkTwo);
-        result = try text.TextMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
+        result = try text.textMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
     } else {
-        result = try text.TextRemove(allocator, other_mark.?, here.?);
+        result = try text.textRemove(allocator, other_mark.?, here.?);
     }
     if (line_nr != new_line_nr) {
-        result = try text.TextSplitLine(allocator, frame.Dot.?, old_dot_col, &here);
+        result = try text.textSplitLine(allocator, frame.Dot.?, old_dot_col, &here);
     }
     return result;
 }
@@ -687,7 +687,7 @@ test "word left aligns lines to the left margin" {
     fixture.frame.MarginLeft = 3;
     fixture.frame.MarginRight = 20;
 
-    try std.testing.expect(try WordLeft(allocator, fixture.frame, .LeadParamPInt, 2));
+    try std.testing.expect(try wordLeft(allocator, fixture.frame, .LeadParamPInt, 2));
     try expectLineContent(fixture.content_lines[0], "  hello");
     try expectLineContent(fixture.content_lines[1], "  world");
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.sentinel_line);
@@ -701,7 +701,7 @@ test "word right aligns content to the right margin" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"  hello"});
     fixture.frame.MarginLeft = 3;
     fixture.frame.MarginRight = 10;
-    try std.testing.expect(try WordRight(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordRight(allocator, fixture.frame, .LeadParamNone, 1));
     try expectLineContent(fixture.content_lines[0], "     hello");
 }
 
@@ -713,7 +713,7 @@ test "word centre shifts content toward the middle of margins" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"      hello"});
     fixture.frame.MarginLeft = 3;
     fixture.frame.MarginRight = 11;
-    try std.testing.expect(try WordCentre(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordCentre(allocator, fixture.frame, .LeadParamNone, 1));
     try expectLineContent(fixture.content_lines[0], "    hello");
 }
 
@@ -725,7 +725,7 @@ test "word justify expands interior holes when next line is nonblank" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "  hello world", "next line" });
     fixture.frame.MarginLeft = 3;
     fixture.frame.MarginRight = 20;
-    try std.testing.expect(try WordJustify(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordJustify(allocator, fixture.frame, .LeadParamNone, 1));
     try std.testing.expectEqual(@as(isize, 20), fixture.content_lines[0].Used);
 }
 
@@ -735,7 +735,7 @@ test "word squeeze collapses repeated spaces" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"a   b   c"});
-    try std.testing.expect(try WordSqueeze(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordSqueeze(allocator, fixture.frame, .LeadParamNone, 1));
     try expectLineContent(fixture.content_lines[0], "a b c");
 }
 
@@ -746,13 +746,13 @@ test "word fill can split long lines and pull from the next line" {
 
     const split_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
     split_fixture.frame.MarginRight = 10;
-    try std.testing.expect(try WordFill(allocator, split_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordFill(allocator, split_fixture.frame, .LeadParamNone, 1));
     try expectLineContent(split_fixture.content_lines[0], "hello");
     try expectLineContent(split_fixture.content_lines[0].FLink, "world");
 
     const pull_fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello", "hi" });
     pull_fixture.frame.MarginRight = 10;
-    try std.testing.expect(try WordFill(allocator, pull_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordFill(allocator, pull_fixture.frame, .LeadParamNone, 1));
     try expectLineContent(pull_fixture.content_lines[0], "hello hi");
 }
 
@@ -763,17 +763,17 @@ test "word advance word moves across whitespace and lines" {
 
     const same_line = try buildWordFrame(allocator, &[_][]const u8{"hello world foo"});
     try moveDot(allocator, same_line.frame, same_line.content_lines[0], 1);
-    try std.testing.expect(try WordAdvanceWord(allocator, same_line.frame, .LeadParamPInt, 2));
+    try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .LeadParamPInt, 2));
     try std.testing.expectEqual(@as(isize, 13), same_line.frame.Dot.?.Col);
 
     const across_lines = try buildWordFrame(allocator, &[_][]const u8{ "hello", "world" });
     try moveDot(allocator, across_lines.frame, across_lines.content_lines[0], 1);
-    try std.testing.expect(try WordAdvanceWord(allocator, across_lines.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordAdvanceWord(allocator, across_lines.frame, .LeadParamNone, 1));
     try std.testing.expect(across_lines.frame.Dot.?.Line == across_lines.content_lines[1]);
     try std.testing.expectEqual(@as(isize, 1), across_lines.frame.Dot.?.Col);
 
     try moveDot(allocator, same_line.frame, same_line.content_lines[0], 8);
-    try std.testing.expect(try WordAdvanceWord(allocator, same_line.frame, .LeadParamNInt, -1));
+    try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .LeadParamNInt, -1));
     try std.testing.expectEqual(@as(isize, 1), same_line.frame.Dot.?.Col);
 }
 
@@ -784,11 +784,11 @@ test "word delete word removes the next word and restores dot on failure" {
 
     const delete_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
     try moveDot(allocator, delete_fixture.frame, delete_fixture.content_lines[0], 1);
-    try std.testing.expect(try WordDeleteWord(allocator, delete_fixture.frame, delete_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordDeleteWord(allocator, delete_fixture.frame, delete_fixture.frame, .LeadParamNone, 1));
     try expectLineContent(delete_fixture.content_lines[0], "world");
 
     const fail_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello"});
     try moveDot(allocator, fail_fixture.frame, fail_fixture.content_lines[0], 3);
-    try std.testing.expect(!(try WordDeleteWord(allocator, fail_fixture.frame, fail_fixture.frame, .LeadParamNone, 1)));
+    try std.testing.expect(!(try wordDeleteWord(allocator, fail_fixture.frame, fail_fixture.frame, .LeadParamNone, 1)));
     try std.testing.expectEqual(@as(isize, 3), fail_fixture.frame.Dot.?.Col);
 }

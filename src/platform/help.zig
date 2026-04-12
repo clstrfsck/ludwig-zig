@@ -161,8 +161,8 @@ fn readEntryLines(
     allocator: std.mem.Allocator,
     data: []const u8,
     entry: Entry,
-) !std.ArrayListUnmanaged([]const u8) {
-    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+) !std.ArrayList([]const u8) {
+    var lines: std.ArrayList([]const u8) = .{};
     var cursor = entry.start;
     while (cursor < entry.end) {
         const line = try readLine(data, cursor);
@@ -253,7 +253,7 @@ fn replaceReportFrame(
     return true;
 }
 
-pub fn HelpCommandForData(
+pub fn helpCommandForData(
     allocator: std.mem.Allocator,
     report_frame: *types.FrameObject,
     index_data: []const u8,
@@ -268,17 +268,17 @@ pub fn HelpCommandForData(
     return replaceReportFrame(allocator, report_frame, lines.items);
 }
 
-pub fn HelpCommand(
+pub fn helpCommand(
     editor: *const state.Editor,
     allocator: std.mem.Allocator,
     report_frame: *types.FrameObject,
     selection: []const u8,
 ) !bool {
     const index_data = selectedIndexData(editor);
-    return HelpCommandForData(allocator, report_frame, index_data, selection);
+    return helpCommandForData(allocator, report_frame, index_data, selection);
 }
 
-pub fn HelpInteractiveForData(
+pub fn helpInteractiveForData(
     allocator: std.mem.Allocator,
     index_data: []const u8,
     selection: []const u8,
@@ -295,7 +295,7 @@ pub fn HelpInteractiveForData(
             continue;
         };
 
-        var page_lines: std.ArrayListUnmanaged([]const u8) = .{};
+        var page_lines: std.ArrayList([]const u8) = .{};
         defer page_lines.deinit(allocator);
 
         var cursor = entry.start;
@@ -340,12 +340,12 @@ pub fn HelpInteractiveForData(
     return true;
 }
 
-pub fn HelpInteractive(
+pub fn helpInteractive(
     editor: *const state.Editor,
     allocator: std.mem.Allocator,
     selection: []const u8,
 ) !bool {
-    return HelpInteractiveForData(allocator, selectedIndexData(editor), selection);
+    return helpInteractiveForData(allocator, selectedIndexData(editor), selection);
 }
 
 fn makeReportFrame(allocator: std.mem.Allocator, name: []const u8) !line_ops.FrameFixture {
@@ -387,11 +387,11 @@ test "help command can render synthetic contents page" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     const report = try makeReportFrame(allocator, "OOPS");
-    try std.testing.expect(try HelpCommandForData(allocator, report.frame, index_data, ""));
+    try std.testing.expect(try helpCommandForData(allocator, report.frame, index_data, ""));
     try expectFrameLines(report.frame, &[_][]const u8{"Main Help"});
 }
 
@@ -410,11 +410,11 @@ test "help command skips pagination markers and normalizes topic case" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     const report = try makeReportFrame(allocator, "OOPS");
-    try std.testing.expect(try HelpCommandForData(allocator, report.frame, index_data, "abcd"));
+    try std.testing.expect(try helpCommandForData(allocator, report.frame, index_data, "abcd"));
     try expectFrameLines(report.frame, &[_][]const u8{
         "first line",
         "second line",
@@ -434,11 +434,11 @@ test "help command returns false for unknown topic" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     const report = try makeReportFrame(allocator, "OOPS");
-    try std.testing.expect(!(try HelpCommandForData(allocator, report.frame, index_data, "ZZZZ")));
+    try std.testing.expect(!(try helpCommandForData(allocator, report.frame, index_data, "ZZZZ")));
 }
 
 test "interactive help can paginate and exit through prompts" {
@@ -456,11 +456,11 @@ test "interactive help can paginate and exit through prompts" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     interactive_io.testing.installInput(" \r\r");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try HelpInteractiveForData(allocator, index_data, "abcd"));
+    try std.testing.expect(try helpInteractiveForData(allocator, index_data, "abcd"));
 }

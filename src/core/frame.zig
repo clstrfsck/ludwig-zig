@@ -37,7 +37,7 @@ fn emitFrameMessage(editor: *const state.Editor, message: []const u8) void {
     }
 }
 
-pub fn FrameEdit(
+pub fn frameEdit(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     return_frame: ?*types.FrameObject,
@@ -47,7 +47,7 @@ pub fn FrameEdit(
 
     var span_ptr: ?*types.SpanObject = null;
     var span_prev: ?*types.SpanObject = null;
-    if (try span_ops.SpanFind(editor, allocator, resolved_name, &span_ptr, &span_prev)) {
+    if (try span_ops.spanFind(editor, allocator, resolved_name, &span_ptr, &span_prev)) {
         if (span_ptr.?.Frame) |frame| {
             if (return_frame != null and frame != return_frame.?) {
                 frame.ReturnFrame = return_frame;
@@ -103,7 +103,7 @@ pub fn FrameEdit(
     return frame;
 }
 
-pub fn FrameKill(
+pub fn frameKill(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     current_frame: *types.FrameObject,
@@ -111,7 +111,7 @@ pub fn FrameKill(
 ) !bool {
     var span_ptr: ?*types.SpanObject = null;
     var span_prev: ?*types.SpanObject = null;
-    if (!try span_ops.SpanFind(editor, allocator, frame_name, &span_ptr, &span_prev)) {
+    if (!try span_ops.spanFind(editor, allocator, frame_name, &span_ptr, &span_prev)) {
         return false;
     }
     if (span_ptr.?.Frame == null) {
@@ -135,7 +135,7 @@ pub fn FrameKill(
             }
         } else if (span.MarkOne != null and span.MarkOne.?.Line.Group.?.Frame == target_frame) {
             var slot = iter;
-            if (!span_ops.SpanDestroy(editor, allocator, &slot)) {
+            if (!span_ops.spanDestroy(editor, allocator, &slot)) {
                 return false;
             }
         }
@@ -144,7 +144,7 @@ pub fn FrameKill(
 
     target_frame.Span.?.Frame = null;
     var frame_span = target_frame.Span;
-    if (!span_ops.SpanDestroy(editor, allocator, &frame_span)) {
+    if (!span_ops.spanDestroy(editor, allocator, &frame_span)) {
         return false;
     }
     target_frame.Span = null;
@@ -192,7 +192,7 @@ const TparParser = struct {
     }
 
     fn toInt(self: *TparParser) ?isize {
-        return tpar_ops.TparToIntMessage(self.editor, self.request, &self.pos);
+        return tpar_ops.tparToIntMessage(self.editor, self.request, &self.pos);
     }
 
     fn setMode(self: *TparParser) bool {
@@ -243,7 +243,7 @@ const TparParser = struct {
             return true;
         }
 
-        const key_code = user_ops.UserKeyNameToCode(self.editor, key_name) orelse {
+        const key_code = user_ops.userKeyNameToCode(self.editor, key_name) orelse {
             emitFrameMessage(self.editor, unrecognized_key_name_message);
             return false;
         };
@@ -590,7 +590,7 @@ fn setMemory(editor: *state.Editor, frame: *types.FrameObject, size: isize, set_
     return true;
 }
 
-pub fn FrameSetHeight(editor: *state.Editor, frame: *types.FrameObject, height: isize, set_initial: bool) bool {
+pub fn frameSetHeight(editor: *state.Editor, frame: *types.FrameObject, height: isize, set_initial: bool) bool {
     if (height >= 1 and height <= editor.TerminalInfo.Height) {
         if (set_initial) {
             editor.InitialScrHeight = height;
@@ -643,7 +643,7 @@ fn keyboardModeName(mode: types.ModeType) []const u8 {
 
 fn appendDisplayOption(
     allocator: std.mem.Allocator,
-    buffer: *std.ArrayListUnmanaged(u8),
+    buffer: *std.ArrayList(u8),
     ch: u8,
     first: *bool,
 ) !void {
@@ -657,7 +657,7 @@ fn appendDisplayOption(
 }
 
 fn renderOptionsSummary(allocator: std.mem.Allocator, options: types.FrameOptions) ![]const u8 {
-    var buffer: std.ArrayListUnmanaged(u8) = .{};
+    var buffer: std.ArrayList(u8) = .{};
     try buffer.append(allocator, ' ');
     var count: usize = 1;
     var first = true;
@@ -702,7 +702,7 @@ fn padRight(allocator: std.mem.Allocator, text_in: []const u8, width: usize) ![]
 }
 
 fn renderCommandIntroducerSummary(editor: *const state.Editor, allocator: std.mem.Allocator) ![]const u8 {
-    if (user_ops.UserKeyCodeToName(editor, editor.CommandIntroducer)) |name| {
+    if (user_ops.userKeyCodeToName(editor, editor.CommandIntroducer)) |name| {
         return allocator.dupe(u8, name);
     }
     if (editor.CommandIntroducer >= 0 and editor.CommandIntroducer <= std.math.maxInt(u8)) {
@@ -769,8 +769,8 @@ fn buildInteractiveParameterLines(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
-) !std.ArrayListUnmanaged([]const u8) {
-    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+) !std.ArrayList([]const u8) {
+    var lines: std.ArrayList([]const u8) = .{};
     const frame_name = if (frame.Span != null) frame.Span.?.Name else "";
     const padded_frame_name = try renderName(allocator, frame_name, types.NameLen);
     const version_underline = try allocator.alloc(u8, 7 + types.LudwigVersion.len);
@@ -950,7 +950,7 @@ fn setParam(
             },
             'H' => blk: {
                 const height = parser.toInt() orelse break :blk false;
-                break :blk FrameSetHeight(editor, frame, height, set_initial);
+                break :blk frameSetHeight(editor, frame, height, set_initial);
             },
             'W' => blk: {
                 const width = parser.toInt() orelse break :blk false;
@@ -981,14 +981,14 @@ fn setParam(
     return true;
 }
 
-pub fn FrameParameter(
+pub fn frameParameter(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     tpar: ?*types.TParObject,
 ) !bool {
     var request: types.TParObject = .{};
-    if (!try tpar_ops.TparGet1(allocator, editor, frame, tpar, .CmdFrameParameters, &request)) {
+    if (!try tpar_ops.tparGet1(allocator, editor, frame, tpar, .CmdFrameParameters, &request)) {
         return false;
     }
     if (request.Len > 0) {
@@ -1008,7 +1008,7 @@ test "frame edit creates and reuses named frames" {
     const origin_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const origin = origin_fixture.frame;
 
-    const created = (try FrameEdit(&editor, allocator, origin, "WORK")).?;
+    const created = (try frameEdit(&editor, allocator, origin, "WORK")).?;
     try std.testing.expect(created != origin);
     try std.testing.expect(created.Span != null);
     try std.testing.expectEqualStrings("WORK", created.Span.?.Name);
@@ -1017,7 +1017,7 @@ test "frame edit creates and reuses named frames" {
     try std.testing.expect(created.FirstGroup == created.LastGroup);
     try std.testing.expect(created.Dot != null);
 
-    const reused = (try FrameEdit(&editor, allocator, origin, "WORK")).?;
+    const reused = (try frameEdit(&editor, allocator, origin, "WORK")).?;
     try std.testing.expect(reused == created);
     try std.testing.expect(reused.ReturnFrame == origin);
 }
@@ -1029,17 +1029,17 @@ test "frame kill removes frame span and clears return links" {
 
     const origin_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const origin = origin_fixture.frame;
-    const target = (try FrameEdit(&editor, allocator, origin, "WORK")).?;
-    const follower = (try FrameEdit(&editor, allocator, target, "FOLLOW")).?;
+    const target = (try frameEdit(&editor, allocator, origin, "WORK")).?;
+    const follower = (try frameEdit(&editor, allocator, target, "FOLLOW")).?;
     try std.testing.expect(follower.ReturnFrame == target);
 
     const span_mark_one = target.Span.?.MarkOne.?;
     const span_mark_two = target.Span.?.MarkTwo.?;
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "INNER", span_mark_one, span_mark_two));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "INNER", span_mark_one, span_mark_two));
 
-    try std.testing.expect(try FrameKill(&editor, allocator, origin, "WORK"));
+    try std.testing.expect(try frameKill(&editor, allocator, origin, "WORK"));
     try std.testing.expect(follower.ReturnFrame == null);
-    try std.testing.expect((try FrameEdit(&editor, allocator, origin, "WORK")).? != target);
+    try std.testing.expect((try frameEdit(&editor, allocator, origin, "WORK")).? != target);
 }
 
 test "frame kill rejects current and special frames" {
@@ -1049,12 +1049,12 @@ test "frame kill rejects current and special frames" {
 
     const origin_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const origin = origin_fixture.frame;
-    const current_named = (try FrameEdit(&editor, allocator, origin, "CURRENT")).?;
-    try std.testing.expect(!try FrameKill(&editor, allocator, current_named, "CURRENT"));
+    const current_named = (try frameEdit(&editor, allocator, origin, "CURRENT")).?;
+    try std.testing.expect(!try frameKill(&editor, allocator, current_named, "CURRENT"));
 
-    const special = (try FrameEdit(&editor, allocator, origin, "SPECIAL")).?;
+    const special = (try frameEdit(&editor, allocator, origin, "SPECIAL")).?;
     special.Options.specialFrame = true;
-    try std.testing.expect(!try FrameKill(&editor, allocator, origin, "SPECIAL"));
+    try std.testing.expect(!try frameKill(&editor, allocator, origin, "SPECIAL"));
 }
 
 test "frame edit initializes empty frame with end-of-file sentinel" {
@@ -1062,7 +1062,7 @@ test "frame edit initializes empty frame with end-of-file sentinel" {
     defer editor.deinit();
     const allocator = editor.allocator();
 
-    const frame = (try FrameEdit(&editor, allocator, null, "WORK")).?;
+    const frame = (try frameEdit(&editor, allocator, null, "WORK")).?;
     try std.testing.expectEqualStrings("<End of File>   WORK", line_ops.getDisplayLineContent(frame.LastGroup.?.LastLine.?));
     try std.testing.expectEqualStrings("", line_ops.getLineContent(frame.LastGroup.?.LastLine.?));
 }
@@ -1081,7 +1081,7 @@ test "frame parameter updates batch-safe state values" {
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, request),
         .Len = request.len,
     };
-    try std.testing.expect(try FrameParameter(&editor, allocator, frame, &tpar));
+    try std.testing.expect(try frameParameter(&editor, allocator, frame, &tpar));
     try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.EditMode);
     try std.testing.expect(frame.Options.autoIndent);
     try std.testing.expect(!frame.Options.newLine);
@@ -1105,8 +1105,8 @@ test "frame parameter accepts named command introducers in screen mode" {
     defer editor.deinit();
     const allocator = editor.allocator();
     editor.LudwigMode = .LudwigScreen;
-    try user_ops.UserKeyInitialize(&editor, allocator);
-    const function_key = user_ops.UserKeyNameToCode(&editor, "FUNCTION-1").?;
+    try user_ops.userKeyInitialize(&editor, allocator);
+    const function_key = user_ops.userKeyNameToCode(&editor, "FUNCTION-1").?;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
     var tpar = types.TParObject{
@@ -1114,7 +1114,7 @@ test "frame parameter accepts named command introducers in screen mode" {
         .Len = "C=FUNCTION-1".len,
     };
 
-    try std.testing.expect(try FrameParameter(&editor, allocator, fixture.frame, &tpar));
+    try std.testing.expect(try frameParameter(&editor, allocator, fixture.frame, &tpar));
     try std.testing.expectEqual(function_key, editor.CommandIntroducer);
 }
 
@@ -1123,7 +1123,7 @@ test "frame parameter reports unrecognized named introducers" {
     defer editor.deinit();
     const allocator = editor.allocator();
     editor.LudwigMode = .LudwigScreen;
-    try user_ops.UserKeyInitialize(&editor, allocator);
+    try user_ops.userKeyInitialize(&editor, allocator);
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
     var tpar = types.TParObject{
@@ -1131,7 +1131,7 @@ test "frame parameter reports unrecognized named introducers" {
         .Len = "C=BOGUS".len,
     };
 
-    try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &tpar)));
+    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &tpar)));
     try std.testing.expectEqualStrings(unrecognized_key_name_message, interactive_io.takeStatusMessage().?);
 }
 
@@ -1141,7 +1141,7 @@ test "frame parameter queues validation messages in screen mode" {
     const allocator = editor.allocator();
     editor.LudwigMode = .LudwigScreen;
     editor.TerminalInfo = .{ .Width = 120, .Height = 24 };
-    try user_ops.UserKeyInitialize(&editor, allocator);
+    try user_ops.userKeyInitialize(&editor, allocator);
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
 
@@ -1149,21 +1149,21 @@ test "frame parameter queues validation messages in screen mode" {
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "K=X"),
         .Len = "K=X".len,
     };
-    try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &bad_mode)));
+    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &bad_mode)));
     try std.testing.expectEqualStrings(mode_error_message, interactive_io.takeStatusMessage().?);
 
     var bad_option = types.TParObject{
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "O=Z"),
         .Len = "O=Z".len,
     };
-    try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &bad_option)));
+    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &bad_option)));
     try std.testing.expectEqualStrings(unknown_option_message, interactive_io.takeStatusMessage().?);
 
     var bad_height = types.TParObject{
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "H=999"),
         .Len = "H=999".len,
     };
-    try std.testing.expect(!(try FrameParameter(&editor, allocator, fixture.frame, &bad_height)));
+    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &bad_height)));
     try std.testing.expectEqualStrings(invalid_screen_height_message, interactive_io.takeStatusMessage().?);
 }
 
@@ -1180,7 +1180,7 @@ test "frame parameter tab ruler operations update text and tab stops" {
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "T=I"),
         .Len = 3,
     };
-    try std.testing.expect(try FrameParameter(&editor, allocator, frame, &insert));
+    try std.testing.expect(try frameParameter(&editor, allocator, frame, &insert));
     try std.testing.expect(frame.TextModified);
     const ruler_line = frame.FirstGroup.?.FirstLine.?;
     try std.testing.expect(ruler_line != fixture.content_lines[0]);
@@ -1197,7 +1197,7 @@ test "frame parameter tab ruler operations update text and tab stops" {
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, "T=R"),
         .Len = 3,
     };
-    try std.testing.expect(try FrameParameter(&editor, allocator, frame, &apply));
+    try std.testing.expect(try frameParameter(&editor, allocator, frame, &apply));
     try std.testing.expect(frame.TabStops[4]);
     try std.testing.expect(frame.TabStops[8]);
     try std.testing.expectEqual(@as(isize, 1), frame.MarginLeft);
@@ -1210,7 +1210,7 @@ test "interactive parameter display lines show current settings summary" {
     const allocator = editor.allocator();
     editor.LudwigMode = .LudwigScreen;
     editor.TerminalInfo = .{ .Width = 120, .Height = 24 };
-    try user_ops.UserKeyInitialize(&editor, allocator);
+    try user_ops.userKeyInitialize(&editor, allocator);
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{ "alpha", "beta" });
     const frame = fixture.frame;

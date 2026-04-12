@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const MinIndex: isize = 1;
+pub const min_index: isize = 1;
 
 pub const StrObject = struct {
     allocator: std.mem.Allocator,
@@ -33,14 +33,14 @@ pub const StrObject = struct {
             @panic("index + offset underflow");
         }
         const combined_index = index + offset;
-        if (combined_index < MinIndex or combined_index > @as(isize, @intCast(self.array.len))) {
+        if (combined_index < min_index or combined_index > @as(isize, @intCast(self.array.len))) {
             @panic("index out of range");
         }
     }
 
     fn adjustIndex(self: *const StrObject, index: isize, offset: isize) usize {
         self.checkIndex(index, offset);
-        return @intCast(index + offset - MinIndex);
+        return @intCast(index + offset - min_index);
     }
 
     pub fn get(self: *const StrObject, index: isize) u8 {
@@ -72,16 +72,16 @@ pub const StrObject = struct {
         self: *const StrObject,
         other: *const StrObject,
         n: isize,
-        srcOffset: isize,
-        dstOffset: isize,
+        src_offset: isize,
+        dst_offset: isize,
     ) bool {
         if (n == 0) {
             return true;
         }
-        self.checkIndex(srcOffset, n - 1);
-        other.checkIndex(dstOffset, n - 1);
-        const src_idx = self.adjustIndex(srcOffset, 0);
-        const dst_idx = other.adjustIndex(dstOffset, 0);
+        self.checkIndex(src_offset, n - 1);
+        other.checkIndex(dst_offset, n - 1);
+        const src_idx = self.adjustIndex(src_offset, 0);
+        const dst_idx = other.adjustIndex(dst_offset, 0);
         return std.mem.eql(
             u8,
             self.array[src_idx .. src_idx + @as(usize, @intCast(n))],
@@ -108,17 +108,17 @@ pub const StrObject = struct {
     pub fn copy(
         self: *StrObject,
         src: *const StrObject,
-        srcOffset: isize,
+        src_offset: isize,
         count: isize,
-        dstOffset: isize,
+        dst_offset: isize,
     ) void {
         if (count <= 0) {
             return;
         }
-        src.checkIndex(srcOffset, count - 1);
-        self.checkIndex(dstOffset, count - 1);
-        const src_idx = src.adjustIndex(srcOffset, 0);
-        const dst_idx = self.adjustIndex(dstOffset, 0);
+        src.checkIndex(src_offset, count - 1);
+        self.checkIndex(dst_offset, count - 1);
+        const src_idx = src.adjustIndex(src_offset, 0);
+        const dst_idx = self.adjustIndex(dst_offset, 0);
         const copy_len: usize = @intCast(count);
         if (@intFromPtr(self.array.ptr) == @intFromPtr(src.array.ptr) and dst_idx > src_idx and src_idx + copy_len > dst_idx) {
             std.mem.copyBackwards(u8, self.array[dst_idx .. dst_idx + copy_len], src.array[src_idx .. src_idx + copy_len]);
@@ -131,13 +131,13 @@ pub const StrObject = struct {
         self: *StrObject,
         src: []const u8,
         count: isize,
-        dstOffset: isize,
+        dst_offset: isize,
     ) void {
         if (count <= 0) {
             return;
         }
-        self.checkIndex(dstOffset, count - 1);
-        const dst_idx = self.adjustIndex(dstOffset, 0);
+        self.checkIndex(dst_offset, count - 1);
+        const dst_idx = self.adjustIndex(dst_offset, 0);
         const copy_len: usize = @intCast(count);
         std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src[0..copy_len]);
     }
@@ -172,42 +172,42 @@ pub const StrObject = struct {
     pub fn fillCopy(
         self: *StrObject,
         src: *const StrObject,
-        srcIndex: isize,
-        srcLen: isize,
-        dstIndex: isize,
-        dstLen: isize,
+        src_index: isize,
+        src_len: isize,
+        dst_index: isize,
+        dst_len: isize,
         value: u8,
     ) void {
-        if (dstLen <= 0) {
+        if (dst_len <= 0) {
             return;
         }
-        self.checkIndex(dstIndex, dstLen - 1);
-        const dst_idx = self.adjustIndex(dstIndex, 0);
-        const copy_len: usize = @intCast(@min(srcLen, dstLen));
+        self.checkIndex(dst_index, dst_len - 1);
+        const dst_idx = self.adjustIndex(dst_index, 0);
+        const copy_len: usize = @intCast(@min(src_len, dst_len));
         if (copy_len > 0) {
-            src.checkIndex(srcIndex, @intCast(copy_len - 1));
-            const src_idx = src.adjustIndex(srcIndex, 0);
+            src.checkIndex(src_index, @intCast(copy_len - 1));
+            const src_idx = src.adjustIndex(src_index, 0);
             std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src.array[src_idx .. src_idx + copy_len]);
         }
-        if (@as(isize, @intCast(copy_len)) < dstLen) {
-            @memset(self.array[dst_idx + copy_len .. dst_idx + @as(usize, @intCast(dstLen))], value);
+        if (@as(isize, @intCast(copy_len)) < dst_len) {
+            @memset(self.array[dst_idx + copy_len .. dst_idx + @as(usize, @intCast(dst_len))], value);
         }
     }
 
     pub fn fillCopyBytes(
         self: *StrObject,
         src: []const u8,
-        dstIndex: isize,
-        dstLen: isize,
+        dst_index: isize,
+        dst_len: isize,
         value: u8,
     ) void {
-        var clamped_dst_len = dstLen;
-        clamped_dst_len = @min(clamped_dst_len, @as(isize, @intCast(self.array.len)) - dstIndex + MinIndex);
+        var clamped_dst_len = dst_len;
+        clamped_dst_len = @min(clamped_dst_len, @as(isize, @intCast(self.array.len)) - dst_index + min_index);
         if (clamped_dst_len <= 0) {
             return;
         }
-        self.checkIndex(dstIndex, clamped_dst_len - 1);
-        const dst_idx = self.adjustIndex(dstIndex, 0);
+        self.checkIndex(dst_index, clamped_dst_len - 1);
+        const dst_idx = self.adjustIndex(dst_index, 0);
         const copy_len: usize = @min(src.len, @as(usize, @intCast(clamped_dst_len)));
         if (copy_len > 0) {
             std.mem.copyForwards(u8, self.array[dst_idx .. dst_idx + copy_len], src[0..copy_len]);
@@ -300,14 +300,14 @@ pub fn newStrObjectFrom(allocator: std.mem.Allocator, str: []const u8) !*StrObje
 pub fn newStrObjectCopy(
     allocator: std.mem.Allocator,
     src: *const StrObject,
-    srcIndex: isize,
-    srcLen: isize,
-    dstLen: isize,
+    src_index: isize,
+    src_len: isize,
+    dst_len: isize,
 ) !*StrObject {
-    const result = try newBlankStrObject(allocator, @intCast(dstLen));
-    result.copy(src, srcIndex, @min(srcLen, dstLen), 1);
-    if (srcLen < dstLen) {
-        result.fill(' ', srcLen + 1, dstLen);
+    const result = try newBlankStrObject(allocator, @intCast(dst_len));
+    result.copy(src, src_index, @min(src_len, dst_len), 1);
+    if (src_len < dst_len) {
+        result.fill(' ', src_len + 1, dst_len);
     }
     return result;
 }

@@ -164,14 +164,14 @@ pub fn doCmdReturn(
     var counter: isize = 1;
     while (counter <= count) : (counter += 1) {
         if (dot_line.FLink == null) {
-            try text.TextRealizeNull(allocator, dot_line);
+            try text.textRealizeNull(allocator, dot_line);
             eop_line_nr.* += 1;
             dot_line = dot_line.BLink.?;
             if (counter == 1) {
                 new_eql.Line = dot_line;
             }
         }
-        dot_col = text.TextReturnCol(dot_line, dot_col, false);
+        dot_col = text.textReturnCol(dot_line, dot_col, false);
         dot_line = dot_line.FLink.?;
     }
     try mark_ops.markCreate(allocator, dot_line, dot_col, &frame.Dot);

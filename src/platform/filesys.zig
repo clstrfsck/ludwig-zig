@@ -5,12 +5,12 @@ const sys_ops = @import("sys.zig");
 const types = @import("../core/types.zig");
 
 pub const ParseType = enum {
-    ParseCommand,
-    ParseInput,
-    ParseOutput,
-    ParseEdit,
-    ParseStdin,
-    ParseExecute,
+    parse_command,
+    parse_input,
+    parse_output,
+    parse_edit,
+    parse_stdin,
+    parse_execute,
 };
 
 pub const ParseResult = struct {
@@ -25,7 +25,7 @@ pub const file_usage =
     "usage: [-m file] [-t] [-T] [-b value] [-B value] [file [file]]";
 
 fn usageFor(parse_type: ParseType) []const u8 {
-    return if (parse_type == .ParseCommand) command_usage else file_usage;
+    return if (parse_type == .parse_command) command_usage else file_usage;
 }
 
 fn defaultHomePath(allocator: std.mem.Allocator, suffix: []const u8) ![]const u8 {
@@ -101,7 +101,7 @@ pub fn fileCreateOpen(
     input_out.* = null;
     output_out.* = null;
 
-    if (parse_type == .ParseStdin) {
+    if (parse_type == .parse_stdin) {
         input_out.* = try makeStdinFile(allocator);
         return .{ .ok = true };
     }
@@ -123,7 +123,7 @@ pub fn fileCreateOpen(
 
     var initialize: []const u8 = "";
     var memory: []const u8 = "";
-    if (parse_type == .ParseCommand) {
+    if (parse_type == .parse_command) {
         initialize = try defaultHomePath(allocator, ".ludwigrc");
         memory = try defaultHomePath(allocator, ".lud_memory");
     }
@@ -231,7 +231,7 @@ pub fn fileCreateOpen(
         };
     }
 
-    if (parse_type == .ParseCommand) {
+    if (parse_type == .parse_command) {
         editor.FileData.Highlighting = highlighting;
         editor.FileData.Entab = entab;
         editor.FileData.Space = space;
@@ -260,13 +260,13 @@ pub fn fileCreateOpen(
 
     if (file_count == 2) {
         check_input = true;
-        if (parse_type == .ParseInput or parse_type == .ParseOutput or parse_type == .ParseExecute or create_flag or read_only_flag) {
+        if (parse_type == .parse_input or parse_type == .parse_output or parse_type == .parse_execute or create_flag or read_only_flag) {
             return fail("Only one file name can be specified");
         }
     }
 
     switch (parse_type) {
-        .ParseCommand, .ParseEdit => {
+        .parse_command, .parse_edit => {
             var input_name: []const u8 = "";
             if (file_count > 0) {
                 input_name = files[0];
@@ -275,16 +275,16 @@ pub fn fileCreateOpen(
                     if (sys_ops.fileExists(remembered)) {
                         input_name = remembered;
                         check_input = true;
-                    } else if (parse_type == .ParseEdit) {
+                    } else if (parse_type == .parse_edit) {
                         return fail(try std.fmt.allocPrint(allocator, "Error opening memory file ({s})", .{memory}));
                     }
-                } else if (parse_type == .ParseEdit) {
+                } else if (parse_type == .parse_edit) {
                     return fail(try std.fmt.allocPrint(allocator, "Error opening memory file ({s})", .{memory}));
                 }
             }
 
             if (input_name.len == 0) {
-                if (parse_type == .ParseCommand) {
+                if (parse_type == .parse_command) {
                     return .{ .ok = true };
                 }
                 return fail("No input file specified");
@@ -299,7 +299,7 @@ pub fn fileCreateOpen(
                     return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
             } else {
                 input_out.* = try openInputFile(editor, allocator, input_name);
-                if (input_out.* == null and (check_input or parse_type == .ParseEdit)) {
+                if (input_out.* == null and (check_input or parse_type == .parse_edit)) {
                     return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{input_name}));
                 }
                 const related_name = if (input_out.*) |input| input.Filename else input_name;
@@ -307,7 +307,7 @@ pub fn fileCreateOpen(
                     return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
             }
         },
-        .ParseInput => {
+        .parse_input => {
             const input_name = if (file_count == 1)
                 files[0]
             else if (memory.len > 0)
@@ -318,14 +318,14 @@ pub fn fileCreateOpen(
             input_out.* = (try openInputFile(editor, allocator, input_name)) orelse
                 return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{input_name}));
         },
-        .ParseExecute => {
+        .parse_execute => {
             if (file_count != 1) {
                 return fail("No input file specified");
             }
             input_out.* = (try openInputFile(editor, allocator, files[0])) orelse
                 return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{files[0]}));
         },
-        .ParseOutput => {
+        .parse_output => {
             const output_name = if (file_count == 1)
                 files[0]
             else if (input_out.*) |input|
@@ -339,7 +339,7 @@ pub fn fileCreateOpen(
             output_out.* = (try openOutputFile(editor, allocator, output_name, related_name, false, memory, entab, purge, versions)) orelse
                 return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
         },
-        .ParseStdin => unreachable,
+        .parse_stdin => unreachable,
     }
 
     return .{ .ok = true };
@@ -365,7 +365,7 @@ test "filesys parser applies command flags and opens command/edit files" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-B", "3", "-t", "-w", "4", "-O", input_path, output_path };
-    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, allocator, &argv, .parse_command, &input, &output);
     try std.testing.expect(result.ok);
     try std.testing.expect(!editor.FileData.OldCmds);
     try std.testing.expect(editor.FileData.Entab);
@@ -393,7 +393,7 @@ test "filesys parser can use a memory file for command input" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-m", memory_path };
-    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, allocator, &argv, .parse_command, &input, &output);
     try std.testing.expect(result.ok);
     try std.testing.expect(input != null);
     try std.testing.expect(output != null);
@@ -409,7 +409,7 @@ test "filesys parser reports usage for conflicting create and readonly flags" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-c", "-r" };
-    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, allocator, &argv, .parse_command, &input, &output);
     try std.testing.expect(!result.ok);
     try std.testing.expect(result.show_usage);
 }

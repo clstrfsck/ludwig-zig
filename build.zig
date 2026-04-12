@@ -1,4 +1,5 @@
 const std = @import("std");
+const zlinter = @import("zlinter");
 
 fn configureLudwigExecutable(
     exe: *std.Build.Step.Compile,
@@ -9,9 +10,9 @@ fn configureLudwigExecutable(
     exe.root_module.addImport("generated_help_assets", help_assets_module);
     exe.root_module.addImport("generated_syntax_data", syntax_data_module);
     exe.root_module.addImport("syntax_data_types", syntax_data_types_module);
-    exe.linkLibC();
-    exe.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
-    exe.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
+    exe.root_module.link_libc = true;
+    exe.root_module.linkSystemLibrary("ncurses", .{ .preferred_link_mode = .static });
+    exe.root_module.linkSystemLibrary("pcre2-8", .{ .preferred_link_mode = .static });
 }
 
 pub fn build(b: *std.Build) void {
@@ -187,9 +188,9 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    unit_tests.linkLibC();
-    unit_tests.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
-    unit_tests.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
+    unit_tests.root_module.link_libc = true;
+    unit_tests.root_module.linkSystemLibrary("ncurses", .{ .preferred_link_mode = .static });
+    unit_tests.root_module.linkSystemLibrary("pcre2-8", .{ .preferred_link_mode = .static });
     unit_tests.root_module.addImport("generated_help_assets", host_help_assets_module);
     unit_tests.root_module.addImport("generated_syntax_data", host_syntax_data_module);
     unit_tests.root_module.addImport("syntax_data_types", host_syntax_data_types_module);
@@ -246,4 +247,25 @@ pub fn build(b: *std.Build) void {
     clean_run.setCwd(b.path("."));
     const clean_step = b.step("clean", "Remove built binaries and generated outputs");
     clean_step.dependOn(&clean_run.step);
+
+    const lint_cmd = b.step("lint", "Lint source code.");
+    lint_cmd.dependOn(step: {
+        // Swap in and out whatever rules you see fit from RULES.md
+        var builder = zlinter.builder(b, .{});
+        builder.addRule(.{ .builtin = .field_naming }, .{
+            .struct_field_min_len = .{ .len = 0, .severity = .warning },
+            .struct_field_max_len = .{ .len = 80, .severity = .warning },
+        });
+        builder.addRule(.{ .builtin = .declaration_naming }, .{
+            .decl_name_min_len = .{ .len = 0, .severity = .warning },
+            .decl_name_max_len = .{ .len = 80, .severity = .warning },
+        });
+        builder.addRule(.{ .builtin = .function_naming }, .{});
+        builder.addRule(.{ .builtin = .file_naming }, .{});
+        builder.addRule(.{ .builtin = .switch_case_ordering }, .{});
+        builder.addRule(.{ .builtin = .no_unused }, .{});
+        builder.addRule(.{ .builtin = .no_deprecated }, .{});
+        builder.addRule(.{ .builtin = .no_orelse_unreachable }, .{});
+        break :step builder.build();
+    });
 }

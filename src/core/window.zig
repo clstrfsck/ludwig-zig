@@ -235,18 +235,6 @@ fn scrollViewport(editor: *state.Editor, frame: *types.FrameObject, count: isize
     setViewport(editor, frame, clampTopLine(frame, top_number + count, height), height);
 }
 
-fn visibleLineSlice(frame: *const types.FrameObject, line: *const types.LineHdrObject, width: isize) []const u8 {
-    const eop_line = line.FLink == null;
-    const content = line_ops.getDisplayLineContent(line);
-    const offset: usize = if (eop_line) 0 else @intCast(@max(@as(isize, 0), frame.ScrOffset));
-    if (offset >= content.len) {
-        return "";
-    }
-    const width_usize: usize = @intCast(width);
-    const end = @min(content.len, offset + width_usize);
-    return content[offset..end];
-}
-
 const CursorPosition = struct {
     row: isize,
     col: isize,
@@ -319,7 +307,7 @@ fn dotVisible(editor: *const state.Editor, frame: *const types.FrameObject) bool
     return dot.Line.ScrRowNr != 0 and dot.Col > frame.ScrOffset and dot.Col <= frame.ScrOffset + width;
 }
 
-pub fn WindowCommand(
+pub fn windowCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -460,7 +448,7 @@ pub fn WindowCommand(
         },
         .CmdWindowSetHeight => blk: {
             const target_height = if (rept == .LeadParamNone) editor.TerminalInfo.Height else count;
-            break :blk frame_ops.FrameSetHeight(editor, frame, target_height, false);
+            break :blk frame_ops.frameSetHeight(editor, frame, target_height, false);
         },
         .CmdWindowTop => try moveDotTo(allocator, frame, frame.FirstGroup.?.FirstLine.?),
         else => false,
@@ -482,16 +470,16 @@ test "window command moves dot by screen height and clamps" {
     fixture.frame.ScrHeight = 2;
     try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowForward, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowForward, .LeadParamNone, 1, false));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[4]);
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowBackward, .LeadParamPInt, 2, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowBackward, .LeadParamPInt, 2, false));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowEnd, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowEnd, .LeadParamNone, 1, false));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.sentinel_line);
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowTop, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowTop, .LeadParamNone, 1, false));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
 }
 
@@ -506,12 +494,12 @@ test "window command adjusts horizontal offset on active screen frame" {
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.Dot);
     editor.Screen.Frame = fixture.frame;
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowLeft, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowLeft, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.ScrOffset);
     try std.testing.expectEqual(@as(isize, 10), fixture.frame.Dot.?.Col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.Dot);
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowRight, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowRight, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 5), fixture.frame.ScrOffset);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.Dot.?.Col);
 }
@@ -523,7 +511,7 @@ test "window set height uses terminal height by default" {
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowSetHeight, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowSetHeight, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 24), fixture.frame.ScrHeight);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.MarginTop);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.MarginBottom);
@@ -561,7 +549,7 @@ test "window resize updates terminal dimensions and frame sizing" {
     interactive_io.testing.setDimensionsOverride(100, 40);
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdResizeWindow, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdResizeWindow, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 100), editor.TerminalInfo.Width);
     try std.testing.expectEqual(@as(isize, 40), editor.TerminalInfo.Height);
     try std.testing.expectEqual(@as(isize, 100), fixture.frame.ScrWidth);
@@ -587,7 +575,7 @@ test "window middle recenters the dot on the active screen" {
     fixture.frame.ScrHeight = 10;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowMiddle, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowMiddle, .LeadParamNone, 1, false));
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.Dot.?.Line.ScrRowNr);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.ScrDotLine);
 }
@@ -609,7 +597,7 @@ test "window scroll supports stay-behind up and takeback" {
     interactive_io.testing.installInput("\x1b[AQ");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try WindowCommand(&editor, allocator, fixture.frame, .CmdWindowScroll, .LeadParamNone, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowScroll, .LeadParamNone, 1, false));
     try std.testing.expectEqualStrings("2", editor.Screen.TopLine.?.Str.?.slice(1, 1));
     try std.testing.expectEqual(@as(isize, 2), fixture.frame.Dot.?.Line.ScrRowNr);
     try std.testing.expectEqual(@as(?isize, 'Q'), interactive_io.testing.readInputKey());

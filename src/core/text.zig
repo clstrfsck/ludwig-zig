@@ -15,7 +15,7 @@ fn newBlankString(allocator: std.mem.Allocator) !*str_object.StrObject {
     return str_object.newBlankStrObject(allocator, types.MaxStrLen);
 }
 
-pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: bool) isize {
+pub fn textReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: bool) isize {
     var new_col: isize = if (cur_col >= cur_line.Group.?.Frame.MarginLeft) cur_line.Group.?.Frame.MarginLeft else 1;
 
     if (cur_line.Group.?.Frame.Options.autoIndent and cur_line.FLink != null) {
@@ -41,7 +41,7 @@ pub fn TextReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: 
     return new_col;
 }
 
-pub fn TextRealizeNull(allocator: std.mem.Allocator, old_null: *types.LineHdrObject) !void {
+pub fn textRealizeNull(allocator: std.mem.Allocator, old_null: *types.LineHdrObject) !void {
     const range = try line_ops.linesCreate(allocator, 1);
     try line_ops.linesInject(allocator, range.first, range.last, old_null);
     try mark_ops.marksShift(allocator, old_null, 1, types.MaxStrLenP, range.first, 1);
@@ -52,7 +52,7 @@ pub fn TextRealizeNull(allocator: std.mem.Allocator, old_null: *types.LineHdrObj
     }
 }
 
-pub fn TextInsert(
+pub fn textInsert(
     allocator: std.mem.Allocator,
     update_screen: bool,
     count: isize,
@@ -80,7 +80,7 @@ pub fn TextInsert(
         return false;
     }
     if (dst_line.FLink == null) {
-        try TextRealizeNull(allocator, dst_line);
+        try textRealizeNull(allocator, dst_line);
         dst_line = dst_line.BLink.?;
     }
 
@@ -112,7 +112,7 @@ pub fn TextInsert(
     return true;
 }
 
-pub fn TextOvertype(
+pub fn textOvertype(
     allocator: std.mem.Allocator,
     update_screen: bool,
     count: isize,
@@ -132,7 +132,7 @@ pub fn TextOvertype(
         return false;
     }
     if (dst_line.FLink == null) {
-        try TextRealizeNull(allocator, dst.Line);
+        try textRealizeNull(allocator, dst.Line);
         dst_line = dst_line.BLink.?;
     }
 
@@ -155,14 +155,14 @@ pub fn TextOvertype(
     return true;
 }
 
-pub fn TextInsertTpar(
+pub fn textInsertTpar(
     allocator: std.mem.Allocator,
     tp: *types.TParObject,
     before_mark: *types.MarkObject,
     equals_mark: *?*types.MarkObject,
 ) !bool {
     if (tp.Con == null) {
-        if (!try TextInsert(allocator, true, 1, tp.Str.?, tp.Len, before_mark)) {
+        if (!try textInsert(allocator, true, 1, tp.Str.?, tp.Len, before_mark)) {
             return false;
         }
         try mark_ops.markCreate(allocator, before_mark.Line, before_mark.Col - tp.Len, equals_mark);
@@ -192,12 +192,12 @@ pub fn TextInsertTpar(
     }
 
     if (before_mark.Line.FLink == null) {
-        try TextRealizeNull(allocator, before_mark.Line);
+        try textRealizeNull(allocator, before_mark.Line);
     }
-    if (!try TextSplitLine(allocator, before_mark, 1, equals_mark)) {
+    if (!try textSplitLine(allocator, before_mark, 1, equals_mark)) {
         return false;
     }
-    if (!try TextInsert(allocator, true, 1, tp.Str.?, tp.Len, equals_mark.*.?)) {
+    if (!try textInsert(allocator, true, 1, tp.Str.?, tp.Len, equals_mark.*.?)) {
         return false;
     }
     equals_mark.*.?.Col -= tp.Len;
@@ -216,7 +216,7 @@ pub fn TextInsertTpar(
     if (line_count > 0) {
         try line_ops.linesInject(allocator, first_line.?, last_line.?, before_mark.Line);
     }
-    if (!try TextInsert(allocator, true, 1, tmp_tp.Str.?, tmp_tp.Len, before_mark)) {
+    if (!try textInsert(allocator, true, 1, tmp_tp.Str.?, tmp_tp.Len, before_mark)) {
         return false;
     }
     return true;
@@ -302,7 +302,7 @@ fn textInterRemove(
         const strng_tail = try newBlankString(allocator);
         defer strng_tail.destroy();
         strng_tail.copy(strng, mark_two.Col, delta, 1);
-        if (!try TextInsert(allocator, true, 1, strng_tail, delta, mark_two)) {
+        if (!try textInsert(allocator, true, 1, strng_tail, delta, mark_two)) {
             return false;
         }
         text_len -= delta;
@@ -310,7 +310,7 @@ fn textInterRemove(
 
     try mark_ops.markCreate(allocator, mark_two.Line, 1, &mark_start);
     if (text_len > 0) {
-        if (!try TextOvertype(allocator, true, 1, strng, text_len, mark_start.?)) {
+        if (!try textOvertype(allocator, true, 1, strng, text_len, mark_start.?)) {
             return false;
         }
     }
@@ -326,7 +326,7 @@ fn textInterRemove(
     return true;
 }
 
-pub fn TextRemove(
+pub fn textRemove(
     allocator: std.mem.Allocator,
     mark_one: *types.MarkObject,
     mark_two: *types.MarkObject,
@@ -403,7 +403,7 @@ fn textIntraMove(
         }
     }
 
-    if (full_len != 0 and !try TextInsert(allocator, true, 1, text_str, full_len, dst)) {
+    if (full_len != 0 and !try textInsert(allocator, true, 1, text_str, full_len, dst)) {
         return false;
     }
     const dst_col = dst.Col;
@@ -559,7 +559,7 @@ fn textInterMove(
 
     if (dst_line.FLink == null) {
         if (dst_col != 1 or last_line_length != 0) {
-            try TextRealizeNull(allocator, dst_line);
+            try textRealizeNull(allocator, dst_line);
             dst_line = dst_line.BLink.?;
         } else {
             if (first_line != last_line) {
@@ -603,7 +603,7 @@ fn textInterMove(
     return true;
 }
 
-pub fn TextMove(
+pub fn textMove(
     allocator: std.mem.Allocator,
     copy_text: bool,
     count: isize,
@@ -632,7 +632,7 @@ pub fn TextMove(
     return true;
 }
 
-pub fn TextSplitLine(
+pub fn textSplitLine(
     allocator: std.mem.Allocator,
     before_mark: *types.MarkObject,
     requested_new_col: isize,
@@ -644,7 +644,7 @@ pub fn TextSplitLine(
 
     var new_col = requested_new_col;
     if (new_col == 0) {
-        new_col = TextReturnCol(before_mark.Line, before_mark.Col, true);
+        new_col = textReturnCol(before_mark.Line, before_mark.Col, true);
     }
 
     var length = before_mark.Line.Used + 1 - before_mark.Col;
@@ -718,7 +718,7 @@ pub fn TextSplitLine(
                 defer blank.destroy();
                 const save_col = before_mark.Col;
                 before_mark.Col = 1;
-                if (!try TextOvertype(allocator, true, 1, blank, new_col - 1, before_mark)) {
+                if (!try textOvertype(allocator, true, 1, blank, new_col - 1, before_mark)) {
                     return false;
                 }
                 before_mark.Col = save_col;
@@ -726,13 +726,13 @@ pub fn TextSplitLine(
         } else {
             const blank = try newBlankString(allocator);
             defer blank.destroy();
-            if (!try TextInsert(allocator, true, 1, blank, shift, before_mark)) {
+            if (!try textInsert(allocator, true, 1, blank, shift, before_mark)) {
                 return false;
             }
             if (new_col > 1) {
                 const save_col = before_mark.Col;
                 before_mark.Col = 1;
-                if (!try TextOvertype(allocator, true, 1, blank, new_col - 1, before_mark)) {
+                if (!try textOvertype(allocator, true, 1, blank, new_col - 1, before_mark)) {
                     return false;
                 }
                 before_mark.Col = save_col;
@@ -757,12 +757,12 @@ test "text return column honors margin and auto-indent" {
 
     var fixture = try line_ops.setupLinkedLines(allocator, 2);
     fixture.frame.MarginLeft = 5;
-    try std.testing.expectEqual(@as(isize, 1), TextReturnCol(fixture.content_lines[0], 3, false));
-    try std.testing.expectEqual(@as(isize, 5), TextReturnCol(fixture.content_lines[0], 10, false));
+    try std.testing.expectEqual(@as(isize, 1), textReturnCol(fixture.content_lines[0], 3, false));
+    try std.testing.expectEqual(@as(isize, 5), textReturnCol(fixture.content_lines[0], 10, false));
 
     fixture.frame.Options.autoIndent = true;
     try line_ops.setLineContent(fixture.content_lines[0], "    A");
-    try std.testing.expectEqual(@as(isize, 5), TextReturnCol(fixture.content_lines[0], 10, false));
+    try std.testing.expectEqual(@as(isize, 5), textReturnCol(fixture.content_lines[0], 10, false));
 }
 
 test "text insert handles empty middle and null lines" {
@@ -773,20 +773,20 @@ test "text insert handles empty middle and null lines" {
     var empty_fixture = try line_ops.setupLinkedLines(allocator, 2);
     var insert_mark = types.MarkObject{ .Line = empty_fixture.content_lines[0], .Col = 1 };
     const hello = try str_object.newStrObjectFrom(allocator, "Hi");
-    try std.testing.expect(try TextInsert(allocator, false, 1, hello, 2, &insert_mark));
+    try std.testing.expect(try textInsert(allocator, false, 1, hello, 2, &insert_mark));
     try expectLineContent(empty_fixture.content_lines[0], "Hi");
 
     const middle_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
     var middle_mark = types.MarkObject{ .Line = middle_fixture.content_lines[0], .Col = 4 };
     const xy = try str_object.newStrObjectFrom(allocator, "XY");
-    try std.testing.expect(try TextInsert(allocator, false, 1, xy, 2, &middle_mark));
+    try std.testing.expect(try textInsert(allocator, false, 1, xy, 2, &middle_mark));
     try expectLineContent(middle_fixture.content_lines[0], "HelXYlo");
 
     empty_fixture.frame.Dot = try allocator.create(types.MarkObject);
     empty_fixture.frame.Dot.?.* = .{ .Line = empty_fixture.sentinel_line, .Col = 1 };
     var null_mark = types.MarkObject{ .Line = empty_fixture.sentinel_line, .Col = 1 };
     const z = try str_object.newStrObjectFrom(allocator, "Z");
-    try std.testing.expect(try TextInsert(allocator, false, 1, z, 1, &null_mark));
+    try std.testing.expect(try textInsert(allocator, false, 1, z, 1, &null_mark));
     try std.testing.expect(empty_fixture.frame.TextModified);
 }
 
@@ -798,7 +798,7 @@ test "text overtype advances destination mark" {
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
     var mark = types.MarkObject{ .Line = fixture.content_lines[0], .Col = 2 };
     const xy = try str_object.newStrObjectFrom(allocator, "XY");
-    try std.testing.expect(try TextOvertype(allocator, false, 1, xy, 2, &mark));
+    try std.testing.expect(try textOvertype(allocator, false, 1, xy, 2, &mark));
     try expectLineContent(fixture.content_lines[0], "HXYlo");
     try std.testing.expectEqual(@as(isize, 4), mark.Col);
 }
@@ -811,7 +811,7 @@ test "text remove works within and across lines" {
     const intra = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello World"});
     var mark_one = types.MarkObject{ .Line = intra.content_lines[0], .Col = 7 };
     var mark_two = types.MarkObject{ .Line = intra.content_lines[0], .Col = 12 };
-    try std.testing.expect(try TextRemove(allocator, &mark_one, &mark_two));
+    try std.testing.expect(try textRemove(allocator, &mark_one, &mark_two));
     try expectLineContent(intra.content_lines[0], "Hello");
 
     const inter = try line_ops.setupLinkedLines(allocator, 3);
@@ -820,7 +820,7 @@ test "text remove works within and across lines" {
     try line_ops.setLineContent(inter.content_lines[2], "Third line");
     mark_one = .{ .Line = inter.content_lines[0], .Col = 7 };
     mark_two = .{ .Line = inter.content_lines[2], .Col = 7 };
-    try std.testing.expect(try TextRemove(allocator, &mark_one, &mark_two));
+    try std.testing.expect(try textRemove(allocator, &mark_one, &mark_two));
     try expectLineContent(mark_two.Line, "First line");
 }
 
@@ -836,7 +836,7 @@ test "text split line creates equals mark and preserves content" {
 
     var before_mark = types.MarkObject{ .Line = fixture.content_lines[0], .Col = 7 };
     var equals_mark: ?*types.MarkObject = null;
-    try std.testing.expect(try TextSplitLine(allocator, &before_mark, 1, &equals_mark));
+    try std.testing.expect(try textSplitLine(allocator, &before_mark, 1, &equals_mark));
     try std.testing.expect(equals_mark != null);
     try std.testing.expect(fixture.frame.TextModified);
     try line_ops.validateFrameShape(fixture.frame);
@@ -853,7 +853,7 @@ test "text move copies and moves single-line ranges" {
     var dst = types.MarkObject{ .Line = copy_fixture.content_lines[0], .Col = 10 };
     var new_start: ?*types.MarkObject = null;
     var new_end: ?*types.MarkObject = null;
-    try std.testing.expect(try TextMove(allocator, true, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
+    try std.testing.expect(try textMove(allocator, true, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
     try std.testing.expect(new_start != null and new_end != null);
 
     const move_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello World"});
@@ -862,7 +862,7 @@ test "text move copies and moves single-line ranges" {
     dst = .{ .Line = move_fixture.content_lines[0], .Col = 12 };
     new_start = null;
     new_end = null;
-    try std.testing.expect(try TextMove(allocator, false, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
+    try std.testing.expect(try textMove(allocator, false, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
     try std.testing.expect(move_fixture.frame.TextModified);
 }
 
@@ -879,7 +879,7 @@ test "text move copies and moves multi-line ranges" {
     var dst = types.MarkObject{ .Line = copy_fixture.content_lines[2], .Col = 1 };
     var new_start: ?*types.MarkObject = null;
     var new_end: ?*types.MarkObject = null;
-    try std.testing.expect(try TextMove(allocator, true, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
+    try std.testing.expect(try textMove(allocator, true, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
     try expectLineContent(copy_fixture.content_lines[0], "First");
     try expectLineContent(copy_fixture.content_lines[1], "Second");
 
@@ -891,7 +891,7 @@ test "text move copies and moves multi-line ranges" {
     dst = .{ .Line = move_fixture.content_lines[2], .Col = 1 };
     new_start = null;
     new_end = null;
-    try std.testing.expect(try TextMove(allocator, false, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
+    try std.testing.expect(try textMove(allocator, false, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
     try std.testing.expect(move_fixture.frame.TextModified);
     try line_ops.validateFrameShape(move_fixture.frame);
 }
@@ -906,7 +906,7 @@ test "text insert tpar handles simple and multiline chains" {
     const hello = try str_object.newStrObjectFrom(allocator, "Hello");
     var simple_tpar = types.TParObject{ .Len = 5, .Str = hello };
     var equals_mark: ?*types.MarkObject = null;
-    try std.testing.expect(try TextInsertTpar(allocator, &simple_tpar, &before_mark, &equals_mark));
+    try std.testing.expect(try textInsertTpar(allocator, &simple_tpar, &before_mark, &equals_mark));
     try expectLineContent(simple_fixture.content_lines[0], "Hello");
 
     const multi_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello World"});
@@ -919,7 +919,7 @@ test "text insert tpar handles simple and multiline chains" {
     var tpar2 = types.TParObject{ .Len = 5, .Str = line2, .Con = &tpar3 };
     var tpar1 = types.TParObject{ .Len = 5, .Str = line1, .Con = &tpar2 };
     equals_mark = null;
-    try std.testing.expect(try TextInsertTpar(allocator, &tpar1, mark.?, &equals_mark));
+    try std.testing.expect(try textInsertTpar(allocator, &tpar1, mark.?, &equals_mark));
     try std.testing.expect(equals_mark != null);
     try expectLineContent(equals_mark.?.Line, "Hello Line1");
     try expectLineContent(equals_mark.?.Line.FLink, "Line2");

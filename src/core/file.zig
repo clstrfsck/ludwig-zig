@@ -102,7 +102,7 @@ fn replaceReportFrame(
     const span = frame.Span orelse return false;
     const mark_one = span.MarkOne orelse return false;
     const mark_two = span.MarkTwo orelse return false;
-    if (!try text.TextRemove(allocator, mark_one, mark_two)) {
+    if (!try text.textRemove(allocator, mark_one, mark_two)) {
         return false;
     }
 
@@ -140,7 +140,7 @@ pub fn fileTable(
     allocator: std.mem.Allocator,
     report_frame: *types.FrameObject,
 ) !bool {
-    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+    var lines: std.ArrayList([]const u8) = .{};
     try lines.append(allocator, "Usage   Mod Frame  Filename");
     try lines.append(allocator, "------- --- ------ --------");
     try lines.append(allocator, "");
@@ -161,7 +161,7 @@ pub fn fileTable(
         switch (editor.LudwigMode) {
             .LudwigScreen => try interactive_io.showTemporaryReport(allocator, lines.items),
             .LudwigBatch, .LudwigHardcopy => if (editor.BatchOutputEnabled) {
-                var batch_lines: std.ArrayListUnmanaged([]const u8) = .{};
+                var batch_lines: std.ArrayList([]const u8) = .{};
                 try batch_lines.append(allocator, "Usage   Mod Frame  Filename");
                 try batch_lines.append(allocator, "------- --- ------ --------");
                 try batch_lines.append(allocator, "");
@@ -433,16 +433,16 @@ fn makeDiskInputFile(
 ) !?*types.FileObject {
     const owned_name = (try sys_ops.expandFilename(allocator, file_name)) orelse return null;
     const status = sys_ops.fileStatus(owned_name);
-    if (!status.Valid or status.IsDir) {
+    if (!status.valid or status.is_dir) {
         return null;
     }
     const data = sys_ops.readFileAlloc(allocator, owned_name, std.math.maxInt(usize)) catch return null;
     const file = try createFileObject(allocator, false);
     file.Filename = owned_name;
-    file.Mode = status.Mode;
-    file.PreviousFileId = @intCast(status.Mtime);
+    file.Mode = status.mode;
+    file.PreviousFileId = @intCast(status.m_time);
 
-    var line_buffer: std.ArrayListUnmanaged(u8) = .{};
+    var line_buffer: std.ArrayList(u8) = .{};
     defer line_buffer.deinit(allocator);
 
     const tab_width = clampTabWidth(editor);
@@ -504,13 +504,13 @@ fn makeDiskOutputFile(
 
     var owned_name = (try sys_ops.expandFilename(allocator, resolved_name)) orelse return null;
     var status = sys_ops.fileStatus(owned_name);
-    if (status.Valid and status.IsDir) {
+    if (status.valid and status.is_dir) {
         const related_name = options.related_name orelse return null;
         owned_name = try sys_ops.copyFilename(allocator, related_name, owned_name);
         status = sys_ops.fileStatus(owned_name);
     }
-    if (status.Valid) {
-        if (options.create or status.IsDir or !sys_ops.fileWritable(owned_name)) {
+    if (status.valid) {
+        if (options.create or status.is_dir or !sys_ops.fileWritable(owned_name)) {
             return null;
         }
     }
@@ -521,8 +521,8 @@ fn makeDiskOutputFile(
     file.Tnm = try buildTempOutputName(allocator, owned_name);
     file.Entab = editor.FileData.Entab;
     file.Create = options.create;
-    file.Mode = if (status.Valid) status.Mode else sys_ops.fileMask();
-    file.PreviousFileId = if (status.Valid) @intCast(status.Mtime) else 0;
+    file.Mode = if (status.valid) status.mode else sys_ops.fileMask();
+    file.PreviousFileId = if (status.valid) @intCast(status.m_time) else 0;
     file.Purge = editor.FileData.Purge;
     file.Versions = editor.FileData.Versions;
     file.Eof = false;
@@ -548,7 +548,7 @@ pub fn openDiskOutputFile(
 
 fn appendEncodedLine(
     allocator: std.mem.Allocator,
-    buffer: *std.ArrayListUnmanaged(u8),
+    buffer: *std.ArrayList(u8),
     line: []const u8,
     entab: bool,
     tab_width: usize,
@@ -636,9 +636,9 @@ fn writeOutputBytes(
         _ = try sys_ops.writeFilename(output_file.Memory, output_file.Filename);
     }
     const status = sys_ops.fileStatus(output_file.Filename);
-    if (status.Valid) {
-        output_file.Mode = status.Mode;
-        output_file.PreviousFileId = @intCast(status.Mtime);
+    if (status.valid) {
+        output_file.Mode = status.mode;
+        output_file.PreviousFileId = @intCast(status.m_time);
     }
     return true;
 }
@@ -650,7 +650,7 @@ fn writeLineRangeToDisk(
     first: ?*const types.LineHdrObject,
     last: ?*const types.LineHdrObject,
 ) !bool {
-    var bytes: std.ArrayListUnmanaged(u8) = .{};
+    var bytes: std.ArrayList(u8) = .{};
     defer bytes.deinit(allocator);
 
     if (first != null and last != null) {
@@ -1556,8 +1556,8 @@ test "file table writes current file usage into report frame" {
     const allocator = editor.allocator();
 
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const work = (try @import("frame.zig").FrameEdit(&editor, allocator, root.frame, "WORK")).?;
-    const oops = (try @import("frame.zig").FrameEdit(&editor, allocator, work, "OOPS")).?;
+    const work = (try @import("frame.zig").frameEdit(&editor, allocator, root.frame, "WORK")).?;
+    const oops = (try @import("frame.zig").frameEdit(&editor, allocator, work, "OOPS")).?;
 
     const input = try allocator.create(types.FileObject);
     input.* = .{
@@ -1611,7 +1611,7 @@ test "file table shows none when no files are open" {
     const allocator = editor.allocator();
 
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const oops = (try @import("frame.zig").FrameEdit(&editor, allocator, root.frame, "OOPS")).?;
+    const oops = (try @import("frame.zig").frameEdit(&editor, allocator, root.frame, "OOPS")).?;
 
     try std.testing.expect(try fileTable(&editor, allocator, oops));
     try expectFrameLines(oops, &[_][]const u8{

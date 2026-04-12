@@ -59,7 +59,7 @@ fn makeSpecialFrame(
     allocator: std.mem.Allocator,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.FrameEdit(editor, allocator, null, name)).?;
+    const frame = (try frame_ops.frameEdit(editor, allocator, null, name)).?;
     frame.Options.specialFrame = true;
     return frame;
 }
@@ -94,10 +94,10 @@ fn executeCommandFrameFile(
     if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    if (!try code_ops.CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
+    if (!try code_ops.codeCompile(editor, allocator, current_frame, cmd_span, true)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    return code_ops.CodeInterpretFrame(
+    return code_ops.codeInterpretFrame(
         editor,
         allocator,
         current_frame,
@@ -134,11 +134,11 @@ pub fn startUp(
     session.special_frames.Cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
     session.special_frames.Heap = try makeSpecialFrame(editor, allocator, "HEAP");
 
-    session.current_frame = (try frame_ops.FrameEdit(editor, allocator, null, types.DefaultFrameName)).?;
+    session.current_frame = (try frame_ops.frameEdit(editor, allocator, null, types.DefaultFrameName)).?;
     editor.Screen.Frame = session.current_frame;
     editor.Screen.TopLine = session.current_frame.FirstGroup.?.FirstLine.?;
     editor.Screen.BotLine = session.current_frame.LastGroup.?.LastLine.?;
-    try user_ops.UserKeyInitialize(editor, allocator);
+    try user_ops.userKeyInitialize(editor, allocator);
 
     attachStartupFiles(editor, session.current_frame, input, output);
 
@@ -462,13 +462,13 @@ fn executeCompiledCommand(
         else
             '.',
     });
-    if (!try code_ops.CodeCompile(editor, allocator, session.current_frame, session.command_span, false)) {
+    if (!try code_ops.codeCompile(editor, allocator, session.current_frame, session.command_span, false)) {
         trace("[rt:compile] compile failed\n", .{});
         return false;
     }
     const compiled = &editor.CompilerCode[@intCast(session.command_span.Code.?.Code)];
     trace("[rt:compile] op={s}\n", .{@tagName(compiled.Op)});
-    const outcome = try code_ops.CodeInterpretFrame(
+    const outcome = try code_ops.codeInterpretFrame(
         editor,
         allocator,
         session.current_frame,
@@ -536,7 +536,7 @@ fn autoWrapIfNeeded(
     }
 
     frame.Dot.?.Col = split_col + 1;
-    _ = try text.TextSplitLine(allocator, frame.Dot.?, 0, &frame.Marks[types.MarkEquals]);
+    _ = try text.textSplitLine(allocator, frame.Dot.?, 0, &frame.Marks[types.MarkEquals]);
     frame.Dot.?.Col += frame.MarginRight - split_col;
 }
 
@@ -551,8 +551,8 @@ fn insertPrintable(
     temp.set(1, key);
 
     const ok = switch (editor.EditMode) {
-        .ModeInsert => try text.TextInsert(allocator, false, 1, temp, 1, frame.Dot.?),
-        .ModeOvertype => try text.TextOvertype(allocator, false, 1, temp, 1, frame.Dot.?),
+        .ModeInsert => try text.textInsert(allocator, false, 1, temp, 1, frame.Dot.?),
+        .ModeOvertype => try text.textOvertype(allocator, false, 1, temp, 1, frame.Dot.?),
         .ModeCommand => false,
     };
     if (!ok) {
@@ -584,7 +584,7 @@ fn executeLookupKey(
     }
     if (binding.Command == .CmdExtended) {
         const code = binding.Code orelse return false;
-        const outcome = try code_ops.CodeInterpretFrame(
+        const outcome = try code_ops.codeInterpretFrame(
             editor,
             allocator,
             session.current_frame,
@@ -599,7 +599,7 @@ fn executeLookupKey(
         return outcome.ok;
     }
 
-    const ok = try code_ops.ExecuteSingle(
+    const ok = try code_ops.executeSingle(
         editor,
         allocator,
         &session.current_frame,
@@ -742,10 +742,11 @@ test "interactive testing snapshot paints startup file contents" {
     });
 
     var storage: [2048]u8 = undefined;
-    var buffer = std.ArrayList(u8).initBuffer(storage[0..]);
-    try testing.renderSnapshot(&editor, fixture.frame, buffer.fixedWriter());
+    var writer: std.Io.Writer = .fixed(&storage);
+    try testing.renderSnapshot(&editor, fixture.frame, &writer);
 
-    try std.testing.expect(std.mem.indexOf(u8, buffer.items, "alpha\r\nbeta\r\ngamma") != null);
+    const snapshot = storage[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, snapshot, "alpha\r\nbeta\r\ngamma") != null);
     try std.testing.expect(editor.Screen.TopLine == fixture.content_lines[0]);
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.Dot.?.Line.ScrRowNr);
 }
@@ -792,10 +793,12 @@ test "interactive testing snapshot paints top and bottom markers for clipped fra
     setViewport(&editor, fixture.frame, 2, displayHeight(&editor, fixture.frame));
 
     var storage: [2048]u8 = undefined;
-    var buffer = std.ArrayList(u8).initBuffer(storage[0..]);
-    try testing.renderSnapshot(&editor, fixture.frame, buffer.fixedWriter());
+    var writer: std.Io.Writer = .fixed(&storage);
 
-    try std.testing.expect(std.mem.indexOf(u8, buffer.items, "<TOP>\r\n2\r\n3\r\n4\r\n5\r\n<BOTTOM>") != null);
+    try testing.renderSnapshot(&editor, fixture.frame, &writer);
+
+    const snapshot = storage[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, snapshot, "<TOP>\r\n2\r\n3\r\n4\r\n5\r\n<BOTTOM>") != null);
 }
 
 test "interactive quit confirmation repositions dot at modified mark" {
@@ -917,7 +920,7 @@ test "interactive run beeps on command failure" {
     editor.LudwigMode = .LudwigScreen;
     editor.TerminalInfo = .{ .Width = 80, .Height = 24 };
 
-    const frame = (try frame_ops.FrameEdit(&editor, allocator, null, types.DefaultFrameName)).?;
+    const frame = (try frame_ops.frameEdit(&editor, allocator, null, types.DefaultFrameName)).?;
     const command_span = try allocator.create(types.SpanObject);
     command_span.* = .{ .Name = command_span_name };
 

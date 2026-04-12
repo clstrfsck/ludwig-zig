@@ -196,11 +196,10 @@ pub const Commands = enum(u16) {
     CmdFileGlobalOutput,
     CmdFileGlobalRewind,
     CmdFileGlobalKill,
-    CmdUserCommandIntroducer,
+    CmduserCommandIntroducer,
     CmdUserKey,
     CmdUserParent,
     CmdUserSubprocess,
-    CmdUserUndo,
     CmdUserLearn,
     CmdUserRecall,
     CmdResizeWindow,
@@ -375,7 +374,7 @@ pub const HighlightMatchEntry = struct {
     Position: usize = 0,
     Pair: u16 = 0,
 };
-pub const HighlightMatchEntries = std.ArrayListUnmanaged(HighlightMatchEntry);
+pub const HighlightMatchEntries = std.ArrayList(HighlightMatchEntry);
 
 pub const AcceptSet = struct {
     bits: [MaxSetRange + 1]bool = [_]bool{false} ** (MaxSetRange + 1),
@@ -508,7 +507,7 @@ pub const LineHdrObject = struct {
     BLink: ?*LineHdrObject = null,
     Group: ?*GroupObject = null,
     OffsetNr: isize = 0,
-    Marks: std.ArrayListUnmanaged(*MarkObject) = .{},
+    Marks: std.ArrayList(*MarkObject) = .{},
     Str: ?*StrObject = null,
     Used: isize = 0,
     ScrRowNr: isize = 0,

@@ -33,20 +33,20 @@ const ParseState = struct {
     key: isize = 0,
     eoln: bool = false,
     pc: isize = 0,
-    codeBase: isize = 0,
-    currentPoint: types.MarkObject = undefined,
-    startPoint: types.MarkObject = undefined,
-    endPoint: types.MarkObject = undefined,
-    verifyCount: isize = 0,
-    fromSpan: bool = false,
-    inputBuffer: ?[]const u8 = null,
-    inputIndex: usize = 0,
-    liveInput: bool = false,
+    code_base: isize = 0,
+    current_point: types.MarkObject = undefined,
+    start_point: types.MarkObject = undefined,
+    end_point: types.MarkObject = undefined,
+    verify_count: isize = 0,
+    from_span: bool = false,
+    input_buffer: ?[]const u8 = null,
+    input_index: usize = 0,
+    live_input: bool = false,
 };
 
 const Labels = struct {
-    exitLabel: isize = 0,
-    failLabel: isize = 0,
+    exit_label: isize = 0,
+    fail_label: isize = 0,
     count: isize = 0,
 };
 
@@ -89,18 +89,18 @@ fn compileError(ps: *ParseState, message: []const u8) bool {
 
 fn nextKey(ps: *ParseState) bool {
     ps.eoln = false;
-    if (ps.inputBuffer) |buffer| {
-        while (ps.inputIndex < buffer.len and (buffer[ps.inputIndex] == '\r' or buffer[ps.inputIndex] == '\n')) : (ps.inputIndex += 1) {}
-        if (ps.inputIndex >= buffer.len) {
+    if (ps.input_buffer) |buffer| {
+        while (ps.input_index < buffer.len and (buffer[ps.input_index] == '\r' or buffer[ps.input_index] == '\n')) : (ps.input_index += 1) {}
+        if (ps.input_index >= buffer.len) {
             ps.key = 0;
         } else {
-            ps.key = buffer[ps.inputIndex];
-            ps.inputIndex += 1;
+            ps.key = buffer[ps.input_index];
+            ps.input_index += 1;
         }
         return true;
     }
 
-    if (ps.liveInput) {
+    if (ps.live_input) {
         const key = interactive_io.readInputKey() catch return false;
         if (key) |live_key| {
             ps.key = live_key;
@@ -110,24 +110,24 @@ fn nextKey(ps: *ParseState) bool {
         return true;
     }
 
-    if (!ps.fromSpan) {
+    if (!ps.from_span) {
         ps.key = 0;
         return false;
     }
 
-    if (ps.currentPoint.Line == ps.endPoint.Line and ps.currentPoint.Col == ps.endPoint.Col) {
+    if (ps.current_point.Line == ps.end_point.Line and ps.current_point.Col == ps.end_point.Col) {
         ps.key = 0;
         return true;
     }
 
-    if (ps.currentPoint.Col <= ps.currentPoint.Line.Used) {
-        ps.key = ps.currentPoint.Line.Str.?.get(ps.currentPoint.Col);
-        ps.currentPoint.Col += 1;
-    } else if (ps.currentPoint.Line != ps.endPoint.Line) {
+    if (ps.current_point.Col <= ps.current_point.Line.Used) {
+        ps.key = ps.current_point.Line.Str.?.get(ps.current_point.Col);
+        ps.current_point.Col += 1;
+    } else if (ps.current_point.Line != ps.end_point.Line) {
         ps.key = ' ';
         ps.eoln = true;
-        ps.currentPoint.Line = ps.currentPoint.Line.FLink.?;
-        ps.currentPoint.Col = 1;
+        ps.current_point.Line = ps.current_point.Line.FLink.?;
+        ps.current_point.Col = 1;
     } else {
         ps.key = 0;
     }
@@ -140,7 +140,7 @@ fn nextNonBl(ps: *ParseState) bool {
             if (!nextKey(ps)) {
                 return false;
             }
-            if (ps.fromSpan and ps.key == '<' and ps.currentPoint.Col <= ps.currentPoint.Line.Used and ps.currentPoint.Line.Str.?.get(ps.currentPoint.Col) == '>') {
+            if (ps.from_span and ps.key == '<' and ps.current_point.Col <= ps.current_point.Line.Used and ps.current_point.Line.Str.?.get(ps.current_point.Col) == '>') {
                 ps.key = 0;
             }
             if (ps.key != ' ') {
@@ -150,11 +150,11 @@ fn nextNonBl(ps: *ParseState) bool {
         if (ps.key != '!') {
             return true;
         }
-        if (!ps.fromSpan) {
+        if (!ps.from_span) {
             ps.status = "Comments illegal";
             return false;
         }
-        ps.currentPoint.Col = ps.currentPoint.Line.Used + 1;
+        ps.current_point.Col = ps.current_point.Line.Used + 1;
     }
 }
 
@@ -169,11 +169,11 @@ fn generate(
     code: ?*types.CodeHeader,
 ) bool {
     ps.pc += 1;
-    if (ps.codeBase + ps.pc > types.MaxCode) {
+    if (ps.code_base + ps.pc > types.MaxCode) {
         ps.status = "Compiler code overflow";
         return false;
     }
-    const cc = &editor.CompilerCode[@intCast(ps.codeBase + ps.pc)];
+    const cc = &editor.CompilerCode[@intCast(ps.code_base + ps.pc)];
     cc.Rep = rep;
     cc.Cnt = cnt;
     cc.Op = op;
@@ -407,11 +407,11 @@ fn scanSimpleCommand(
     }
 
     if (command == .CmdVerify) {
-        ps.verifyCount += 1;
-        if (ps.verifyCount > types.MaxVerify) {
+        ps.verify_count += 1;
+        if (ps.verify_count > types.MaxVerify) {
             return compileError(ps, "Too many verify commands in span");
         }
-        rep_count.* = ps.verifyCount;
+        rep_count.* = ps.verify_count;
     }
 
     var tparam: ?*types.TParObject = null;
@@ -451,7 +451,7 @@ fn scanExitHandler(
                 return false;
             }
             pc4.* = ps.pc;
-            poke(editor, ps.codeBase, pc1, ps.pc + 1);
+            poke(editor, ps.code_base, pc1, ps.pc + 1);
             if (!nextNonBl(ps)) {
                 return false;
             }
@@ -460,9 +460,9 @@ fn scanExitHandler(
                     return false;
                 }
             }
-            poke(editor, ps.codeBase, pc4.*, ps.pc + 1);
+            poke(editor, ps.code_base, pc4.*, ps.pc + 1);
         } else {
-            poke(editor, ps.codeBase, pc1, ps.pc + 1);
+            poke(editor, ps.code_base, pc1, ps.pc + 1);
         }
         if (!nextNonBl(ps)) {
             return false;
@@ -509,7 +509,7 @@ fn scanCompoundCommand(
     if (!generate(editor, ps, .LeadParamNone, 0, .CmdPcJump, null, pc3.*, null)) {
         return false;
     }
-    poke(editor, ps.codeBase, pc2.*, ps.pc + 1);
+    poke(editor, ps.code_base, pc2.*, ps.pc + 1);
     return true;
 }
 
@@ -585,9 +585,9 @@ fn compileParsed(
         codeDiscard(editor, &span.Code);
     }
 
-    ps.codeBase = editor.CodeTop;
+    ps.code_base = editor.CodeTop;
     ps.pc = 0;
-    ps.verifyCount = 0;
+    ps.verify_count = 0;
 
     if (!nextNonBl(ps)) {
         editor.ExitAbort = true;
@@ -620,19 +620,19 @@ fn compileParsed(
     const header = try allocator.create(types.CodeHeader);
     header.* = .{
         .Ref = 1,
-        .Code = ps.codeBase + 1,
+        .Code = ps.code_base + 1,
         .Len = ps.pc,
         .FLink = editor.CodeList.?.FLink,
         .BLink = editor.CodeList,
     };
     editor.CodeList.?.FLink.?.BLink = header;
     editor.CodeList.?.FLink = header;
-    editor.CodeTop = ps.codeBase + ps.pc;
+    editor.CodeTop = ps.code_base + ps.pc;
     span.Code = header;
     return true;
 }
 
-pub fn CodeCompile(
+pub fn codeCompile(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -640,13 +640,13 @@ pub fn CodeCompile(
     from_span: bool,
 ) !bool {
     var ps = ParseState{
-        .fromSpan = from_span,
+        .from_span = from_span,
     };
     var uses_immediate_input = false;
     _ = frame;
 
     defer if (uses_immediate_input) {
-        editor.ImmediateInputIndex = ps.inputIndex;
+        editor.ImmediateInputIndex = ps.input_index;
         if (editor.ImmediateInput) |buffer| {
             if (editor.ImmediateInputIndex >= buffer.len) {
                 editor.clearImmediateInput();
@@ -656,11 +656,11 @@ pub fn CodeCompile(
 
     if (!from_span) {
         if (editor.ImmediateInput) |buffer| {
-            ps.inputBuffer = buffer;
-            ps.inputIndex = editor.ImmediateInputIndex;
+            ps.input_buffer = buffer;
+            ps.input_index = editor.ImmediateInputIndex;
             uses_immediate_input = true;
         } else if (editor.LudwigMode == .LudwigScreen) {
-            ps.liveInput = true;
+            ps.live_input = true;
         } else {
             editor.ExitAbort = true;
             return false;
@@ -671,23 +671,23 @@ pub fn CodeCompile(
         return false;
     }
     if (from_span) {
-        ps.startPoint = span.MarkOne.?.*;
-        ps.endPoint = span.MarkTwo.?.*;
-        ps.currentPoint = ps.startPoint;
+        ps.start_point = span.MarkOne.?.*;
+        ps.end_point = span.MarkTwo.?.*;
+        ps.current_point = ps.start_point;
     }
 
     return compileParsed(editor, allocator, span, &ps, from_span);
 }
 
-pub fn CodeCompileString(
+pub fn codeCompileString(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     span: *types.SpanObject,
     source: []const u8,
 ) !bool {
     var ps = ParseState{
-        .fromSpan = false,
-        .inputBuffer = source,
+        .from_span = false,
+        .input_buffer = source,
     };
     return compileParsed(editor, allocator, span, &ps, false);
 }
@@ -700,8 +700,8 @@ fn codeCompileBuffer(
     full_scan: bool,
 ) !bool {
     var ps = ParseState{
-        .fromSpan = false,
-        .inputBuffer = source,
+        .from_span = false,
+        .input_buffer = source,
     };
     return compileParsed(editor, allocator, span, &ps, full_scan);
 }
@@ -730,7 +730,7 @@ fn findSpanByName(
 ) !?*types.SpanObject {
     var span_ptr: ?*types.SpanObject = null;
     var span_prev: ?*types.SpanObject = null;
-    if (try span_ops.SpanFind(editor, allocator, name, &span_ptr, &span_prev)) {
+    if (try span_ops.spanFind(editor, allocator, name, &span_ptr, &span_prev)) {
         return span_ptr;
     }
     return null;
@@ -766,7 +766,7 @@ fn createNamedSpan(
     first_mark: *types.MarkObject,
     last_mark: *types.MarkObject,
 ) !bool {
-    return span_ops.SpanCreate(editor, allocator, name, first_mark, last_mark);
+    return span_ops.spanCreate(editor, allocator, name, first_mark, last_mark);
 }
 
 fn destroyNamedSpan(
@@ -774,7 +774,7 @@ fn destroyNamedSpan(
     allocator: std.mem.Allocator,
     span_slot: *?*types.SpanObject,
 ) bool {
-    return span_ops.SpanDestroy(editor, allocator, span_slot);
+    return span_ops.spanDestroy(editor, allocator, span_slot);
 }
 
 fn executeAdvance(
@@ -847,11 +847,11 @@ fn executeArrowCommand(
         .CmdReturn => blk: {
             if (editor.EditMode == .ModeInsert and frame.Options.newLine) {
                 if (frame.Dot.?.Line.FLink == null) {
-                    try text.TextRealizeNull(allocator, frame.Dot.?.Line);
+                    try text.textRealizeNull(allocator, frame.Dot.?.Line);
                     var eop_line_nr = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
                     break :blk try arrow.doCmdReturn(allocator, frame, count, &new_eql, &eop_line_nr);
                 }
-                break :blk try text.TextSplitLine(allocator, frame.Dot.?, 0, &frame.Marks[types.MarkEquals]);
+                break :blk try text.textSplitLine(allocator, frame.Dot.?, 0, &frame.Marks[types.MarkEquals]);
             }
             var eop_line_nr = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
             break :blk try arrow.doCmdReturn(allocator, frame, count, &new_eql, &eop_line_nr);
@@ -980,7 +980,7 @@ fn joinLines(allocator: std.mem.Allocator, frame: *types.FrameObject) !bool {
     var other_mark: ?*types.MarkObject = null;
     defer mark_ops.markDestroy(allocator, &other_mark);
     try mark_ops.markCreate(allocator, previous, previous.Used + 1, &other_mark);
-    if (!try text.TextRemove(allocator, other_mark.?, frame.Dot.?)) {
+    if (!try text.textRemove(allocator, other_mark.?, frame.Dot.?)) {
         return false;
     }
     frame.TextModified = true;
@@ -1009,7 +1009,7 @@ fn executeInsertChar(
         return false;
     }
 
-    if (!try text.TextInsert(allocator, true, 1, editor.BlankString.?, count_abs, frame.Dot.?)) {
+    if (!try text.textInsert(allocator, true, 1, editor.BlankString.?, count_abs, frame.Dot.?)) {
         return false;
     }
 
@@ -1042,7 +1042,7 @@ fn executeDeleteMarkedRange(
     if (frame != oops_frame) {
         const oops_span = oops_frame.Span orelse return false;
         try mark_ops.markCreate(allocator, oops_frame.LastGroup.?.LastLine.?, 1, &oops_span.MarkTwo);
-        if (!try text.TextMove(
+        if (!try text.textMove(
             allocator,
             false,
             1,
@@ -1056,7 +1056,7 @@ fn executeDeleteMarkedRange(
         }
         oops_frame.TextModified = true;
         try mark_ops.markCreate(allocator, oops_frame.Dot.?.Line, oops_frame.Dot.?.Col, &oops_frame.Marks[types.MarkModified]);
-    } else if (!try text.TextRemove(allocator, start, finish)) {
+    } else if (!try text.textRemove(allocator, start, finish)) {
         return false;
     }
 
@@ -1111,7 +1111,7 @@ fn executeDeleteChar(
     var end_mark: ?*types.MarkObject = null;
     defer mark_ops.markDestroy(allocator, &end_mark);
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col + count_mut, &end_mark);
-    if (!try text.TextRemove(allocator, frame.Dot.?, end_mark.?)) {
+    if (!try text.textRemove(allocator, frame.Dot.?, end_mark.?)) {
         return false;
     }
 
@@ -1180,7 +1180,7 @@ fn executeRubout(
 
     const eql_col = frame.Dot.?.Col;
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
-    if (!try text.TextOvertype(allocator, true, 1, editor.BlankString.?, count_mut, frame.Dot.?)) {
+    if (!try text.textOvertype(allocator, true, 1, editor.BlankString.?, count_mut, frame.Dot.?)) {
         return false;
     }
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - count_mut, &frame.Dot);
@@ -1273,7 +1273,7 @@ fn buildOpsysLineRange(
 ) !?line_ops.LineRange {
     var first: ?*types.LineHdrObject = null;
     var last: ?*types.LineHdrObject = null;
-    var line_buffer: std.ArrayListUnmanaged(u8) = .{};
+    var line_buffer: std.ArrayList(u8) = .{};
     defer line_buffer.deinit(allocator);
 
     const tab_width = clampOpsysTabWidth(editor);
@@ -1356,7 +1356,7 @@ fn executeOpsysCommand(
     tparam: ?*types.TParObject,
 ) !bool {
     var request: types.TParObject = .{};
-    if (!try tpar_ops.TparGet1(allocator, editor, frame, tparam, .CmdOpSysCommand, &request)) {
+    if (!try tpar_ops.tparGet1(allocator, editor, frame, tparam, .CmdOpSysCommand, &request)) {
         return false;
     }
     if (request.Len == 0 or request.Len > types.FileNameLen) {
@@ -1374,7 +1374,7 @@ fn executeOpsysCommand(
     return true;
 }
 
-fn Execute(
+fn execute(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame_slot: **types.FrameObject,
@@ -1405,8 +1405,8 @@ fn Execute(
         },
         .CmdBridge, .CmdNext => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
-                cmd_success = try nextbridge.NextbridgeCommand(allocator, current_frame, count, &request, command == .CmdBridge);
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                cmd_success = try nextbridge.nextbridgeCommand(allocator, current_frame, count, &request, command == .CmdBridge);
             }
         },
         .CmdCaseEdit, .CmdCaseLow, .CmdCaseUp, .CmdDittoDown, .CmdDittoUp => {
@@ -1432,9 +1432,9 @@ fn Execute(
         },
         .CmdEqualColumn => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 var index: isize = 1;
-                if (tpar_ops.TparToIntMessage(editor, &request, &index)) |column| {
+                if (tpar_ops.tparToIntMessage(editor, &request, &index)) |column| {
                     cmd_success = switch (rept) {
                         .LeadParamNone, .LeadParamPlus => current_frame.Dot.?.Col == column,
                         .LeadParamMinus => current_frame.Dot.?.Col != column,
@@ -1469,8 +1469,8 @@ fn Execute(
         },
         .CmdEqualMark => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
-                if (tpar_ops.TparToMarkMessage(editor, &request)) |mark_index| {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                if (tpar_ops.tparToMarkMessage(editor, &request)) |mark_index| {
                     if (resolveLeadMark(current_frame, mark_index)) |mark| {
                         cmd_success = switch (rept) {
                             .LeadParamNone, .LeadParamPlus => mark.Line == current_frame.Dot.?.Line and mark.Col == current_frame.Dot.?.Col,
@@ -1495,14 +1495,14 @@ fn Execute(
         },
         .CmdEqualString => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 if (request.Len == 0) {
                     request = current_frame.EqsTpar;
                     if (request.Len == 0) return false;
                 } else {
                     current_frame.EqsTpar = request;
                 }
-                cmd_success = try eqsgetrep.EqsGetRepEqs(allocator, current_frame, rept, &request);
+                cmd_success = try eqsgetrep.eqsGetRepEqs(allocator, current_frame, rept, &request);
             }
         },
         .CmdDoLastCommand, .CmdExecuteString => {
@@ -1514,7 +1514,7 @@ fn Execute(
 
             if (command == .CmdExecuteString) {
                 var request: types.TParObject = .{};
-                if (!try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                if (!try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                     return false;
                 }
                 if (request.Len == 0) {
@@ -1524,12 +1524,12 @@ fn Execute(
                     return false;
                 }
             } else if (cmd_span.Code == null) {
-                if (!try CodeCompile(editor, allocator, cmd_frame, cmd_span, true)) {
+                if (!try codeCompile(editor, allocator, cmd_frame, cmd_span, true)) {
                     return false;
                 }
             }
 
-            const outcome = try CodeInterpretFrame(
+            const outcome = try codeInterpretFrame(
                 editor,
                 allocator,
                 current_frame,
@@ -1550,7 +1550,7 @@ fn Execute(
             }
 
             var request: types.TParObject = .{};
-            if (!try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (!try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 return false;
             }
             if (request.Len == 0) {
@@ -1559,11 +1559,11 @@ fn Execute(
             if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, request.Str.?.slice(1, request.Len))) {
                 return false;
             }
-            if (!try CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
+            if (!try codeCompile(editor, allocator, current_frame, cmd_span, true)) {
                 return false;
             }
 
-            const outcome = try CodeInterpretFrame(
+            const outcome = try codeInterpretFrame(
                 editor,
                 allocator,
                 current_frame,
@@ -1578,23 +1578,23 @@ fn Execute(
         },
         .CmdFrameEdit => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 const frame_name = if (request.Len == 0) "" else request.Str.?.slice(1, request.Len);
-                current_frame = (try frame_ops.FrameEdit(editor, allocator, current_frame, frame_name)) orelse return false;
+                current_frame = (try frame_ops.frameEdit(editor, allocator, current_frame, frame_name)) orelse return false;
                 cmd_success = true;
             }
         },
         .CmdFrameKill => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 if (request.Len == 0) {
                     return false;
                 }
-                cmd_success = try frame_ops.FrameKill(editor, allocator, current_frame, request.Str.?.slice(1, request.Len));
+                cmd_success = try frame_ops.frameKill(editor, allocator, current_frame, request.Str.?.slice(1, request.Len));
             }
         },
         .CmdFrameParameters => {
-            cmd_success = try frame_ops.FrameParameter(editor, allocator, current_frame, tparam);
+            cmd_success = try frame_ops.frameParameter(editor, allocator, current_frame, tparam);
         },
         .CmdFrameReturn => {
             var iteration: isize = 1;
@@ -1609,25 +1609,25 @@ fn Execute(
         },
         .CmdGet => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 if (request.Len == 0) {
                     request = current_frame.GetTpar;
                     if (request.Len == 0) return false;
                 } else {
                     current_frame.GetTpar = request;
                 }
-                cmd_success = try eqsgetrep.EqsGetRepGet(allocator, current_frame, count, &request, true);
+                cmd_success = try eqsgetrep.eqsGetRepGet(allocator, current_frame, count, &request, true);
             }
         },
         .CmdHelp => {
             var request: types.TParObject = .{};
-            if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+            if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                 const topic = if (request.Len == 0) "" else request.Str.?.slice(1, request.Len);
                 if (editor.LudwigMode == .LudwigScreen) {
-                    cmd_success = try help_ops.HelpInteractive(editor, allocator, topic);
+                    cmd_success = try help_ops.helpInteractive(editor, allocator, topic);
                 } else {
                     const oops = special_frames.Oops orelse return false;
-                    cmd_success = try help_ops.HelpCommand(editor, allocator, oops, topic);
+                    cmd_success = try help_ops.helpCommand(editor, allocator, oops, topic);
                 }
             }
         },
@@ -1671,14 +1671,14 @@ fn Execute(
                 }
             } else {
                 var request: types.TParObject = .{};
-                if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                     if (request.Con == null) {
-                        cmd_success = try text.TextInsert(allocator, true, count, request.Str.?, request.Len, current_frame.Dot.?);
+                        cmd_success = try text.textInsert(allocator, true, count, request.Str.?, request.Len, current_frame.Dot.?);
                     } else {
                         var iteration: isize = 0;
                         cmd_success = true;
                         while (iteration < count) : (iteration += 1) {
-                            if (!try text.TextInsertTpar(allocator, &request, current_frame.Dot.?, &current_frame.Marks[types.MarkEquals])) {
+                            if (!try text.textInsertTpar(allocator, &request, current_frame.Dot.?, &current_frame.Marks[types.MarkEquals])) {
                                 cmd_success = false;
                                 break;
                             }
@@ -1691,22 +1691,22 @@ fn Execute(
             }
         },
         .CmdLineCentre => {
-            cmd_success = try word.WordCentre(allocator, current_frame, rept, count);
+            cmd_success = try word.wordCentre(allocator, current_frame, rept, count);
         },
         .CmdLineFill => {
-            cmd_success = try word.WordFill(allocator, current_frame, rept, count);
+            cmd_success = try word.wordFill(allocator, current_frame, rept, count);
         },
         .CmdLineJustify => {
-            cmd_success = try word.WordJustify(allocator, current_frame, rept, count);
+            cmd_success = try word.wordJustify(allocator, current_frame, rept, count);
         },
         .CmdLineLeft => {
-            cmd_success = try word.WordLeft(allocator, current_frame, rept, count);
+            cmd_success = try word.wordLeft(allocator, current_frame, rept, count);
         },
         .CmdLineRight => {
-            cmd_success = try word.WordRight(allocator, current_frame, rept, count);
+            cmd_success = try word.wordRight(allocator, current_frame, rept, count);
         },
         .CmdLineSquash => {
-            cmd_success = try word.WordSqueeze(allocator, current_frame, rept, count);
+            cmd_success = try word.wordSqueeze(allocator, current_frame, rept, count);
         },
         .CmdMark => {
             const abs_count: isize = if (count < 0) -count else count;
@@ -1724,14 +1724,14 @@ fn Execute(
         .CmdReplace => {
             var request1: types.TParObject = .{};
             var request2: types.TParObject = .{};
-            if (try tpar_ops.TparGet2(allocator, editor, current_frame, tparam, command, &request1, &request2)) {
+            if (try tpar_ops.tparGet2(allocator, editor, current_frame, tparam, command, &request1, &request2)) {
                 if (request1.Len == 0) {
                     if (current_frame.Rep1Tpar.Len == 0) return false;
                 } else {
                     current_frame.Rep1Tpar = request1;
                     current_frame.Rep2Tpar = request2;
                 }
-                cmd_success = try eqsgetrep.EqsGetRepRep(
+                cmd_success = try eqsgetrep.eqsGetRepRep(
                     allocator,
                     current_frame,
                     rept,
@@ -1765,7 +1765,7 @@ fn Execute(
         },
         .CmdSpanIndex => {
             const oops = special_frames.Oops orelse return false;
-            cmd_success = try span_ops.SpanIndex(editor, allocator, oops);
+            cmd_success = try span_ops.spanIndex(editor, allocator, oops);
         },
         .CmdSpanCompile,
         .CmdSpanCopy,
@@ -1779,7 +1779,7 @@ fn Execute(
             if (command == .CmdSpanAssign) {
                 var request1: types.TParObject = .{};
                 var request2: types.TParObject = .{};
-                if (!try tpar_ops.TparGet2(allocator, editor, current_frame, tparam, command, &request1, &request2)) {
+                if (!try tpar_ops.tparGet2(allocator, editor, current_frame, tparam, command, &request1, &request2)) {
                     return false;
                 }
                 if (request1.Len == 0) {
@@ -1794,12 +1794,12 @@ fn Execute(
                 var span_ptr = try findSpanByName(editor, allocator, span_name);
                 if (span_ptr) |existing| {
                     if (oops_span == existing) {
-                        if (!try text.TextRemove(allocator, oops_span.MarkOne.?, oops_span.MarkTwo.?)) {
+                        if (!try text.textRemove(allocator, oops_span.MarkOne.?, oops_span.MarkTwo.?)) {
                             return false;
                         }
                     } else {
                         try mark_ops.markCreate(allocator, oops_frame.LastGroup.?.LastLine.?, 1, &oops_span.MarkTwo);
-                        if (!try text.TextMove(
+                        if (!try text.textMove(
                             allocator,
                             false,
                             1,
@@ -1820,7 +1820,7 @@ fn Execute(
                     span_ptr = (try findSpanByName(editor, allocator, span_name)) orelse return false;
                 }
 
-                if (!try text.TextInsertTpar(allocator, &request2, span_ptr.?.MarkTwo.?, &span_ptr.?.MarkOne)) {
+                if (!try text.textInsertTpar(allocator, &request2, span_ptr.?.MarkTwo.?, &span_ptr.?.MarkOne)) {
                     return false;
                 }
                 const span_frame = span_ptr.?.MarkTwo.?.Line.Group.?.Frame;
@@ -1834,7 +1834,7 @@ fn Execute(
                 cmd_success = true;
             } else {
                 var request: types.TParObject = .{};
-                if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                     if (request.Len == 0) {
                         return false;
                     }
@@ -1875,7 +1875,7 @@ fn Execute(
                                 cmd_success = true;
                             } else {
                                 const target_frame = target.Line.Group.?.Frame;
-                                current_frame = (try frame_ops.FrameEdit(editor, allocator, current_frame, target_frame.Span.?.Name)) orelse return false;
+                                current_frame = (try frame_ops.frameEdit(editor, allocator, current_frame, target_frame.Span.?.Name)) orelse return false;
                                 mark_ops.markDestroy(allocator, &target_frame.Marks[types.MarkEquals]);
                                 try mark_ops.markCreate(allocator, target.Line, target.Col, &target_frame.Dot);
                                 cmd_success = true;
@@ -1883,7 +1883,7 @@ fn Execute(
                         },
                         .CmdSpanCopy, .CmdSpanTransfer => {
                             const span_ptr = (try findSpanByNameOrMessage(editor, allocator, span_name)) orelse return false;
-                            cmd_success = try text.TextMove(
+                            cmd_success = try text.textMove(
                                 allocator,
                                 command == .CmdSpanCopy,
                                 count,
@@ -1911,14 +1911,14 @@ fn Execute(
                         .CmdSpanCompile, .CmdSpanExecute, .CmdSpanExecuteNoRecompile => {
                             const span_ptr = (try findSpanByNameOrMessage(editor, allocator, span_name)) orelse return false;
                             if (span_ptr.Code == null or command != .CmdSpanExecuteNoRecompile) {
-                                if (!try CodeCompile(editor, allocator, current_frame, span_ptr, true)) {
+                                if (!try codeCompile(editor, allocator, current_frame, span_ptr, true)) {
                                     return false;
                                 }
                             }
                             if (command == .CmdSpanCompile) {
                                 cmd_success = true;
                             } else {
-                                const outcome = try CodeInterpretFrame(
+                                const outcome = try codeInterpretFrame(
                                     editor,
                                     allocator,
                                     current_frame,
@@ -1951,8 +1951,8 @@ fn Execute(
                 }
             } else {
                 var request: types.TParObject = .{};
-                if (try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
-                    cmd_success = try text.TextOvertype(allocator, true, count, request.Str.?, request.Len, current_frame.Dot.?);
+                if (try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                    cmd_success = try text.textOvertype(allocator, true, count, request.Str.?, request.Len, current_frame.Dot.?);
                     if (cmd_success and count * request.Len != 0) {
                         try markModifiedAtDot(allocator, current_frame);
                     }
@@ -1993,18 +1993,18 @@ fn Execute(
         },
         .CmdSplitLine => {
             if (current_frame.Dot.?.Line.FLink == null) {
-                try text.TextRealizeNull(allocator, current_frame.Dot.?.Line);
+                try text.textRealizeNull(allocator, current_frame.Dot.?.Line);
             }
-            cmd_success = try text.TextSplitLine(allocator, current_frame.Dot.?, 0, &current_frame.Marks[types.MarkEquals]);
+            cmd_success = try text.textSplitLine(allocator, current_frame.Dot.?, 0, &current_frame.Marks[types.MarkEquals]);
         },
         .CmdSwapLine => {
-            cmd_success = try swap.SwapLine(allocator, current_frame, rept, count);
+            cmd_success = try swap.swapLine(allocator, current_frame, rept, count);
         },
-        .CmdUserCommandIntroducer => {
+        .CmduserCommandIntroducer => {
             if (editor.LudwigMode != .LudwigScreen) {
                 return false;
             }
-            cmd_success = try user_ops.UserCommandIntroducer(editor, allocator, current_frame);
+            cmd_success = try user_ops.userCommandIntroducer(editor, allocator, current_frame);
         },
         .CmdUserKey => {
             if (editor.LudwigMode != .LudwigScreen) {
@@ -2012,11 +2012,11 @@ fn Execute(
             }
             var request: types.TParObject = .{};
             var request2: types.TParObject = .{};
-            if (try tpar_ops.TparGet2(allocator, editor, current_frame, tparam, command, &request, &request2)) {
+            if (try tpar_ops.tparGet2(allocator, editor, current_frame, tparam, command, &request, &request2)) {
                 if (request.Len == 0) {
                     return false;
                 }
-                const key_code = user_ops.ResolveUserKeyCode(editor, &request) orelse return false;
+                const key_code = user_ops.resolveUserKeyCode(editor, &request) orelse return false;
                 const heap_frame = special_frames.Heap orelse return false;
                 const heap_span = heap_frame.Span orelse return false;
                 try mark_ops.markCreate(allocator, heap_frame.LastGroup.?.LastLine.?, 1, &heap_span.MarkTwo);
@@ -2030,40 +2030,37 @@ fn Execute(
                     _ = destroyNamedSpan(editor, allocator, &key_span_slot);
                 }
 
-                if (!try text.TextInsertTpar(allocator, &request2, key_span.MarkTwo.?, &key_span.MarkOne)) {
+                if (!try text.textInsertTpar(allocator, &request2, key_span.MarkTwo.?, &key_span.MarkOne)) {
                     return false;
                 }
-                if (!try CodeCompile(editor, allocator, current_frame, key_span, true)) {
+                if (!try codeCompile(editor, allocator, current_frame, key_span, true)) {
                     return false;
                 }
-                cmd_success = user_ops.BindCompiledKey(editor, key_code, key_span);
+                cmd_success = user_ops.bindCompiledKey(editor, key_code, key_span);
             }
         },
         .CmdUserParent, .CmdUserSubprocess => {
             cmd_success = false;
         },
-        .CmdUserUndo => {
-            cmd_success = user_ops.UserUndo();
-        },
         .CmdWordAdvance => {
             cmd_success = if (editor.FileData.OldCmds)
-                try word.WordAdvanceWord(allocator, current_frame, rept, count)
+                try word.wordAdvanceWord(allocator, current_frame, rept, count)
             else
-                try newword.NewwordAdvanceWord(allocator, current_frame, rept, count);
+                try newword.newwordAdvanceWord(allocator, current_frame, rept, count);
         },
         .CmdWordDelete => {
             const oops = special_frames.Oops orelse return false;
             cmd_success = if (editor.FileData.OldCmds)
-                try word.WordDeleteWord(allocator, current_frame, oops, rept, count)
+                try word.wordDeleteWord(allocator, current_frame, oops, rept, count)
             else
-                try newword.NewwordDeleteWord(allocator, current_frame, oops, rept, count);
+                try newword.newwordDeleteWord(allocator, current_frame, oops, rept, count);
         },
         .CmdAdvanceParagraph => {
-            cmd_success = try newword.NewwordAdvanceParagraph(allocator, current_frame, rept, count);
+            cmd_success = try newword.newwordAdvanceParagraph(allocator, current_frame, rept, count);
         },
         .CmdDeleteParagraph => {
             const oops = special_frames.Oops orelse return false;
-            cmd_success = try newword.NewwordDeleteParagraph(allocator, current_frame, oops, rept, count);
+            cmd_success = try newword.newwordDeleteParagraph(allocator, current_frame, oops, rept, count);
         },
         .CmdCommand => {
             if (rept == .LeadParamMinus) {
@@ -2096,7 +2093,7 @@ fn Execute(
         .CmdWindowUpdate,
         .CmdResizeWindow,
         => {
-            cmd_success = try window_ops.WindowCommand(editor, allocator, current_frame, command, rept, count, from_span);
+            cmd_success = try window_ops.windowCommand(editor, allocator, current_frame, command, rept, count, from_span);
         },
         .CmdFileRead => {
             cmd_success = try file_ops.fileReadCommand(editor, allocator, current_frame, rept, count);
@@ -2132,7 +2129,7 @@ fn Execute(
                 cmd_success = try file_ops.fileCloseCommand(editor, allocator, current_frame, command);
             } else {
                 var request: types.TParObject = .{};
-                if (!try tpar_ops.TparGet1(allocator, editor, current_frame, tparam, command, &request)) {
+                if (!try tpar_ops.tparGet1(allocator, editor, current_frame, tparam, command, &request)) {
                     return false;
                 }
                 const file_name = if (request.Len == 0) "" else request.Str.?.slice(1, request.Len);
@@ -2144,7 +2141,7 @@ fn Execute(
             cmd_success = try file_ops.fileTable(editor, allocator, oops);
         },
         .CmdValidate => {
-            cmd_success = validate_ops.ValidateCommand(editor, current_frame, special_frames);
+            cmd_success = validate_ops.validateCommand(editor, current_frame, special_frames);
         },
         .CmdBlockDefine, .CmdBlockTransfer, .CmdBlockCopy => {
             cmd_success = false;
@@ -2167,7 +2164,7 @@ fn Execute(
     return cmd_success;
 }
 
-pub fn ExecuteSingle(
+pub fn executeSingle(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame_slot: **types.FrameObject,
@@ -2178,10 +2175,10 @@ pub fn ExecuteSingle(
     tparam: ?*types.TParObject,
     from_span: bool,
 ) !bool {
-    return Execute(editor, allocator, frame_slot, special_frames, command, rept, count, tparam, from_span);
+    return execute(editor, allocator, frame_slot, special_frames, command, rept, count, tparam, from_span);
 }
 
-pub fn CodeInterpretFrame(
+pub fn codeInterpretFrame(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -2238,12 +2235,12 @@ pub fn CodeInterpretFrame(
                     .CmdExitTo => {
                         span_mode = true;
                         level += 1;
-                        labels[level] = .{ .exitLabel = curr_lbl };
+                        labels[level] = .{ .exit_label = curr_lbl };
                     },
-                    .CmdFailTo => labels[level].failLabel = curr_lbl,
+                    .CmdFailTo => labels[level].fail_label = curr_lbl,
                     .CmdIterate => {
                         if (labels[level].count == curr_cnt) {
-                            pc = labels[level].exitLabel;
+                            pc = labels[level].exit_label;
                             level -= 1;
                         } else {
                             labels[level].count += 1;
@@ -2259,7 +2256,7 @@ pub fn CodeInterpretFrame(
                                 level -= @intCast(effective);
                             }
                         }
-                        pc = labels[level + 1].exitLabel;
+                        pc = labels[level + 1].exit_label;
                     },
                     .CmdExitFail => {
                         interp_status = .failure;
@@ -2272,7 +2269,7 @@ pub fn CodeInterpretFrame(
                                 level -= @intCast(effective);
                             }
                         }
-                        pc = labels[level + 1].failLabel;
+                        pc = labels[level + 1].fail_label;
                     },
                     .CmdExitAbort => {
                         editor.ExitAbort = true;
@@ -2281,7 +2278,7 @@ pub fn CodeInterpretFrame(
                     },
                     .CmdExtended => {
                         if (curr_code == null) return .{ .frame = current_frame, .ok = false };
-                        const outcome = try CodeInterpretFrame(editor, allocator, current_frame, special_frames, curr_rep, curr_cnt, curr_code.?, true);
+                        const outcome = try codeInterpretFrame(editor, allocator, current_frame, special_frames, curr_rep, curr_cnt, curr_code.?, true);
                         current_frame = outcome.frame;
                         if (!outcome.ok) {
                             interp_status = .failure;
@@ -2296,7 +2293,7 @@ pub fn CodeInterpretFrame(
                                 pc = 0;
                             } else blk: {
                                 var request: types.TParObject = .{};
-                                if (!try tpar_ops.TparGet1(allocator, editor, current_frame, curr_tpar, .CmdVerify, &request)) {
+                                if (!try tpar_ops.tparGet1(allocator, editor, current_frame, curr_tpar, .CmdVerify, &request)) {
                                     break :blk;
                                 }
                                 if (request.Len == 0) {
@@ -2328,7 +2325,7 @@ pub fn CodeInterpretFrame(
                     else => unreachable,
                 }
             } else {
-                const ok = try Execute(editor, allocator, &current_frame, special_frames, curr_op, curr_rep, curr_cnt, curr_tpar, span_mode);
+                const ok = try execute(editor, allocator, &current_frame, special_frames, curr_op, curr_rep, curr_cnt, curr_tpar, span_mode);
                 if (!ok) {
                     interp_status = .failure;
                     pc = curr_lbl;
@@ -2349,7 +2346,7 @@ pub fn CodeInterpretFrame(
             }
             if (interp_status == .failure) {
                 while (pc == 0 and level >= 1) {
-                    pc = labels[level].failLabel;
+                    pc = labels[level].fail_label;
                     if (level == 0) break;
                     level -= 1;
                 }
@@ -2363,7 +2360,7 @@ pub fn CodeInterpretFrame(
     };
 }
 
-pub fn CodeInterpret(
+pub fn codeInterpret(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
@@ -2373,7 +2370,7 @@ pub fn CodeInterpret(
     code_head: *types.CodeHeader,
     from_span: bool,
 ) anyerror!bool {
-    return (try CodeInterpretFrame(editor, allocator, frame, special_frames, rept, count, code_head, from_span)).ok;
+    return (try codeInterpretFrame(editor, allocator, frame, special_frames, rept, count, code_head, from_span)).ok;
 }
 
 fn makeCommandSpan(
@@ -2475,18 +2472,18 @@ test "code compile string supports immediate commands and prompt placeholders" {
     var special_frames: types.SpecialFrames = .{};
 
     var advance_span = types.SpanObject{ .Name = "ADV" };
-    try std.testing.expect(try CodeCompileString(&editor, allocator, &advance_span, "A"));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, advance_span.Code.?, false));
+    try std.testing.expect(try codeCompileString(&editor, allocator, &advance_span, "A"));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, advance_span.Code.?, false));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
 
     var mode_span = types.SpanObject{ .Name = "MODE" };
     editor.EditMode = .ModeInsert;
-    try std.testing.expect(try CodeCompileString(&editor, allocator, &mode_span, "O"));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, mode_span.Code.?, false));
+    try std.testing.expect(try codeCompileString(&editor, allocator, &mode_span, "O"));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, mode_span.Code.?, false));
     try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.EditMode);
 
     var prompt_span = types.SpanObject{ .Name = "PROMPT" };
-    try std.testing.expect(try CodeCompileString(&editor, allocator, &prompt_span, "R"));
+    try std.testing.expect(try codeCompileString(&editor, allocator, &prompt_span, "R"));
     const compiled = &editor.CompilerCode[@intCast(prompt_span.Code.?.Code)];
     try std.testing.expectEqual(types.Commands.CmdReplace, compiled.Op);
     try std.testing.expect(compiled.Tpar != null);
@@ -2508,9 +2505,9 @@ test "code compile can consume queued immediate input" {
 
     var immediate_span = types.SpanObject{ .Name = "IMM" };
     try editor.setImmediateInput("A");
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, &immediate_span, false));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, &immediate_span, false));
     try std.testing.expect(editor.ImmediateInput == null);
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, immediate_span.Code.?, false));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, immediate_span.Code.?, false));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
 }
 
@@ -2526,7 +2523,7 @@ test "code compile can consume live interactive input" {
     interactive_io.testing.installInput("A");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, &live_span, false));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, &live_span, false));
     const compiled = &editor.CompilerCode[@intCast(live_span.Code.?.Code)];
     try std.testing.expectEqual(types.Commands.CmdAdvance, compiled.Op);
 }
@@ -2536,7 +2533,7 @@ test "code compile live input accepts special keys as commands" {
     defer editor.deinit();
     const allocator = editor.allocator();
     editor.LudwigMode = .LudwigScreen;
-    try user_ops.UserKeyInitialize(&editor, allocator);
+    try user_ops.userKeyInitialize(&editor, allocator);
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
 
@@ -2544,7 +2541,7 @@ test "code compile live input accepts special keys as commands" {
     interactive_io.testing.installInput("\x1b[6~");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, &live_span, false));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, &live_span, false));
     const compiled = &editor.CompilerCode[@intCast(live_span.Code.?.Code)];
     try std.testing.expectEqual(types.Commands.CmdWindowForward, compiled.Op);
 }
@@ -2560,7 +2557,7 @@ test "code compile live input supports prefix commands with prompted parameters"
     interactive_io.testing.installInput("EPc=/\r");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, &live_span, false));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, &live_span, false));
     const compiled = &editor.CompilerCode[@intCast(live_span.Code.?.Code)];
     try std.testing.expectEqual(types.Commands.CmdFrameParameters, compiled.Op);
     try std.testing.expect(compiled.Tpar != null);
@@ -2576,7 +2573,7 @@ test "code compile false preserves immediate prompt placeholders" {
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
     var prompt_span = types.SpanObject{ .Name = "PROMPT" };
     try editor.setImmediateInput("R");
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, &prompt_span, false));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, &prompt_span, false));
     const compiled = &editor.CompilerCode[@intCast(prompt_span.Code.?.Code)];
     try std.testing.expectEqual(types.Commands.CmdReplace, compiled.Op);
     try std.testing.expect(compiled.Tpar != null);
@@ -2595,8 +2592,8 @@ test "code interpreter can insert spaces with insert char command" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 2, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2C"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqualStrings("a  b", line_ops.getLineContent(target.content_lines[0]));
     try std.testing.expectEqual(@as(isize, 2), target.frame.Dot.?.Col);
@@ -2618,8 +2615,8 @@ test "code interpreter can delete a marked character range into oops" {
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"@1D"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{"aef"});
     try std.testing.expectEqualStrings("bcd", line_ops.getLineContent(oops.frame.LastGroup.?.LastLine.?.BLink));
@@ -2643,8 +2640,8 @@ test "code interpreter can delete a line into oops" {
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"K"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "one",
@@ -2665,8 +2662,8 @@ test "code interpreter can jump by character count" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2J"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 3), target.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 1), target.frame.Marks[types.MarkEquals].?.Col);
@@ -2683,8 +2680,8 @@ test "code interpreter can centre a line" {
     target.frame.MarginRight = 10;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"YC"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqualStrings("   cat", line_ops.getLineContent(target.content_lines[0]));
 }
@@ -2699,14 +2696,14 @@ test "code interpreter can set margins from dot" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 3, &target.frame.Dot);
 
     const left_command = try makeCommandSpan(allocator, &[_][]const u8{"{"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, left_command.span, true));
-    try std.testing.expect((try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, left_command.span.Code.?, true)).ok);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, left_command.span, true));
+    try std.testing.expect((try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, left_command.span.Code.?, true)).ok);
     try std.testing.expectEqual(@as(isize, 3), target.frame.MarginLeft);
 
     try mark_ops.markCreate(allocator, target.content_lines[0], 5, &target.frame.Dot);
     const right_command = try makeCommandSpan(allocator, &[_][]const u8{"}"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, right_command.span, true));
-    try std.testing.expect((try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, right_command.span.Code.?, true)).ok);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, right_command.span, true));
+    try std.testing.expect((try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, right_command.span.Code.?, true)).ok);
     try std.testing.expectEqual(@as(isize, 5), target.frame.MarginRight);
 }
 
@@ -2722,9 +2719,9 @@ test "code interpreter can report help topics into oops frame" {
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"H/Q/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, current.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, current.frame, command.span, true));
 
-    const outcome = try CodeInterpretFrame(&editor, allocator, current.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    const outcome = try codeInterpretFrame(&editor, allocator, current.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(outcome.frame == current.frame);
 
@@ -2742,9 +2739,9 @@ test "code interpreter can insert opsys command output into frame" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"tail"});
     const command = try makeCommandSpan(allocator, &[_][]const u8{"OX|printf \"alpha\\nbeta\\n\"|"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
 
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "alpha",
@@ -2765,9 +2762,9 @@ test "code interpreter captures opsys stderr with tab expansion" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"tail"});
     const command = try makeCommandSpan(allocator, &[_][]const u8{"OX|printf \"\\tX\\n\" >&2|"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
 
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "        X",
@@ -2784,9 +2781,9 @@ test "code compile and interpret resolve prefix equal string commands" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"EQS/hello/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
     try std.testing.expectEqual(@as(isize, 6), target.frame.Marks[types.MarkEquals].?.Col);
 }
 
@@ -2802,8 +2799,8 @@ test "code interpreter executes success and fail handlers" {
     });
     try mark_ops.markCreate(allocator, success_target.content_lines[0], 1, &success_target.frame.Dot);
     const success_cmd = try makeCommandSpan(allocator, &[_][]const u8{"G/world/[A]"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, success_target.frame, success_cmd.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, success_target.frame, &special_frames, .LeadParamNone, 1, success_cmd.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, success_target.frame, success_cmd.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, success_target.frame, &special_frames, .LeadParamNone, 1, success_cmd.span.Code.?, true));
     try std.testing.expect(success_target.frame.Dot.?.Line == success_target.content_lines[1]);
 
     const fail_target = try line_ops.createContentFrame(allocator, &[_][]const u8{
@@ -2812,8 +2809,8 @@ test "code interpreter executes success and fail handlers" {
     });
     try mark_ops.markCreate(allocator, fail_target.content_lines[0], 1, &fail_target.frame.Dot);
     const fail_cmd = try makeCommandSpan(allocator, &[_][]const u8{"G/missing/[:A]"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, fail_target.frame, fail_cmd.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, fail_target.frame, &special_frames, .LeadParamNone, 1, fail_cmd.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, fail_target.frame, fail_cmd.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, fail_target.frame, &special_frames, .LeadParamNone, 1, fail_cmd.span.Code.?, true));
     try std.testing.expect(fail_target.frame.Dot.?.Line == fail_target.content_lines[1]);
 }
 
@@ -2829,9 +2826,9 @@ test "code interpreter executes compound loops using iterate opcodes" {
     });
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2(A)"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[2]);
 }
 
@@ -2846,9 +2843,9 @@ test "code interpreter executes compiled arrow and insert text commands" {
     });
     try mark_ops.markCreate(allocator, target.content_lines[1], 1, &target.frame.Dot);
     const command = try makeCommandSpan(allocator, &[_][]const u8{"ZU I/abc/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
     try std.testing.expectEqualStrings("abchello", line_ops.getLineContent(target.content_lines[0]));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[0]);
     try std.testing.expectEqual(@as(isize, 4), target.frame.Dot.?.Col);
@@ -2872,19 +2869,19 @@ test "code interpreter executes span assign with heap and oops special frames" {
     var source_mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, source.content_lines[0], 1, &source_mark_one);
     try mark_ops.markCreate(allocator, source.content_lines[0], 6, &source_mark_two);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "NAME", source_mark_one.?, source_mark_two.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "NAME", source_mark_one.?, source_mark_two.?));
 
     const assign_existing = try makeCommandSpan(allocator, &[_][]const u8{"SA/NAME/new/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, current.frame, assign_existing.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, current.frame, &special_frames, .LeadParamNone, 1, assign_existing.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, current.frame, assign_existing.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, current.frame, &special_frames, .LeadParamNone, 1, assign_existing.span.Code.?, true));
 
     const assigned_span = (try findSpanByName(&editor, allocator, "NAME")) orelse return error.TestUnexpectedResult;
     try std.testing.expectEqualStrings("new", line_ops.getLineContent(assigned_span.MarkOne.?.Line));
     try std.testing.expectEqualStrings("stale", line_ops.getLineContent(oops.frame.LastGroup.?.LastLine.?.BLink));
 
     const assign_new = try makeCommandSpan(allocator, &[_][]const u8{"SA/NEW/alpha/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, current.frame, assign_new.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, current.frame, &special_frames, .LeadParamNone, 1, assign_new.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, current.frame, assign_new.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, current.frame, &special_frames, .LeadParamNone, 1, assign_new.span.Code.?, true));
 
     const new_span = (try findSpanByName(&editor, allocator, "NEW")) orelse return error.TestUnexpectedResult;
     try std.testing.expect(new_span.MarkOne.?.Line.Group.?.Frame == heap.frame);
@@ -2902,8 +2899,8 @@ test "code interpreter executes span define jump and destroy commands" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 6, &target.frame.Dot);
 
     const define_command = try makeCommandSpan(allocator, &[_][]const u8{"SD/TEST/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, define_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, define_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, define_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, define_command.span.Code.?, true));
 
     const defined_span = (try findSpanByName(&editor, allocator, "TEST")) orelse return error.TestUnexpectedResult;
     try std.testing.expectEqual(@as(isize, 1), defined_span.MarkOne.?.Col);
@@ -2911,13 +2908,13 @@ test "code interpreter executes span define jump and destroy commands" {
 
     try mark_ops.markCreate(allocator, target.content_lines[0], 11, &target.frame.Dot);
     const jump_command = try makeCommandSpan(allocator, &[_][]const u8{"-SJ/TEST/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, jump_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, jump_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, jump_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, jump_command.span.Code.?, true));
     try std.testing.expectEqual(@as(isize, 1), target.frame.Dot.?.Col);
 
     const destroy_command = try makeCommandSpan(allocator, &[_][]const u8{"-SD/TEST/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, destroy_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, destroy_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, destroy_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, destroy_command.span.Code.?, true));
     try std.testing.expect((try findSpanByName(&editor, allocator, "TEST")) == null);
 }
 
@@ -2938,15 +2935,15 @@ test "code interpreter executes command strings and replays last command" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const exec_command = try makeCommandSpan(allocator, &[_][]const u8{"^/AA/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, exec_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, exec_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, exec_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, exec_command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[2]);
     try std.testing.expect(cmd_frame.frame.Span.?.Code != null);
 
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const repeat_command = try makeCommandSpan(allocator, &[_][]const u8{"\x07"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, repeat_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, repeat_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, repeat_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, repeat_command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[2]);
 }
 
@@ -2959,16 +2956,16 @@ test "code interpreter can edit and return frames" {
     const origin = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
 
     const edit_command = try makeCommandSpan(allocator, &[_][]const u8{"ED/WORK/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, origin.frame, edit_command.span, true));
-    const edit_outcome = try CodeInterpretFrame(&editor, allocator, origin.frame, &special_frames, .LeadParamNone, 1, edit_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, origin.frame, edit_command.span, true));
+    const edit_outcome = try codeInterpretFrame(&editor, allocator, origin.frame, &special_frames, .LeadParamNone, 1, edit_command.span.Code.?, true);
     try std.testing.expect(edit_outcome.ok);
     try std.testing.expect(edit_outcome.frame != origin.frame);
     try std.testing.expectEqualStrings("WORK", edit_outcome.frame.Span.?.Name);
     try std.testing.expect(edit_outcome.frame.ReturnFrame == origin.frame);
 
     const return_command = try makeCommandSpan(allocator, &[_][]const u8{"ER"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, edit_outcome.frame, return_command.span, true));
-    const return_outcome = try CodeInterpretFrame(&editor, allocator, edit_outcome.frame, &special_frames, .LeadParamNone, 1, return_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, edit_outcome.frame, return_command.span, true));
+    const return_outcome = try codeInterpretFrame(&editor, allocator, edit_outcome.frame, &special_frames, .LeadParamNone, 1, return_command.span.Code.?, true);
     try std.testing.expect(return_outcome.ok);
     try std.testing.expect(return_outcome.frame == origin.frame);
 }
@@ -2980,11 +2977,11 @@ test "code interpreter can kill another frame" {
     var special_frames: types.SpecialFrames = .{};
 
     const origin = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
-    _ = (try frame_ops.FrameEdit(&editor, allocator, origin.frame, "WORK")).?;
+    _ = (try frame_ops.frameEdit(&editor, allocator, origin.frame, "WORK")).?;
 
     const kill_command = try makeCommandSpan(allocator, &[_][]const u8{"EK/WORK/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, origin.frame, kill_command.span, true));
-    const kill_outcome = try CodeInterpretFrame(&editor, allocator, origin.frame, &special_frames, .LeadParamNone, 1, kill_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, origin.frame, kill_command.span, true));
+    const kill_outcome = try codeInterpretFrame(&editor, allocator, origin.frame, &special_frames, .LeadParamNone, 1, kill_command.span.Code.?, true);
     try std.testing.expect(kill_outcome.ok);
     try std.testing.expect(kill_outcome.frame == origin.frame);
     try std.testing.expect((try findSpanByName(&editor, allocator, "WORK")) == null);
@@ -2999,8 +2996,8 @@ test "code interpreter can apply frame parameters" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const param_command = try makeCommandSpan(allocator, &[_][]const u8{"EP/K=O,H=24,W=100,O=(I,-N)/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, param_command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, param_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, param_command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, param_command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.EditMode);
     try std.testing.expectEqual(@as(isize, 24), target.frame.ScrHeight);
@@ -3016,10 +3013,10 @@ test "code interpreter can validate linked frame/span state" {
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
-    const cmd = (try frame_ops.FrameEdit(&editor, allocator, current, "COMMAND")).?;
-    const oops = (try frame_ops.FrameEdit(&editor, allocator, current, "OOPS")).?;
-    const heap = (try frame_ops.FrameEdit(&editor, allocator, current, "HEAP")).?;
+    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
+    const cmd = (try frame_ops.frameEdit(&editor, allocator, current, "COMMAND")).?;
+    const oops = (try frame_ops.frameEdit(&editor, allocator, current, "OOPS")).?;
+    const heap = (try frame_ops.frameEdit(&editor, allocator, current, "HEAP")).?;
     cmd.Options.specialFrame = true;
     oops.Options.specialFrame = true;
     heap.Options.specialFrame = true;
@@ -3033,11 +3030,11 @@ test "code interpreter can validate linked frame/span state" {
     var span_mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
     try mark_ops.markCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
 
     const validate_command = try makeCommandSpan(allocator, &[_][]const u8{"~V"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, current, validate_command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, current, &special_frames, .LeadParamNone, 1, validate_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, current, validate_command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, current, &special_frames, .LeadParamNone, 1, validate_command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(outcome.frame == current);
 }
@@ -3054,8 +3051,8 @@ test "code interpreter can insert user command introducer in screen mode" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 2, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"UC"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqualStrings("a@b", line_ops.getLineContent(target.content_lines[0]));
 }
@@ -3067,15 +3064,15 @@ test "code interpreter can bind simple user key commands" {
     const allocator = editor.allocator();
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
-    const heap = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "HEAP")).?;
+    const heap = (try frame_ops.frameEdit(&editor, allocator, target.frame, "HEAP")).?;
     heap.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Heap = heap,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"UK/A/A/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(types.Commands.CmdAdvance, editor.Lookup['A'].Command);
     try std.testing.expect(editor.Lookup['A'].Code == null);
@@ -3089,15 +3086,15 @@ test "code interpreter can bind extended user key commands" {
     const allocator = editor.allocator();
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
-    const heap = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "HEAP")).?;
+    const heap = (try frame_ops.frameEdit(&editor, allocator, target.frame, "HEAP")).?;
     heap.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Heap = heap,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"UK/B/A A/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(types.Commands.CmdExtended, editor.Lookup['B'].Command);
     try std.testing.expect(editor.Lookup['B'].Code != null);
@@ -3121,8 +3118,8 @@ test "code interpreter can apply window movement commands" {
     try mark_ops.markCreate(allocator, target.content_lines[2], 1, &target.frame.Dot);
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"WF"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[4]);
     try std.testing.expect(target.frame.Marks[types.MarkEquals] != null);
@@ -3138,8 +3135,8 @@ test "code interpreter can apply window height command" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
     const command = try makeCommandSpan(allocator, &[_][]const u8{"WH"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 24), target.frame.ScrHeight);
 }
@@ -3162,8 +3159,8 @@ test "code interpreter can read from the global input file buffer" {
     editor.FgiFile = 1;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"2FGR"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "alpha",
@@ -3193,8 +3190,8 @@ test "code interpreter can write the selected range to the global output file bu
     editor.FgoFile = 1;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FGW"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 1), output_file.LineCount);
     try std.testing.expectEqualStrings("two", line_ops.getLineContent(output_file.FirstLine));
@@ -3227,8 +3224,8 @@ test "code interpreter can page buffered file contents" {
     target.frame.OutputFile = 2;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FP"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "old2",
@@ -3261,8 +3258,8 @@ test "code interpreter can rewind attached input file buffer" {
     target.frame.InputFile = 1;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FB"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "alpha",
@@ -3291,8 +3288,8 @@ test "code interpreter can rewind the global input file buffer" {
     editor.FgiFile = 1;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FGB"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 2), input_file.LineCount);
     try std.testing.expect(!input_file.Eof);
@@ -3320,8 +3317,8 @@ test "code interpreter can execute a buffered file into the command frame" {
     editor.Files[1] = source_file;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FX/proc.lud/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
     try expectFrameLines(cmd_frame.frame, &[_][]const u8{"A"});
@@ -3337,12 +3334,12 @@ test "code interpreter can open a disk input file into a blank frame" {
 
     const path = try writeTmpFile(allocator, &tmp_dir, "input.txt", "alpha\nbeta\n");
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const target = (try frame_ops.FrameEdit(&editor, allocator, root.frame, "WORK")).?;
+    const target = (try frame_ops.frameEdit(&editor, allocator, root.frame, "WORK")).?;
 
     const open_text = try commandWithPath(allocator, "FI", path, "");
     const command = try makeCommandSpan(allocator, &[_][]const u8{open_text});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target, &[_][]const u8{
         "alpha",
@@ -3367,8 +3364,8 @@ test "code interpreter can open a disk global input file and read from it" {
 
     const command_text = try commandWithPath(allocator, "FGI", path, " 2FGR -FGI||");
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target.frame, &[_][]const u8{
         "alpha",
@@ -3388,12 +3385,12 @@ test "code interpreter can edit a disk file and save on close" {
 
     const path = try writeTmpFile(allocator, &tmp_dir, "edit.txt", "alpha\n");
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const target = (try frame_ops.FrameEdit(&editor, allocator, root.frame, "WORK")).?;
+    const target = (try frame_ops.frameEdit(&editor, allocator, root.frame, "WORK")).?;
 
     const command_text = try commandWithPath(allocator, "FE", path, " I/edited / -FE||");
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try expectFrameLines(target, &[_][]const u8{"edited alpha"});
     try std.testing.expectEqual(@as(isize, 0), target.InputFile);
@@ -3417,8 +3414,8 @@ test "code interpreter can write and close a disk global output file" {
 
     const command_text = try commandWithPath(allocator, "FGO", path, " FGW -FGO||");
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 0), editor.FgoFile);
 
@@ -3437,15 +3434,15 @@ test "code interpreter can quit in batch mode after closing open files" {
     const edit_path = try writeTmpFile(allocator, &tmp_dir, "quit-edit.txt", "alpha\n");
     const global_path = try tmpFilePath(allocator, &tmp_dir, "quit-global.out");
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const target = (try frame_ops.FrameEdit(&editor, allocator, root.frame, "WORK")).?;
+    const target = (try frame_ops.frameEdit(&editor, allocator, root.frame, "WORK")).?;
 
     const edit_command = try commandWithPath(allocator, "FE", edit_path, " I/edited /");
     const global_command = try commandWithPath(allocator, "FGO", global_path, " FGW Q I/ignored/");
     const command_text = try std.fmt.allocPrint(allocator, "{s} {s}", .{ edit_command, global_command });
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target, command.span, true));
 
-    const outcome = try CodeInterpretFrame(&editor, allocator, target, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    const outcome = try codeInterpretFrame(&editor, allocator, target, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(outcome.frame == target);
     try std.testing.expect(editor.QuitRequested);
@@ -3483,8 +3480,8 @@ test "code interpreter can execute a disk file into the command frame" {
 
     const command_text = try commandWithPath(allocator, "FX", path, "");
     const command = try makeCommandSpan(allocator, &[_][]const u8{command_text});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
     try expectFrameLines(cmd_frame.frame, &[_][]const u8{"A"});
@@ -3504,8 +3501,8 @@ test "code interpreter can save to attached output file buffer" {
     target.frame.TextModified = true;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FS"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(!target.frame.TextModified);
     try std.testing.expectEqual(@as(isize, 1), output_file.LineCount);
@@ -3525,8 +3522,8 @@ test "code interpreter can kill attached output file buffer" {
     target.frame.OutputFile = 1;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FK"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 0), target.frame.OutputFile);
     try std.testing.expect(editor.Files[1] == null);
@@ -3545,8 +3542,8 @@ test "code interpreter can close attached input file with empty parameter" {
     target.frame.InputFile = 1;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"-FI//"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expectEqual(@as(isize, 0), target.frame.InputFile);
     try std.testing.expect(editor.Files[1] == null);
@@ -3559,8 +3556,8 @@ test "code interpreter can table files into oops frame" {
     const allocator = editor.allocator();
 
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root.frame, "WORK")).?;
-    const oops = (try frame_ops.FrameEdit(&editor, allocator, current, "OOPS")).?;
+    const current = (try frame_ops.frameEdit(&editor, allocator, root.frame, "WORK")).?;
+    const oops = (try frame_ops.frameEdit(&editor, allocator, current, "OOPS")).?;
     oops.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Oops = oops,
@@ -3577,8 +3574,8 @@ test "code interpreter can table files into oops frame" {
     current.TextModified = true;
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"FT"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, current, command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, current, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, current, command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, current, &special_frames, .LeadParamNone, 1, command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(outcome.frame == current);
     try expectFrameLines(oops, &[_][]const u8{
@@ -3599,17 +3596,17 @@ test "code interpreter can index spans into oops frame" {
     var mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &mark_one);
     try mark_ops.markCreate(allocator, target.content_lines[0], 6, &mark_two);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "NAME", mark_one.?, mark_two.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "NAME", mark_one.?, mark_two.?));
 
-    const oops = (try frame_ops.FrameEdit(&editor, allocator, target.frame, "OOPS")).?;
+    const oops = (try frame_ops.frameEdit(&editor, allocator, target.frame, "OOPS")).?;
     oops.Options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
         .Oops = oops,
     };
 
     const index_command = try makeCommandSpan(allocator, &[_][]const u8{"SI"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, index_command.span, true));
-    const outcome = try CodeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, index_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, index_command.span, true));
+    const outcome = try codeInterpretFrame(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, index_command.span.Code.?, true);
     try std.testing.expect(outcome.ok);
     try std.testing.expect(outcome.frame == target.frame);
     try expectFrameLines(oops, &[_][]const u8{
@@ -3630,8 +3627,8 @@ test "code interpreter can jump to spans in other frames" {
     var special_frames: types.SpecialFrames = .{};
 
     const origin = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
-    const other = (try frame_ops.FrameEdit(&editor, allocator, origin.frame, "OTHER")).?;
-    try text.TextRealizeNull(allocator, other.LastGroup.?.LastLine.?);
+    const other = (try frame_ops.frameEdit(&editor, allocator, origin.frame, "OTHER")).?;
+    try text.textRealizeNull(allocator, other.LastGroup.?.LastLine.?);
     const content_line = other.LastGroup.?.LastLine.?.BLink.?;
     try line_ops.lineChangeLength(allocator, content_line, 4);
     try line_ops.setLineContent(content_line, "dest");
@@ -3639,11 +3636,11 @@ test "code interpreter can jump to spans in other frames" {
     var span_mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, content_line, 1, &span_mark_one);
     try mark_ops.markCreate(allocator, content_line, 5, &span_mark_two);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "DEST", span_mark_one.?, span_mark_two.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "DEST", span_mark_one.?, span_mark_two.?));
 
     const jump_command = try makeCommandSpan(allocator, &[_][]const u8{"SJ/DEST/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, origin.frame, jump_command.span, true));
-    const jump_outcome = try CodeInterpretFrame(&editor, allocator, origin.frame, &special_frames, .LeadParamNone, 1, jump_command.span.Code.?, true);
+    try std.testing.expect(try codeCompile(&editor, allocator, origin.frame, jump_command.span, true));
+    const jump_outcome = try codeInterpretFrame(&editor, allocator, origin.frame, &special_frames, .LeadParamNone, 1, jump_command.span.Code.?, true);
     try std.testing.expect(jump_outcome.ok);
     try std.testing.expect(jump_outcome.frame == other);
     try std.testing.expect(jump_outcome.frame.Dot.?.Line == content_line);
@@ -3667,8 +3664,8 @@ test "code interpreter can compile command frame for do last command" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const repeat_command = try makeCommandSpan(allocator, &[_][]const u8{"\x07"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, repeat_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, repeat_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, repeat_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, repeat_command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
 }
 
@@ -3679,7 +3676,7 @@ test "code interpreter executes named span compile and execute variants" {
     var special_frames: types.SpecialFrames = .{};
 
     const command_source = try makeCommandSpan(allocator, &[_][]const u8{"A"});
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "CMD", command_source.span.MarkOne.?, command_source.span.MarkTwo.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "CMD", command_source.span.MarkOne.?, command_source.span.MarkTwo.?));
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "one",
@@ -3689,8 +3686,8 @@ test "code interpreter executes named span compile and execute variants" {
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
 
     const compile_command = try makeCommandSpan(allocator, &[_][]const u8{"SR/CMD/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, compile_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, compile_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, compile_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, compile_command.span.Code.?, true));
     const compiled_span = (try findSpanByName(&editor, allocator, "CMD")) orelse return error.TestUnexpectedResult;
     try std.testing.expect(compiled_span.Code != null);
 
@@ -3698,14 +3695,14 @@ test "code interpreter executes named span compile and execute variants" {
     try mark_ops.markCreate(allocator, compiled_span.MarkTwo.?.Line, 3, &compiled_span.MarkTwo);
 
     const no_recompile_command = try makeCommandSpan(allocator, &[_][]const u8{"EN/CMD/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, no_recompile_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, no_recompile_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, no_recompile_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, no_recompile_command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[1]);
 
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const execute_command = try makeCommandSpan(allocator, &[_][]const u8{"EX/CMD/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, execute_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, execute_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, execute_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, execute_command.span.Code.?, true));
     try std.testing.expect(target.frame.Dot.?.Line == target.content_lines[2]);
 }
 
@@ -3723,12 +3720,12 @@ test "code interpreter executes span copy and transfer commands" {
     var span_end: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, copy_target.content_lines[0], 1, &span_start);
     try mark_ops.markCreate(allocator, copy_target.content_lines[0], 6, &span_end);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "COPY", span_start.?, span_end.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "COPY", span_start.?, span_end.?));
     try mark_ops.markCreate(allocator, copy_target.content_lines[1], 1, &copy_target.frame.Dot);
 
     const copy_command = try makeCommandSpan(allocator, &[_][]const u8{"SC/COPY/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, copy_target.frame, copy_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, copy_target.frame, &special_frames, .LeadParamNone, 1, copy_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, copy_target.frame, copy_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, copy_target.frame, &special_frames, .LeadParamNone, 1, copy_command.span.Code.?, true));
     try std.testing.expectEqualStrings("hello", line_ops.getLineContent(copy_target.content_lines[0]));
     try std.testing.expectEqualStrings("hellotarget", line_ops.getLineContent(copy_target.content_lines[1]));
 
@@ -3740,12 +3737,12 @@ test "code interpreter executes span copy and transfer commands" {
     span_end = null;
     try mark_ops.markCreate(allocator, transfer_target.content_lines[0], 1, &span_start);
     try mark_ops.markCreate(allocator, transfer_target.content_lines[0], 6, &span_end);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "MOVE", span_start.?, span_end.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "MOVE", span_start.?, span_end.?));
     try mark_ops.markCreate(allocator, transfer_target.content_lines[1], 1, &transfer_target.frame.Dot);
 
     const transfer_command = try makeCommandSpan(allocator, &[_][]const u8{"ST/MOVE/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, transfer_target.frame, transfer_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, transfer_target.frame, &special_frames, .LeadParamNone, 1, transfer_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, transfer_target.frame, transfer_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, transfer_target.frame, &special_frames, .LeadParamNone, 1, transfer_command.span.Code.?, true));
     try std.testing.expectEqualStrings("", line_ops.getLineContent(transfer_target.content_lines[0]));
     try std.testing.expectEqualStrings("hellotarget", line_ops.getLineContent(transfer_target.content_lines[1]));
     const moved_span = (try findSpanByName(&editor, allocator, "MOVE")) orelse return error.TestUnexpectedResult;
@@ -3764,9 +3761,9 @@ test "code interpreter executes compiled split line and equal-eol commands" {
     });
     try mark_ops.markCreate(allocator, split_target.content_lines[0], 6, &split_target.frame.Dot);
     const split_command = try makeCommandSpan(allocator, &[_][]const u8{"SL"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, split_target.frame, split_command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, split_target.frame, split_command.span, true));
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(try CodeInterpret(&editor, allocator, split_target.frame, &special_frames, .LeadParamNone, 1, split_command.span.Code.?, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, split_target.frame, &special_frames, .LeadParamNone, 1, split_command.span.Code.?, true));
     const inserted_line = split_target.content_lines[0].FLink.?;
     try std.testing.expectEqualStrings("hello", line_ops.getLineContent(split_target.content_lines[0]));
     try std.testing.expectEqualStrings(" world", line_ops.getLineContent(inserted_line));
@@ -3776,8 +3773,8 @@ test "code interpreter executes compiled split line and equal-eol commands" {
     const eql_target = try line_ops.createContentFrame(allocator, &[_][]const u8{"abc"});
     try mark_ops.markCreate(allocator, eql_target.content_lines[0], 4, &eql_target.frame.Dot);
     const eql_command = try makeCommandSpan(allocator, &[_][]const u8{"EOL"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, eql_target.frame, eql_command.span, true));
-    try std.testing.expect(try CodeInterpret(&editor, allocator, eql_target.frame, &special_frames, .LeadParamNone, 1, eql_command.span.Code.?, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, eql_target.frame, eql_command.span, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, eql_target.frame, &special_frames, .LeadParamNone, 1, eql_command.span.Code.?, true));
 }
 
 test "code interpreter executes compiled replace commands" {
@@ -3788,8 +3785,8 @@ test "code interpreter executes compiled replace commands" {
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello world"});
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.Dot);
     const command = try makeCommandSpan(allocator, &[_][]const u8{"R/world/earth/"});
-    try std.testing.expect(try CodeCompile(&editor, allocator, target.frame, command.span, true));
+    try std.testing.expect(try codeCompile(&editor, allocator, target.frame, command.span, true));
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(try CodeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
+    try std.testing.expect(try codeInterpret(&editor, allocator, target.frame, &special_frames, .LeadParamNone, 1, command.span.Code.?, true));
     try std.testing.expectEqualStrings("hello earth", target.content_lines[0].Str.?.slice(1, 11));
 }

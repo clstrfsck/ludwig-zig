@@ -11,7 +11,7 @@ const ncurses = @import("ui/terminal/ncurses.zig");
 
 pub fn main() !void {
     const use_checked_allocator = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer if (use_checked_allocator) {
         const status = gpa.deinit();
         std.debug.assert(status == .ok);
@@ -28,13 +28,14 @@ pub fn main() !void {
 
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
-    const parse = try filesys.fileCreateOpen(&editor, editor.allocator(), args[1..], .ParseCommand, &input, &output);
+    const parse = try filesys.fileCreateOpen(&editor, editor.allocator(), args[1..], .parse_command, &input, &output);
     if (!parse.ok) {
-        const writer = if (parse.show_usage)
-            std.fs.File.stdout().deprecatedWriter()
-        else
-            std.fs.File.stderr().deprecatedWriter();
         if (parse.message.len > 0) {
+            var buf: [1024]u8 = undefined;
+            var writer = if (parse.show_usage)
+                std.fs.File.stdout().writer(&buf).interface
+            else
+                std.fs.File.stderr().writer(&buf).interface;
             try writer.print("{s}\n", .{parse.message});
         }
         if (parse.show_usage) {

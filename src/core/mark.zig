@@ -1,7 +1,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 
-fn removeFromMarks(mark_list: *std.ArrayListUnmanaged(*types.MarkObject), mark: *types.MarkObject) void {
+fn removeFromMarks(mark_list: *std.ArrayList(*types.MarkObject), mark: *types.MarkObject) void {
     for (mark_list.items, 0..) |existing, index| {
         if (existing == mark) {
             _ = mark_list.orderedRemove(index);

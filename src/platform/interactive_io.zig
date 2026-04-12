@@ -258,7 +258,11 @@ pub fn printLine(message: []const u8) void {
     if (builtin.is_test) {
         return;
     }
-    std.fs.File.stdout().deprecatedWriter().print("{s}\r\n", .{message}) catch {};
+    var buf: [1024]u8 = undefined;
+    var file_writer = std.fs.File.stdout().writerStreaming(&buf);
+    const stdout = &file_writer.interface;
+    defer stdout.flush() catch {};
+    stdout.print("{s}\r\n", .{message}) catch {};
 }
 
 pub fn queueStatusMessage(message: []const u8) void {
@@ -503,11 +507,6 @@ fn visibleLineRange(frame: *const types.FrameObject, line: *const types.LineHdrO
     const width_usize: usize = @intCast(width);
     const end = @min(content.len, offset + width_usize);
     return .{ .content = content, .start = offset, .end = end };
-}
-
-fn visibleLineSlice(frame: *const types.FrameObject, line: *const types.LineHdrObject, width: isize) []const u8 {
-    const range = visibleLineRange(frame, line, width);
-    return range.content[range.start..range.end];
 }
 
 fn drawHighlightedLine(
@@ -784,7 +783,7 @@ pub fn readPromptLineWithOptions(
         std.debug.print("[io:prompt-line] prompt={s}\n", .{prompt});
     }
 
-    var buffer: std.ArrayListUnmanaged(u8) = .{};
+    var buffer: std.ArrayList(u8) = .{};
     errdefer buffer.deinit(allocator);
     const max_len = @min(options.max_len, width - @min(prompt_len, width));
 

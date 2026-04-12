@@ -147,7 +147,7 @@ const Highlighter = struct {
         line.HlMatch.clearRetainingCapacity();
         const text = if (line.Str) |str| str.slice(1, line.Used) else "";
 
-        var entries: std.ArrayListUnmanaged(types.HighlightMatchEntry) = .{};
+        var entries: std.ArrayList(types.HighlightMatchEntry) = .{};
         if (self.last_region) |region| {
             try self.highlightRegion(temp_allocator, &entries, 0, text, region, true);
         } else {
@@ -167,7 +167,7 @@ const Highlighter = struct {
     fn highlightRegion(
         self: *Highlighter,
         allocator: std.mem.Allocator,
-        entries: *std.ArrayListUnmanaged(types.HighlightMatchEntry),
+        entries: *std.ArrayList(types.HighlightMatchEntry),
         start: usize,
         line: []const u8,
         current_region: *CompiledRegion,
@@ -282,7 +282,7 @@ const Highlighter = struct {
     fn highlightEmptyRegion(
         self: *Highlighter,
         allocator: std.mem.Allocator,
-        entries: *std.ArrayListUnmanaged(types.HighlightMatchEntry),
+        entries: *std.ArrayList(types.HighlightMatchEntry),
         start: usize,
         line: []const u8,
         can_match_end: bool,
@@ -367,13 +367,13 @@ fn compileRuleSet(
     rules: []const static_data.Rule,
     parent: ?*CompiledRegion,
 ) !CompiledRuleSet {
-    var patterns: std.ArrayListUnmanaged(CompiledPattern) = .{};
+    var patterns: std.ArrayList(CompiledPattern) = .{};
     errdefer {
         for (patterns.items) |*pattern| pattern.deinit();
         patterns.deinit(allocator);
     }
 
-    var regions: std.ArrayListUnmanaged(*CompiledRegion) = .{};
+    var regions: std.ArrayList(*CompiledRegion) = .{};
     errdefer {
         for (regions.items) |region| {
             region.deinit(allocator);
@@ -470,7 +470,7 @@ fn highlightEntryLessThan(_: void, lhs: types.HighlightMatchEntry, rhs: types.Hi
 }
 
 fn setHighlight(
-    entries: *std.ArrayListUnmanaged(types.HighlightMatchEntry),
+    entries: *std.ArrayList(types.HighlightMatchEntry),
     allocator: std.mem.Allocator,
     position: usize,
     pair: u16,
@@ -522,7 +522,7 @@ fn findAllIndices(
     regex: *const pcre2.Regex,
     subject: []const u8,
 ) ![]const pcre2.Match {
-    var matches: std.ArrayListUnmanaged(pcre2.Match) = .{};
+    var matches: std.ArrayList(pcre2.Match) = .{};
     var offset: usize = 0;
     while (offset <= subject.len) {
         const match = try regex.find(subject, offset) orelse break;

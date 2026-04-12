@@ -93,7 +93,7 @@ fn buildCharSet(
     return buffer;
 }
 
-pub fn NextbridgeCommand(
+pub fn nextbridgeCommand(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     count: isize,
@@ -180,24 +180,24 @@ test "nextbridge command supports forward backward bridge and ranges" {
     const forward_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello world"});
     const space = try str_object.newStrObjectFrom(allocator, " ");
     var space_tpar = types.TParObject{ .Str = space, .Len = 1 };
-    try std.testing.expect(try NextbridgeCommand(allocator, forward_fixture.frame, 1, &space_tpar, false));
+    try std.testing.expect(try nextbridgeCommand(allocator, forward_fixture.frame, 1, &space_tpar, false));
     try std.testing.expectEqual(@as(isize, 6), forward_fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 1), forward_fixture.frame.Marks[types.MarkEquals].?.Col);
 
     try mark_ops.markCreate(allocator, forward_fixture.content_lines[0], 8, &forward_fixture.frame.Dot);
-    try std.testing.expect(try NextbridgeCommand(allocator, forward_fixture.frame, -1, &space_tpar, false));
+    try std.testing.expect(try nextbridgeCommand(allocator, forward_fixture.frame, -1, &space_tpar, false));
     try std.testing.expectEqual(@as(isize, 7), forward_fixture.frame.Dot.?.Col);
 
     const bridge_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello"});
     try mark_ops.markCreate(allocator, bridge_fixture.content_lines[0], 2, &bridge_fixture.frame.Dot);
     const vowels = try str_object.newStrObjectFrom(allocator, "aeiou");
     var vowels_tpar = types.TParObject{ .Str = vowels, .Len = 5 };
-    try std.testing.expect(try NextbridgeCommand(allocator, bridge_fixture.frame, 1, &vowels_tpar, true));
+    try std.testing.expect(try nextbridgeCommand(allocator, bridge_fixture.frame, 1, &vowels_tpar, true));
     try std.testing.expectEqual(@as(isize, 3), bridge_fixture.frame.Dot.?.Col);
 
     const range_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"HELLO world"});
     const lower = try str_object.newStrObjectFrom(allocator, "a..z");
     var lower_tpar = types.TParObject{ .Str = lower, .Len = 4 };
-    try std.testing.expect(try NextbridgeCommand(allocator, range_fixture.frame, 1, &lower_tpar, false));
+    try std.testing.expect(try nextbridgeCommand(allocator, range_fixture.frame, 1, &lower_tpar, false));
     try std.testing.expectEqual(@as(isize, 7), range_fixture.frame.Dot.?.Col);
 }

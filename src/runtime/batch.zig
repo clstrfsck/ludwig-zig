@@ -31,7 +31,7 @@ fn makeSpecialFrame(
     allocator: std.mem.Allocator,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.FrameEdit(editor, allocator, null, name)).?;
+    const frame = (try frame_ops.frameEdit(editor, allocator, null, name)).?;
     frame.Options.specialFrame = true;
     return frame;
 }
@@ -66,10 +66,10 @@ fn executeCommandFrameFile(
     if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    if (!try code_ops.CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
+    if (!try code_ops.codeCompile(editor, allocator, current_frame, cmd_span, true)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    return code_ops.CodeInterpretFrame(
+    return code_ops.codeInterpretFrame(
         editor,
         allocator,
         current_frame,
@@ -84,7 +84,7 @@ fn executeCommandFrameFile(
 fn appendSourceLines(
     allocator: std.mem.Allocator,
     source: []const u8,
-    lines: *std.ArrayListUnmanaged([]const u8),
+    lines: *std.ArrayList([]const u8),
 ) !void {
     var line_start: usize = 0;
     var index: usize = 0;
@@ -117,7 +117,7 @@ fn makeBatchCommandSpan(
     fixture: line_ops.FrameFixture,
     span: *types.SpanObject,
 } {
-    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+    var lines: std.ArrayList([]const u8) = .{};
     defer lines.deinit(allocator);
     try appendSourceLines(allocator, source, &lines);
 
@@ -156,7 +156,7 @@ pub fn startUp(
     special_frames.Cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
     special_frames.Heap = try makeSpecialFrame(editor, allocator, "HEAP");
 
-    var current_frame = (try frame_ops.FrameEdit(editor, allocator, null, types.DefaultFrameName)).?;
+    var current_frame = (try frame_ops.frameEdit(editor, allocator, null, types.DefaultFrameName)).?;
     attachStartupFiles(editor, current_frame, input, output);
 
     if (current_frame.InputFile != 0 and !try file_ops.filePage(editor, allocator, current_frame)) {
@@ -185,7 +185,16 @@ pub fn startUp(
 }
 
 pub fn readStdinAlloc(allocator: std.mem.Allocator) ![]u8 {
-    return std.fs.File.stdin().readToEndAlloc(allocator, types.MaxSpace);
+    var buf: [4096]u8 = undefined;
+    var reader = std.fs.File.stdin().readerStreaming(&buf);
+    return reader.interface.allocRemaining(
+        allocator,
+        .limited(types.MaxSpace),
+    ) catch |err| switch (err) {
+        // Preserve the old readToEndAlloc behavior.
+        error.StreamTooLong => error.FileTooBig,
+        else => |e| e,
+    };
 }
 
 pub fn runBatchCommands(
@@ -198,13 +207,13 @@ pub fn runBatchCommands(
 
     if (source.len > 0) {
         const command_span = try makeBatchCommandSpan(allocator, source);
-        if (!try code_ops.CodeCompile(editor, allocator, session.current_frame, command_span.span, true)) {
+        if (!try code_ops.codeCompile(editor, allocator, session.current_frame, command_span.span, true)) {
             ok = false;
             if (editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
                 batch_output.printMessage("Syntax error.");
             }
         } else {
-            const outcome = try code_ops.CodeInterpretFrame(
+            const outcome = try code_ops.codeInterpretFrame(
                 editor,
                 allocator,
                 session.current_frame,
@@ -255,7 +264,7 @@ test "batch runtime can edit a file from stdin commands" {
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-M", "-I", file_path };
-    const parse = try filesys.fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const parse = try filesys.fileCreateOpen(&editor, allocator, &argv, .parse_command, &input, &output);
     try std.testing.expect(parse.ok);
     editor.BatchOutputEnabled = false;
 

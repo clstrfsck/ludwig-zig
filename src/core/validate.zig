@@ -6,7 +6,7 @@ const state = @import("state.zig");
 const span_ops = @import("span.zig");
 const types = @import("types.zig");
 
-pub fn ValidateCommand(
+pub fn validateCommand(
     editor: *state.Editor,
     current_frame: *types.FrameObject,
     special_frames: *types.SpecialFrames,
@@ -100,7 +100,7 @@ fn makeSpecialFrame(
     current: *types.FrameObject,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.FrameEdit(editor, allocator, current, name)).?;
+    const frame = (try frame_ops.frameEdit(editor, allocator, current, name)).?;
     frame.Options.specialFrame = true;
     return frame;
 }
@@ -112,7 +112,7 @@ test "validate command accepts healthy special frames and spans" {
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
+    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
     const cmd = try makeSpecialFrame(&editor, allocator, current, "COMMAND");
     const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
     const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
@@ -126,9 +126,9 @@ test "validate command accepts healthy special frames and spans" {
     var span_mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
     try mark_ops.markCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
 
-    try std.testing.expect(ValidateCommand(&editor, current, &special_frames));
+    try std.testing.expect(validateCommand(&editor, current, &special_frames));
 }
 
 test "validate command rejects missing special frames" {
@@ -138,9 +138,9 @@ test "validate command rejects missing special frames" {
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
+    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(!ValidateCommand(&editor, current, &special_frames));
+    try std.testing.expect(!validateCommand(&editor, current, &special_frames));
 }
 
 test "validate command rejects spans with marks in different frames" {
@@ -150,8 +150,8 @@ test "validate command rejects spans with marks in different frames" {
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
-    const other = (try frame_ops.FrameEdit(&editor, allocator, current, "OTHER")).?;
+    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
+    const other = (try frame_ops.frameEdit(&editor, allocator, current, "OTHER")).?;
     const cmd = try makeSpecialFrame(&editor, allocator, current, "COMMAND");
     const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
     const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
@@ -178,5 +178,5 @@ test "validate command rejects spans with marks in different frames" {
         editor.FirstSpan = span;
     }
 
-    try std.testing.expect(!ValidateCommand(&editor, current, &special_frames));
+    try std.testing.expect(!validateCommand(&editor, current, &special_frames));
 }

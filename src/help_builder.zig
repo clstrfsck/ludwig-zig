@@ -9,15 +9,15 @@ pub const default_output_file = "ludwighlp.idx";
 pub fn buildHelpIndex(
     allocator: std.mem.Allocator,
     input: []const u8,
-    diagnostics: *std.ArrayListUnmanaged(u8),
+    diagnostics: *std.ArrayList(u8),
 ) ![]u8 {
-    var index: std.ArrayListUnmanaged(u8) = .{};
+    var index: std.ArrayList(u8) = .{};
     defer index.deinit(allocator);
 
-    var contents: std.ArrayListUnmanaged(u8) = .{};
+    var contents: std.ArrayList(u8) = .{};
     defer contents.deinit(allocator);
 
-    var body: std.ArrayListUnmanaged(u8) = .{};
+    var body: std.ArrayList(u8) = .{};
     defer body.deinit(allocator);
 
     var cursor: usize = 0;
@@ -102,7 +102,7 @@ pub fn buildHelpIndex(
         }
     }
 
-    var output: std.ArrayListUnmanaged(u8) = .{};
+    var output: std.ArrayList(u8) = .{};
     errdefer output.deinit(allocator);
 
     try appendFmt(&output, allocator, "{d} {d}\n", .{ index_lines, contents_lines });
@@ -115,7 +115,7 @@ pub fn buildHelpIndex(
 
 pub fn main() !void {
     const use_checked_allocator = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer if (use_checked_allocator) {
         const status = gpa.deinit();
         std.debug.assert(status == .ok);
@@ -135,7 +135,7 @@ pub fn main() !void {
     ) catch |err| fatal("{s}: {}\n", .{ input_path, err });
     defer allocator.free(input);
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     defer diagnostics.deinit(allocator);
 
     const output = buildHelpIndex(allocator, input, &diagnostics) catch |err| {
@@ -152,13 +152,16 @@ pub fn main() !void {
     };
     defer output_file.close();
 
-    output_file.writeAll(output) catch |err| {
+    var buf: [4096]u8 = undefined;
+    var file_writer = output_file.writer(&buf);
+    defer file_writer.interface.flush() catch {};
+    file_writer.interface.writeAll(output) catch |err| {
         fatal("Error processing files: {}\n", .{err});
     };
 }
 
 fn appendLine(
-    list: *std.ArrayListUnmanaged(u8),
+    list: *std.ArrayList(u8),
     allocator: std.mem.Allocator,
     line: []const u8,
 ) !void {
@@ -167,7 +170,7 @@ fn appendLine(
 }
 
 fn appendFmt(
-    list: *std.ArrayListUnmanaged(u8),
+    list: *std.ArrayList(u8),
     allocator: std.mem.Allocator,
     comptime fmt: []const u8,
     args: anytype,
@@ -209,7 +212,7 @@ test "matches a representative help-builder sample" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     defer diagnostics.deinit(allocator);
 
     const output = try buildHelpIndex(allocator, input, &diagnostics);
@@ -238,7 +241,7 @@ test "truncates long lines and reports the warning" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .{};
     defer diagnostics.deinit(allocator);
 
     const output = try buildHelpIndex(allocator, input, &diagnostics);

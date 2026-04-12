@@ -1,4 +1,3 @@
-const std = @import("std");
 const types = @import("types.zig");
 
 fn cmdIndex(cmd: types.Commands) usize {
@@ -144,11 +143,10 @@ pub fn initializeCommandAttributes(editor: anytype) void {
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdFileGlobalOutput)], &[_]types.LeadParam{ .LeadParamNone, .LeadParamPlus, .LeadParamMinus }, .EqNil, 1, .FilePrompt, false, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdFileGlobalRewind)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 0, .NoPrompt, false, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdFileGlobalKill)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 0, .NoPrompt, false, false, .NoPrompt, false, false);
-    initCmd(&editor.CmdAttrib[cmdIndex(.CmdUserCommandIntroducer)], &[_]types.LeadParam{.LeadParamNone}, .EqOld, 0, .NoPrompt, false, false, .NoPrompt, false, false);
+    initCmd(&editor.CmdAttrib[cmdIndex(.CmduserCommandIntroducer)], &[_]types.LeadParam{.LeadParamNone}, .EqOld, 0, .NoPrompt, false, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdUserKey)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 2, .KeyPrompt, true, false, .CmdPrompt, false, true);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdUserParent)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 0, .NoPrompt, false, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdUserSubprocess)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 0, .NoPrompt, false, false, .NoPrompt, false, false);
-    initCmd(&editor.CmdAttrib[cmdIndex(.CmdUserUndo)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 0, .NoPrompt, false, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdHelp)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 1, .TopicPrompt, true, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdVerify)], &[_]types.LeadParam{.LeadParamNone}, .EqNil, 1, .VerifyPrompt, true, false, .NoPrompt, false, false);
     initCmd(&editor.CmdAttrib[cmdIndex(.CmdCommand)], &[_]types.LeadParam{ .LeadParamNone, .LeadParamPlus, .LeadParamMinus }, .EqNil, 0, .NoPrompt, false, false, .NoPrompt, false, false);
@@ -189,7 +187,7 @@ pub fn loadCommandTable(editor: anytype, old_version: bool) void {
     editor.Lookup[12].Command = .CmdInsertLine;
     editor.Lookup[13].Command = .CmdReturn;
     editor.Lookup[14].Command = .CmdWindowNew;
-    editor.Lookup[16].Command = .CmdUserCommandIntroducer;
+    editor.Lookup[16].Command = .CmduserCommandIntroducer;
     editor.Lookup[18].Command = .CmdRight;
     editor.Lookup[20].Command = .CmdWindowTop;
     editor.Lookup[21].Command = .CmdUp;
@@ -277,7 +275,7 @@ pub fn loadCommandTable(editor: anytype, old_version: bool) void {
         addLookupExp(editor, 41, 'J', .CmdSpanJump);
         addLookupExp(editor, 42, 'I', .CmdSpanIndex);
         addLookupExp(editor, 43, 'R', .CmdSpanCompile);
-        addLookupExp(editor, 44, 'C', .CmdUserCommandIntroducer);
+        addLookupExp(editor, 44, 'C', .CmduserCommandIntroducer);
         addLookupExp(editor, 45, 'K', .CmdUserKey);
         addLookupExp(editor, 46, 'P', .CmdUserParent);
         addLookupExp(editor, 47, 'S', .CmdUserSubprocess);
@@ -450,7 +448,7 @@ pub fn loadCommandTable(editor: anytype, old_version: bool) void {
         addLookupExp(editor, 95, 'L', .CmdLineLeft);
         addLookupExp(editor, 96, 'R', .CmdLineRight);
         addLookupExp(editor, 97, 'S', .CmdLineSquash);
-        addLookupExp(editor, 98, 'C', .CmdUserCommandIntroducer);
+        addLookupExp(editor, 98, 'C', .CmduserCommandIntroducer);
         addLookupExp(editor, 99, 'B', .CmdWindowBackward);
         addLookupExp(editor, 100, 'C', .CmdWindowMiddle);
         addLookupExp(editor, 101, 'E', .CmdWindowEnd);

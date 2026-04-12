@@ -3,8 +3,7 @@ const std = @import("std");
 const types = @import("types.zig");
 const str_object = @import("str_object.zig");
 
-pub const phase_label = "phase2-foundation-layer";
-pub const PromptCount = @as(usize, @intFromEnum(types.PromptType.PatternSetPrompt)) + 1;
+pub const prompt_count = @as(usize, @intFromEnum(types.PromptType.PatternSetPrompt)) + 1;
 
 pub fn setRegularTabStops(editor: anytype, width: isize) void {
     const clamped_width = @max(@as(isize, 2), @min(@as(isize, 8), width));

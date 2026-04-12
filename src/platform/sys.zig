@@ -1,10 +1,10 @@
 const std = @import("std");
 
 pub const FileStatus = struct {
-    Valid: bool = false,
-    Mode: u16 = 0o600,
-    Mtime: i128 = -1,
-    IsDir: bool = false,
+    valid: bool = false,
+    mode: u16 = 0o600,
+    m_time: i128 = -1,
+    is_dir: bool = false,
 };
 
 pub fn getEnv(allocator: std.mem.Allocator, name: []const u8) ?[]const u8 {
@@ -105,13 +105,23 @@ pub fn readFileAlloc(
 ) ![]u8 {
     var file = try openReadOnly(path);
     defer file.close();
-    return file.readToEndAlloc(allocator, max_bytes);
+
+    var buf: [4096]u8 = undefined;
+    var reader = file.reader(&buf);
+    return reader.interface.allocRemaining(allocator, .limited(max_bytes)) catch |err| switch (err) {
+        error.StreamTooLong => error.FileTooBig,
+        else => |e| e,
+    };
 }
 
 pub fn writeFile(path: []const u8, data: []const u8, mode: u16) !void {
     var file = try createTruncated(path, mode);
     defer file.close();
-    try file.writeAll(data);
+
+    var buf: [4096]u8 = undefined;
+    var file_writer = file.writer(&buf);
+    defer file_writer.interface.flush() catch {};
+    try file_writer.interface.writeAll(data);
 }
 
 pub fn renamePath(old_path: []const u8, new_path: []const u8) !void {
@@ -131,15 +141,15 @@ pub fn deleteFile(path: []const u8) !void {
 pub fn fileStatus(path: []const u8) FileStatus {
     const stat = std.fs.cwd().statFile(path) catch return .{};
     return .{
-        .Valid = true,
-        .Mode = @intCast(stat.mode & 0o777),
-        .Mtime = stat.mtime,
-        .IsDir = stat.kind == .directory,
+        .valid = true,
+        .mode = @intCast(stat.mode & 0o777),
+        .m_time = stat.mtime,
+        .is_dir = stat.kind == .directory,
     };
 }
 
 pub fn fileExists(path: []const u8) bool {
-    return fileStatus(path).Valid;
+    return fileStatus(path).valid;
 }
 
 pub fn fileWritable(path: []const u8) bool {
@@ -192,7 +202,7 @@ pub fn listBackups(allocator: std.mem.Allocator, backup_name: []const u8) ![]i64
     var dir = openDirIter(dir_name) catch return allocator.alloc(i64, 0);
     defer dir.close();
 
-    var versions: std.ArrayListUnmanaged(i64) = .{};
+    var versions: std.ArrayList(i64) = .{};
     errdefer versions.deinit(allocator);
     var iterator = dir.iterate();
     while (try iterator.next()) |entry| {

@@ -111,9 +111,9 @@ pub fn caseDittoCommand(
         if (cmd_valid) {
             frame.Dot.?.Col = first_col;
             const success = if (insert)
-                try text.TextInsert(allocator, true, 1, new_str, count_mut, frame.Dot.?)
+                try text.textInsert(allocator, true, 1, new_str, count_mut, frame.Dot.?)
             else
-                try text.TextOvertype(allocator, true, 1, new_str, count_mut, frame.Dot.?);
+                try text.textOvertype(allocator, true, 1, new_str, count_mut, frame.Dot.?);
 
             if (success) {
                 frame.Dot.?.Col = new_col;

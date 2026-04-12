@@ -110,7 +110,7 @@ pub fn previousWord(
     return currentWord(allocator, dot);
 }
 
-pub fn NewwordAdvanceWord(
+pub fn newwordAdvanceWord(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -175,7 +175,7 @@ pub fn NewwordAdvanceWord(
     return true;
 }
 
-pub fn NewwordDeleteWord(
+pub fn newwordDeleteWord(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     frame_oops: *types.FrameObject,
@@ -190,9 +190,9 @@ pub fn NewwordDeleteWord(
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
-    if (!try NewwordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) return false;
+    if (!try newwordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) return false;
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &here);
-    if (!try NewwordAdvanceWord(allocator, frame, rept, count)) {
+    if (!try newwordAdvanceWord(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
         return false;
     }
@@ -211,12 +211,12 @@ pub fn NewwordDeleteWord(
     if (frame != frame_oops) {
         if (frame_oops.Span == null) return false;
         try mark_ops.markCreate(allocator, frame_oops.LastGroup.?.LastLine.?, 1, &frame_oops.Span.?.MarkTwo);
-        result = try text.TextMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
+        result = try text.textMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
     } else {
-        result = try text.TextRemove(allocator, other_mark.?, here.?);
+        result = try text.textRemove(allocator, other_mark.?, here.?);
     }
     if (line_nr != new_line_nr) {
-        result = try text.TextSplitLine(allocator, frame.Dot.?, old_dot_col, &here);
+        result = try text.textSplitLine(allocator, frame.Dot.?, old_dot_col, &here);
     }
     return result;
 }
@@ -293,7 +293,7 @@ pub fn nextParagraph(
     return true;
 }
 
-pub fn NewwordAdvanceParagraph(
+pub fn newwordAdvanceParagraph(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -354,7 +354,7 @@ pub fn NewwordAdvanceParagraph(
     return true;
 }
 
-pub fn NewwordDeleteParagraph(
+pub fn newwordDeleteParagraph(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     frame_oops: *types.FrameObject,
@@ -369,9 +369,9 @@ pub fn NewwordDeleteParagraph(
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
-    if (!try NewwordAdvanceParagraph(allocator, frame, .LeadParamPInt, 0)) return false;
+    if (!try newwordAdvanceParagraph(allocator, frame, .LeadParamPInt, 0)) return false;
     try mark_ops.markCreate(allocator, frame.Dot.?.Line, 1, &here);
-    if (!try NewwordAdvanceParagraph(allocator, frame, rept, count)) {
+    if (!try newwordAdvanceParagraph(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
         return false;
     }
@@ -387,9 +387,9 @@ pub fn NewwordDeleteParagraph(
     if (frame != frame_oops) {
         if (frame_oops.Span == null) return false;
         try mark_ops.markCreate(allocator, frame_oops.LastGroup.?.LastLine.?, 1, &frame_oops.Span.?.MarkTwo);
-        return text.TextMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
+        return text.textMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
     }
-    return text.TextRemove(allocator, other_mark.?, here.?);
+    return text.textRemove(allocator, other_mark.?, here.?);
 }
 
 fn buildWordFrame(
@@ -421,15 +421,15 @@ test "newword advance word supports forward backward and marker movement" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world foo"});
-    try std.testing.expect(try NewwordAdvanceWord(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamNone, 1));
     try std.testing.expectEqual(@as(isize, 7), fixture.frame.Dot.?.Col);
 
     try moveDot(allocator, fixture.frame, fixture.content_lines[0], 9);
-    try std.testing.expect(try NewwordAdvanceWord(allocator, fixture.frame, .LeadParamNInt, -1));
+    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamNInt, -1));
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.Dot.?.Col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 14, &fixture.frame.Marks[1]);
-    try std.testing.expect(try NewwordAdvanceWord(allocator, fixture.frame, .LeadParamMarker, 1));
+    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamMarker, 1));
     try std.testing.expectEqual(@as(isize, 13), fixture.frame.Dot.?.Col);
 }
 
@@ -440,14 +440,14 @@ test "newword advance paragraph finds current next and first paragraphs" {
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello world", "", "foo bar" });
     try moveDot(allocator, fixture.frame, fixture.content_lines[0], 5);
-    try std.testing.expect(try NewwordAdvanceParagraph(allocator, fixture.frame, .LeadParamPInt, 0));
+    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamPInt, 0));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.Dot.?.Col);
 
-    try std.testing.expect(try NewwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNone, 1));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[2]);
 
-    try std.testing.expect(try NewwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNIndef, 0));
+    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNIndef, 0));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
 }
 
@@ -458,10 +458,10 @@ test "newword delete word and paragraph remove text ranges" {
 
     const word_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
     try moveDot(allocator, word_fixture.frame, word_fixture.content_lines[0], 1);
-    try std.testing.expect(try NewwordDeleteWord(allocator, word_fixture.frame, word_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordDeleteWord(allocator, word_fixture.frame, word_fixture.frame, .LeadParamNone, 1));
     try std.testing.expectEqualStrings("world", line_ops.getLineContent(word_fixture.content_lines[0]));
 
     const para_fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello world", "", "foo bar" });
     try moveDot(allocator, para_fixture.frame, para_fixture.content_lines[0], 1);
-    try std.testing.expect(try NewwordDeleteParagraph(allocator, para_fixture.frame, para_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordDeleteParagraph(allocator, para_fixture.frame, para_fixture.frame, .LeadParamNone, 1));
 }

@@ -59,7 +59,7 @@ pub fn eqsgetrepPatternBuild(
     var middle_context_end: isize = 0;
     var states_used: isize = 0;
 
-    if (!patparse.PatternParser(
+    if (!patparse.patternParser(
         frame,
         tpar,
         &nfa_table,
@@ -100,7 +100,7 @@ pub fn eqsgetrepPatternBuild(
     return true;
 }
 
-pub fn EqsGetRepEqs(
+pub fn eqsGetRepEqs(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -115,7 +115,7 @@ pub fn EqsGetRepEqs(
         var mark_flag = false;
         var start_col: isize = 0;
         var end_pos: isize = 0;
-        const found = try recognize.PatternRecognize(
+        const found = try recognize.patternRecognize(
             allocator,
             frame,
             frame.EqsPatternPtr.?,
@@ -209,7 +209,7 @@ pub fn eqsgetrepDumbGet(
 
     if (backwards) {
         reverse_pattern = try str_object.newBlankStrObject(allocator, types.MaxStrLen);
-        chars.ChReverseStr(prepared.target, reverse_pattern.?, new_len);
+        chars.chReverseStr(prepared.target, reverse_pattern.?, new_len);
         pattern = reverse_pattern.?;
     }
 
@@ -329,7 +329,7 @@ pub fn eqsgetrepPatternGet(
     while (count_mut > 0) {
         var matched_start_col: isize = 0;
         var matched_finish_col: isize = 0;
-        if (try recognize.PatternRecognize(
+        if (try recognize.patternRecognize(
             allocator,
             frame,
             pattern_ptr,
@@ -374,7 +374,7 @@ pub fn eqsgetrepPatternGet(
     return false;
 }
 
-pub fn EqsGetRepGet(
+pub fn eqsGetRepGet(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     count: isize,
@@ -417,7 +417,7 @@ fn normalizeMatchRange(frame: *types.FrameObject) struct {
     };
 }
 
-pub fn EqsGetRepRep(
+pub fn eqsGetRepRep(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
@@ -478,10 +478,10 @@ pub fn EqsGetRepRep(
         try mark_ops.markCreate(allocator, range.start_line, range.start_col, &replace_start);
         try mark_ops.markCreate(allocator, range.end_line, range.end_col, &replace_end);
 
-        if (!try text.TextRemove(allocator, replace_start.?, replace_end.?)) {
+        if (!try text.textRemove(allocator, replace_start.?, replace_end.?)) {
             return result;
         }
-        if (!try text.TextInsertTpar(allocator, tpar2, replace_start.?, &frame.Marks[types.MarkEquals])) {
+        if (!try text.textInsertTpar(allocator, tpar2, replace_start.?, &frame.Marks[types.MarkEquals])) {
             return result;
         }
 
@@ -533,7 +533,7 @@ test "eqs get rep eqs supports smart patterns and literal comparisons" {
         .Len = 7,
         .Dlm = types.TpdSmart,
     };
-    try std.testing.expect(try EqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &smart));
+    try std.testing.expect(try eqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &smart));
     try std.testing.expectEqual(@as(isize, 12), fixture.frame.Marks[types.MarkEquals].?.Col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Dot);
@@ -542,7 +542,7 @@ test "eqs get rep eqs supports smart patterns and literal comparisons" {
         .Len = 5,
         .Dlm = types.TpdLit,
     };
-    try std.testing.expect(try EqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &literal));
+    try std.testing.expect(try eqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &literal));
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.Marks[types.MarkEquals].?.Col);
 }
 
@@ -564,7 +564,7 @@ test "eqs get rep get searches forward and backward for smart and literal target
         .Len = email_pattern.len,
         .Dlm = types.TpdSmart,
     };
-    try std.testing.expect(try EqsGetRepGet(allocator, fixture.frame, 1, &smart, true));
+    try std.testing.expect(try eqsGetRepGet(allocator, fixture.frame, 1, &smart, true));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[1]);
     try std.testing.expectEqual(@as(isize, 12), fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.Marks[types.MarkEquals].?.Col);
@@ -575,7 +575,7 @@ test "eqs get rep get searches forward and backward for smart and literal target
         .Len = 5,
         .Dlm = types.TpdLit,
     };
-    try std.testing.expect(try EqsGetRepGet(allocator, fixture.frame, -1, &literal, true));
+    try std.testing.expect(try eqsGetRepGet(allocator, fixture.frame, -1, &literal, true));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[2]);
     try std.testing.expectEqual(@as(isize, 7), fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 12), fixture.frame.Marks[types.MarkEquals].?.Col);
@@ -595,7 +595,7 @@ test "eqs get rep get prefers the longest bounded repeat at the first match colu
         .Len = pattern.len,
         .Dlm = types.TpdSmart,
     };
-    try std.testing.expect(try EqsGetRepGet(allocator, fixture.frame, 1, &smart, true));
+    try std.testing.expect(try eqsGetRepGet(allocator, fixture.frame, 1, &smart, true));
     try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.Marks[types.MarkEquals].?.Col);
@@ -617,7 +617,7 @@ test "eqs get rep get does not match visible eop labels as text" {
         .Len = pattern.len,
         .Dlm = types.TpdSmart,
     };
-    try std.testing.expect(!try EqsGetRepGet(allocator, fixture.frame, 1, &smart, true));
+    try std.testing.expect(!try eqsGetRepGet(allocator, fixture.frame, 1, &smart, true));
 }
 
 test "eqs get rep replace updates content and preserves forward and backward cursor semantics" {
@@ -637,7 +637,7 @@ test "eqs get rep replace updates content and preserves forward and backward cur
         .Len = 5,
         .Dlm = types.TpdLit,
     };
-    try std.testing.expect(try EqsGetRepRep(allocator, forward_fixture.frame, .LeadParamPlus, 1, &target, &replacement, true));
+    try std.testing.expect(try eqsGetRepRep(allocator, forward_fixture.frame, .LeadParamPlus, 1, &target, &replacement, true));
     try std.testing.expectEqualStrings("hello earth test", forward_fixture.content_lines[0].Str.?.slice(1, 16));
     try std.testing.expectEqual(@as(isize, 12), forward_fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 7), forward_fixture.frame.Marks[types.MarkEquals].?.Col);
@@ -646,7 +646,7 @@ test "eqs get rep replace updates content and preserves forward and backward cur
 
     const backward_fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"hello world test"});
     try mark_ops.markCreate(allocator, backward_fixture.content_lines[0], 12, &backward_fixture.frame.Dot);
-    try std.testing.expect(try EqsGetRepRep(allocator, backward_fixture.frame, .LeadParamMinus, -1, &target, &replacement, true));
+    try std.testing.expect(try eqsGetRepRep(allocator, backward_fixture.frame, .LeadParamMinus, -1, &target, &replacement, true));
     try std.testing.expectEqualStrings("hello earth test", backward_fixture.content_lines[0].Str.?.slice(1, 16));
     try std.testing.expectEqual(@as(isize, 7), backward_fixture.frame.Dot.?.Col);
     try std.testing.expectEqual(@as(isize, 12), backward_fixture.frame.Marks[types.MarkEquals].?.Col);
@@ -675,7 +675,7 @@ test "eqs get rep replace supports multiline replacement chains" {
         .Con = &repl2,
     };
 
-    try std.testing.expect(try EqsGetRepRep(allocator, fixture.frame, .LeadParamPlus, 1, &target, &repl1, true));
+    try std.testing.expect(try eqsGetRepRep(allocator, fixture.frame, .LeadParamPlus, 1, &target, &repl1, true));
     try std.testing.expectEqualStrings("Hello Line1", fixture.content_lines[0].Str.?.slice(1, 11));
     try std.testing.expect(fixture.content_lines[0].FLink != null);
     try std.testing.expectEqualStrings("Line2", fixture.content_lines[0].FLink.?.Str.?.slice(1, 5));

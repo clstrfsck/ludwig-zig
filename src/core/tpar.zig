@@ -7,8 +7,8 @@ const state = @import("state.zig");
 const str_object = @import("str_object.zig");
 const types = @import("types.zig");
 
-pub const EnquiryNumLen = 20;
-pub const SystemName = "Zig/Linux";
+pub const enquiry_num_len = 20;
+pub const system_name = "Zig/Linux";
 
 const illegal_mark_number_message = "Illegal mark number.";
 const invalid_integer_message = "Trailing parameter integer is invalid.";
@@ -82,7 +82,7 @@ fn tparDuplicateCon(
     }
 }
 
-pub fn TparDuplicate(
+pub fn tparDuplicate(
     allocator: std.mem.Allocator,
     from_tp: ?*types.TParObject,
 ) !?*types.TParObject {
@@ -105,7 +105,7 @@ pub fn TparDuplicate(
     return to_tp;
 }
 
-pub fn TparToInt(strng: *types.TParObject, chpos: *isize) ?isize {
+pub fn tparToInt(strng: *types.TParObject, chpos: *isize) ?isize {
     const first = if (chpos.* > strng.Len) 0 else strng.Str.?.get(chpos.*);
     if (first < '0' or first > '9') {
         return null;
@@ -128,22 +128,22 @@ pub fn TparToInt(strng: *types.TParObject, chpos: *isize) ?isize {
     return number;
 }
 
-pub fn TparToIntMessage(editor: *state.Editor, strng: *types.TParObject, chpos: *isize) ?isize {
-    const value = TparToInt(strng, chpos) orelse {
+pub fn tparToIntMessage(editor: *state.Editor, strng: *types.TParObject, chpos: *isize) ?isize {
+    const value = tparToInt(strng, chpos) orelse {
         emitMessage(editor, invalid_integer_message);
         return null;
     };
     return value;
 }
 
-pub fn TparToMark(strng: *types.TParObject) ?isize {
+pub fn tparToMark(strng: *types.TParObject) ?isize {
     if (strng.Len == 0) {
         return null;
     }
     const mch = strng.Str.?.get(1);
     if (mch >= '0' and mch <= '9') {
         var pos: isize = 1;
-        const mark = TparToInt(strng, &pos) orelse return null;
+        const mark = tparToInt(strng, &pos) orelse return null;
         if (pos <= strng.Len or mark < types.MinUserMarkNumber or mark > types.MaxUserMarkNumber) {
             return null;
         }
@@ -155,7 +155,7 @@ pub fn TparToMark(strng: *types.TParObject) ?isize {
     return if (mch == '=') types.MarkEquals else types.MarkModified;
 }
 
-pub fn TparToMarkMessage(editor: *state.Editor, strng: *types.TParObject) ?isize {
+pub fn tparToMarkMessage(editor: *state.Editor, strng: *types.TParObject) ?isize {
     if (strng.Len == 0) {
         emitMessage(editor, illegal_mark_number_message);
         return null;
@@ -163,7 +163,7 @@ pub fn TparToMarkMessage(editor: *state.Editor, strng: *types.TParObject) ?isize
     const mch = strng.Str.?.get(1);
     if (mch >= '0' and mch <= '9') {
         var pos: isize = 1;
-        const mark = TparToIntMessage(editor, strng, &pos) orelse return null;
+        const mark = tparToIntMessage(editor, strng, &pos) orelse return null;
         if (pos <= strng.Len or mark < types.MinUserMarkNumber or mark > types.MaxUserMarkNumber) {
             emitMessage(editor, illegal_mark_number_message);
             return null;
@@ -195,7 +195,7 @@ pub fn tparSubstitute(
 
     var span: ?*types.SpanObject = null;
     var dummy: ?*types.SpanObject = null;
-    if (!try span_ops.SpanFind(editor, allocator, name, &span, &dummy)) {
+    if (!try span_ops.spanFind(editor, allocator, name, &span, &dummy)) {
         emitMessage(editor, "No such span.");
         return false;
     }
@@ -300,9 +300,9 @@ pub fn findEnquiry(
     return switch (variable_type) {
         .terminal => blk: {
             if (std.mem.eql(u8, item, "NAME")) break :blk try allocator.dupe(u8, editor.TerminalInfo.Name);
-            if (std.mem.eql(u8, item, "HEIGHT")) break :blk try leftPadded(allocator, EnquiryNumLen, editor.TerminalInfo.Height);
-            if (std.mem.eql(u8, item, "WIDTH")) break :blk try leftPadded(allocator, EnquiryNumLen, editor.TerminalInfo.Width);
-            if (std.mem.eql(u8, item, "SPEED")) break :blk try leftPadded(allocator, EnquiryNumLen, 0);
+            if (std.mem.eql(u8, item, "HEIGHT")) break :blk try leftPadded(allocator, enquiry_num_len, editor.TerminalInfo.Height);
+            if (std.mem.eql(u8, item, "WIDTH")) break :blk try leftPadded(allocator, enquiry_num_len, editor.TerminalInfo.Width);
+            if (std.mem.eql(u8, item, "SPEED")) break :blk try leftPadded(allocator, enquiry_num_len, 0);
             break :blk null;
         },
         .frame => blk: {
@@ -337,7 +337,7 @@ pub fn findEnquiry(
         },
         .ludwig => blk: {
             if (std.mem.eql(u8, item, "VERSION")) break :blk try allocator.dupe(u8, types.LudwigVersion);
-            if (std.mem.eql(u8, item, "OPSYS")) break :blk try allocator.dupe(u8, SystemName);
+            if (std.mem.eql(u8, item, "OPSYS")) break :blk try allocator.dupe(u8, system_name);
             if (std.mem.eql(u8, item, "COMMAND_INTRODUCER")) {
                 if (editor.CommandIntroducer < 0 or editor.CommandIntroducer > types.MaxSetRange or !chars.chIsPrintable(@intCast(editor.CommandIntroducer))) {
                     emitMessage(editor, nonprintable_introducer_message);
@@ -379,7 +379,7 @@ pub fn tparEnquire(
     return false;
 }
 
-pub fn TparAnalyse(
+pub fn tparAnalyse(
     allocator: std.mem.Allocator,
     editor: *state.Editor,
     frame: ?*types.FrameObject,
@@ -406,7 +406,7 @@ pub fn TparAnalyse(
                     tran.Dlm = first;
                     tran.Len -= 2;
                     tran.Str.?.erase(1, 1);
-                    if (!try TparAnalyse(allocator, editor, frame, cmd, tran, depth + 1, this_tp)) {
+                    if (!try tparAnalyse(allocator, editor, frame, cmd, tran, depth + 1, this_tp)) {
                         return false;
                     }
                 }
@@ -423,7 +423,7 @@ pub fn TparAnalyse(
                     tran.Len -= 1;
                     tran.Str.?.erase(1, 1);
                     tmp_tp.Len -= 1;
-                    if (!try TparAnalyse(allocator, editor, frame, cmd, tran, depth + 1, this_tp)) {
+                    if (!try tparAnalyse(allocator, editor, frame, cmd, tran, depth + 1, this_tp)) {
                         return false;
                     }
                 }
@@ -506,7 +506,7 @@ pub fn trim(request: *types.TParObject) void {
     }
 }
 
-pub fn TparGet1(
+pub fn tparGet1(
     allocator: std.mem.Allocator,
     editor: *state.Editor,
     frame: ?*types.FrameObject,
@@ -518,7 +518,7 @@ pub fn TparGet1(
         return false;
     }
     try tparDuplicateCon(allocator, tpar.?, tran);
-    if (!try TparAnalyse(allocator, editor, frame, cmd, tran, 1, 1)) {
+    if (!try tparAnalyse(allocator, editor, frame, cmd, tran, 1, 1)) {
         return false;
     }
     if (editor.CmdAttrib[@intFromEnum(cmd)].TparInfo[1].TrimReply) {
@@ -527,7 +527,7 @@ pub fn TparGet1(
     return true;
 }
 
-pub fn TparGet2(
+pub fn tparGet2(
     allocator: std.mem.Allocator,
     editor: *state.Editor,
     frame: ?*types.FrameObject,
@@ -543,10 +543,10 @@ pub fn TparGet2(
     try tparDuplicateCon(allocator, tpar.?, trn1);
     try tparDuplicateCon(allocator, tpar.?.Nxt.?, trn2);
 
-    if (!try TparAnalyse(allocator, editor, frame, cmd, trn1, 1, 1)) {
+    if (!try tparAnalyse(allocator, editor, frame, cmd, trn1, 1, 1)) {
         return false;
     }
-    if (trn1.Len != 0 and !try TparAnalyse(allocator, editor, frame, cmd, trn2, 1, 2)) {
+    if (trn1.Len != 0 and !try tparAnalyse(allocator, editor, frame, cmd, trn2, 1, 2)) {
         return false;
     }
     if (editor.CmdAttrib[@intFromEnum(cmd)].TparInfo[1].TrimReply) {
@@ -576,9 +576,9 @@ test "tpar integer mark and duplicate helpers preserve list structure" {
         .Str = try str_object.newStrObjectFrom(allocator, "="),
         .Len = 1,
     };
-    try std.testing.expectEqual(@as(?isize, 123), TparToInt(&digits, &pos));
-    try std.testing.expectEqual(@as(?isize, 3), TparToMark(&mark_three));
-    try std.testing.expectEqual(@as(?isize, types.MarkEquals), TparToMark(&mark_equals));
+    try std.testing.expectEqual(@as(?isize, 123), tparToInt(&digits, &pos));
+    try std.testing.expectEqual(@as(?isize, 3), tparToMark(&mark_three));
+    try std.testing.expectEqual(@as(?isize, types.MarkEquals), tparToMark(&mark_equals));
 
     var second = types.TParObject{
         .Str = try str_object.newStrObjectFrom(allocator, "two"),
@@ -594,7 +594,7 @@ test "tpar integer mark and duplicate helpers preserve list structure" {
         .Len = 3,
         .Nxt = &second,
     };
-    const duplicate = (try TparDuplicate(allocator, &first)).?;
+    const duplicate = (try tparDuplicate(allocator, &first)).?;
     try std.testing.expect(duplicate != &first);
     try std.testing.expect(duplicate.Str != first.Str);
     try std.testing.expectEqualStrings("one", duplicate.Str.?.slice(1, 3));
@@ -620,7 +620,7 @@ test "tpar span substitution enquiries and analysis work in batch mode" {
     var mark2: ?*types.MarkObject = null;
     try @import("mark.zig").markCreate(allocator, fixture.content_lines[0], 7, &mark1);
     try @import("mark.zig").markCreate(allocator, fixture.content_lines[1], 6, &mark2);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "TEST", mark1.?, mark2.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "TEST", mark1.?, mark2.?));
 
     var substitute = types.TParObject{
         .Str = try str_object.newBlankStrObject(allocator, types.MaxStrLen),
@@ -650,7 +650,7 @@ test "tpar span substitution enquiries and analysis work in batch mode" {
         .Dlm = types.TpdEnvironment,
     };
     try analysed.Str.?.assign(frame_enquiry);
-    try std.testing.expect(try TparAnalyse(allocator, &editor, fixture.frame, .CmdGet, &analysed, 1, 1));
+    try std.testing.expect(try tparAnalyse(allocator, &editor, fixture.frame, .CmdGet, &analysed, 1, 1));
     try std.testing.expectEqualStrings("N", analysed.Str.?.slice(1, analysed.Len));
 }
 
@@ -665,14 +665,14 @@ test "tpar message helpers queue interactive parse failures" {
         .Len = 3,
     };
     var pos: isize = 1;
-    try std.testing.expectEqual(@as(?isize, null), TparToIntMessage(&editor, &bad_int, &pos));
+    try std.testing.expectEqual(@as(?isize, null), tparToIntMessage(&editor, &bad_int, &pos));
     try std.testing.expectEqualStrings(invalid_integer_message, interactive_io.takeStatusMessage().?);
 
     var bad_mark = types.TParObject{
         .Str = try str_object.newStrObjectFrom(allocator, ""),
         .Len = 0,
     };
-    try std.testing.expectEqual(@as(?isize, null), TparToMarkMessage(&editor, &bad_mark));
+    try std.testing.expectEqual(@as(?isize, null), tparToMarkMessage(&editor, &bad_mark));
     try std.testing.expectEqualStrings(illegal_mark_number_message, interactive_io.takeStatusMessage().?);
 }
 
@@ -713,7 +713,7 @@ test "tpar get helpers duplicate analyse and trim replies" {
         .Dlm = 0,
     };
     var out1: types.TParObject = .{};
-    try std.testing.expect(try TparGet1(allocator, &editor, fixture.frame, &source1, .CmdEqualColumn, &out1));
+    try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &source1, .CmdEqualColumn, &out1));
     try std.testing.expectEqualStrings("42", out1.Str.?.slice(1, out1.Len));
 
     var source2 = types.TParObject{
@@ -724,7 +724,7 @@ test "tpar get helpers duplicate analyse and trim replies" {
     source1.Nxt = &source2;
     var trn1: types.TParObject = .{};
     var trn2: types.TParObject = .{};
-    try std.testing.expect(try TparGet2(allocator, &editor, fixture.frame, &source1, .CmdReplace, &trn1, &trn2));
+    try std.testing.expect(try tparGet2(allocator, &editor, fixture.frame, &source1, .CmdReplace, &trn1, &trn2));
     try std.testing.expectEqualStrings("  42", trn1.Str.?.slice(1, trn1.Len));
     try std.testing.expectEqualStrings("N", trn2.Str.?.slice(1, trn2.Len));
 }
@@ -748,7 +748,7 @@ test "tpar verify prompt retries invalid replies in screen mode" {
     defer interactive_io.testing.clearInput();
     interactive_io.resetTestBeepCount();
 
-    try std.testing.expect(try TparGet1(allocator, &editor, fixture.frame, &prompt, .CmdVerify, &reply));
+    try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &prompt, .CmdVerify, &reply));
     try std.testing.expectEqualStrings("Q", reply.Str.?.slice(1, reply.Len));
     try std.testing.expectEqual(@as(usize, 1), interactive_io.getTestBeepCount());
 }

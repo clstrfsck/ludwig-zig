@@ -2,14 +2,14 @@ const std = @import("std");
 const chars = @import("chars.zig");
 const types = @import("types.zig");
 
-pub const quotedSet = blk: {
+pub const quoted_set = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     set[types.TpdLit] = true;
     set[types.TpdExact] = true;
     break :blk set;
 };
 
-pub const delimitedSet = blk: {
+pub const delimited_set = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     set[types.PatternKStar] = true;
     set[types.PatternPlus] = true;
@@ -21,7 +21,7 @@ pub const delimitedSet = blk: {
     break :blk set;
 };
 
-pub const charsetsSet = blk: {
+pub const charsets_set = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     for ("sSaAcClLuUnNpP") |ch| {
         set[ch] = true;
@@ -29,7 +29,7 @@ pub const charsetsSet = blk: {
     break :blk set;
 };
 
-pub const positionalsSet = blk: {
+pub const positionals_set = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     for ("<>{}^") |ch| {
         set[ch] = true;
@@ -37,16 +37,16 @@ pub const positionalsSet = blk: {
     break :blk set;
 };
 
-pub const chAndPosSet = blk: {
+pub const ch_and_pos_set = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     var i: usize = 0;
     while (i <= types.MaxSetRange) : (i += 1) {
-        set[i] = charsetsSet[i] or positionalsSet[i];
+        set[i] = charsets_set[i] or positionals_set[i];
     }
     break :blk set;
 };
 
-pub const syntaxSet = blk: {
+pub const syntax_set = blk: {
     var set = [_]bool{false} ** (types.MaxSetRange + 1);
     for ([_]u8{
         types.TpdSpan,       types.TpdPrompt,          types.TpdExact,      types.TpdLit,
@@ -72,13 +72,13 @@ pub const syntaxSet = blk: {
     break :blk set;
 };
 
-pub const spaceSet = initSpaceSet();
-pub const printableSet = initPrintableSet();
-pub const alphaSet = initAlphaSet();
-pub const lowerSet = initLowerSet();
-pub const upperSet = initUpperSet();
-pub const numericSet = initNumericSet();
-pub const punctuationSet = initPunctuationSet();
+pub const space_set = initSpaceSet();
+pub const printable_set = initPrintableSet();
+pub const alpha_set = initAlphaSet();
+pub const lower_set = initLowerSet();
+pub const upper_set = initUpperSet();
+pub const numeric_set = initNumericSet();
+pub const punctuation_set = initPunctuationSet();
 
 pub fn singletonSet(ch: u8) types.AcceptSet {
     var set: types.AcceptSet = .{};
@@ -142,7 +142,7 @@ fn initUpperSet() types.AcceptSet {
 }
 
 fn initAlphaSet() types.AcceptSet {
-    return setUnion(&lowerSet, &upperSet);
+    return setUnion(&lower_set, &upper_set);
 }
 
 fn initNumericSet() types.AcceptSet {
@@ -229,7 +229,7 @@ fn parseQuotedLiteral(
     repeat: RepeatSpec,
 ) bool {
     var chars_seen: isize = 0;
-    var literal = std.ArrayListUnmanaged(u8){};
+    var literal = std.ArrayList(u8){};
     defer literal.deinit(std.heap.page_allocator);
 
     while (patternCharAt(pattern, pos.*)) |ch| {
@@ -332,11 +332,11 @@ fn parseAtom(
     skipSpaces(pattern, pos);
     const ch = patternCharAt(pattern, pos.*) orelse return false;
 
-    if (!syntaxSet[ch] and !delimitedSet[ch] and ch != types.PatternBar and ch != types.PatternComma and ch != types.PatternRParen) {
+    if (!syntax_set[ch] and !delimited_set[ch] and ch != types.PatternBar and ch != types.PatternComma and ch != types.PatternRParen) {
         return false;
     }
 
-    if (quotedSet[ch]) {
+    if (quoted_set[ch]) {
         pos.* += 1;
         return parseQuotedLiteral(pattern, pos, ch, nfa_table, current_state, repeat);
     }
@@ -399,13 +399,13 @@ fn parseAtom(
         else => {
             const upper = chars.chToUpper(actual);
             switch (upper) {
-                'S' => accept = spaceSet,
-                'C' => accept = printableSet,
-                'A' => accept = alphaSet,
-                'L' => accept = lowerSet,
-                'U' => accept = upperSet,
-                'N' => accept = numericSet,
-                'P' => accept = punctuationSet,
+                'S' => accept = space_set,
+                'C' => accept = printable_set,
+                'A' => accept = alpha_set,
+                'L' => accept = lower_set,
+                'U' => accept = upper_set,
+                'N' => accept = numeric_set,
+                'P' => accept = punctuation_set,
                 else => return false,
             }
             if (negate) {
@@ -455,7 +455,7 @@ fn parseSequence(
     return saw_content or patternCharAt(pattern, pos.*) == types.PatternRParen;
 }
 
-pub fn PatternParser(
+pub fn patternParser(
     frame: ?*types.FrameObject,
     pattern: *types.TParObject,
     nfa_table: *types.NFATableType,
@@ -519,18 +519,18 @@ test "pattern helper sets build expected character memberships" {
     const az = rangeSet('a', 'z');
     try std.testing.expectEqual(@as(u1, 1), singletonSet('a').Bit('a'));
     try std.testing.expectEqual(@as(usize, 26), countBits(&az));
-    try std.testing.expectEqual(@as(u1, 1), spaceSet.Bit(' '));
-    try std.testing.expectEqual(@as(u1, 1), lowerSet.Bit('a'));
-    try std.testing.expectEqual(@as(u1, 1), upperSet.Bit('A'));
-    try std.testing.expectEqual(@as(u1, 1), alphaSet.Bit('z'));
-    try std.testing.expectEqual(@as(u1, 1), numericSet.Bit('8'));
-    try std.testing.expectEqual(@as(u1, 1), punctuationSet.Bit('!'));
-    try std.testing.expect(quotedSet[types.TpdLit]);
-    try std.testing.expect(delimitedSet[types.PatternKStar]);
-    try std.testing.expect(charsetsSet['s']);
-    try std.testing.expect(positionalsSet['<']);
-    try std.testing.expect(chAndPosSet['^']);
-    try std.testing.expect(syntaxSet['a']);
+    try std.testing.expectEqual(@as(u1, 1), space_set.Bit(' '));
+    try std.testing.expectEqual(@as(u1, 1), lower_set.Bit('a'));
+    try std.testing.expectEqual(@as(u1, 1), upper_set.Bit('A'));
+    try std.testing.expectEqual(@as(u1, 1), alpha_set.Bit('z'));
+    try std.testing.expectEqual(@as(u1, 1), numeric_set.Bit('8'));
+    try std.testing.expectEqual(@as(u1, 1), punctuation_set.Bit('!'));
+    try std.testing.expect(quoted_set[types.TpdLit]);
+    try std.testing.expect(delimited_set[types.PatternKStar]);
+    try std.testing.expect(charsets_set['s']);
+    try std.testing.expect(positionals_set['<']);
+    try std.testing.expect(ch_and_pos_set['^']);
+    try std.testing.expect(syntax_set['a']);
 }
 
 test "pattern parser accepts common pattern forms and populates accept sets" {
@@ -551,7 +551,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
     var middle_end: isize = 0;
     var states_used: isize = 0;
 
-    try std.testing.expect(PatternParser(null, @constCast(&tpar), &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
+    try std.testing.expect(patternParser(null, @constCast(&tpar), &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     try std.testing.expect(states_used > types.PatternNFAStart);
     try std.testing.expectEqual(@as(u1, 1), nfa_table[types.PatternNFAStart].AcceptSet.Bit(' '));
 
@@ -560,14 +560,14 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, email_like),
         .Len = email_like.len,
     };
-    try std.testing.expect(PatternParser(null, &literal, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
+    try std.testing.expect(patternParser(null, &literal, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
 
     const context_source = "'a','b','c'";
     var context_pattern = types.TParObject{
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, context_source),
         .Len = context_source.len,
     };
-    try std.testing.expect(PatternParser(null, &context_pattern, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
+    try std.testing.expect(patternParser(null, &context_pattern, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     try std.testing.expect(left_end != first_start);
     try std.testing.expect(middle_end != left_end);
 
@@ -576,7 +576,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
         .Str = try @import("str_object.zig").newStrObjectFrom(allocator, trailing_bar_source),
         .Len = trailing_bar_source.len,
     };
-    try std.testing.expect(PatternParser(null, &trailing_bar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
+    try std.testing.expect(patternParser(null, &trailing_bar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
 }
 
 test "pattern parser rejects malformed inputs and enforces nesting limits" {
@@ -614,7 +614,7 @@ test "pattern parser rejects malformed inputs and enforces nesting limits" {
             .Str = try @import("str_object.zig").newStrObjectFrom(allocator, content),
             .Len = @intCast(content.len),
         };
-        try std.testing.expect(!PatternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
+        try std.testing.expect(!patternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     }
 
     for ([_][]const u8{
@@ -630,6 +630,6 @@ test "pattern parser rejects malformed inputs and enforces nesting limits" {
             .Str = try @import("str_object.zig").newStrObjectFrom(allocator, content),
             .Len = @intCast(content.len),
         };
-        try std.testing.expect(PatternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
+        try std.testing.expect(patternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     }
 }
