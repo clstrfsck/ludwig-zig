@@ -16,7 +16,7 @@ pub fn spanFind(
     prev: *?*types.SpanObject,
 ) !bool {
     prev.* = null;
-    ptr.* = editor.FirstSpan;
+    ptr.* = editor.first_span;
     if (ptr.* == null) {
         return false;
     }
@@ -69,7 +69,7 @@ pub fn spanCreate(
             span.BLink = previous;
             previous.FLink = span;
         } else {
-            editor.FirstSpan = span;
+            editor.first_span = span;
         }
         found = span;
     }
@@ -108,7 +108,7 @@ pub fn spanDestroy(
     if (span.BLink) |back| {
         back.FLink = span.FLink;
     } else {
-        editor.FirstSpan = span.FLink;
+        editor.first_span = span.FLink;
     }
     if (span.FLink) |forward| {
         forward.BLink = span.BLink;
@@ -157,7 +157,7 @@ fn appendFileLine(
     if (file_id <= 0 or file_id > types.MaxFiles) {
         return;
     }
-    const file = editor.Files[@intCast(file_id)] orelse return;
+    const file = editor.files[@intCast(file_id)] orelse return;
     try lines.append(allocator, try std.fmt.allocPrint(allocator, "  {s}: {s}", .{ label, file.Filename }));
 }
 
@@ -215,14 +215,14 @@ fn printBatchSpanIndex(
     var writer = &file_writer.interface;
     defer writer.flush() catch {};
 
-    const page_height = @max(@as(isize, 1), editor.TerminalInfo.Height);
+    const page_height = @max(@as(isize, 1), editor.terminal_info.Height);
 
     printBatchScreenHome(writer);
     try writer.print("\nSpans\n=====\n", .{});
 
     var line_count: isize = 3;
     var have_spans = false;
-    var span = editor.FirstSpan;
+    var span = editor.first_span;
     while (span) |this_span| : (span = this_span.FLink) {
         if (this_span.Frame == null) {
             have_spans = true;
@@ -243,7 +243,7 @@ fn printBatchSpanIndex(
     var first_time = true;
     const old_count = line_count;
     line_count = page_height;
-    span = editor.FirstSpan;
+    span = editor.first_span;
     while (span) |this_span| : (span = this_span.FLink) {
         if (this_span.Frame) |frame| {
             if (line_count > page_height - 2) {
@@ -261,12 +261,12 @@ fn printBatchSpanIndex(
 
             try writer.print("{s}\n", .{this_span.Name});
             line_count += 1;
-            if (frame.InputFile != 0 and editor.Files[@intCast(frame.InputFile)] != null) {
-                try writer.print("  Input:  {s}\n", .{editor.Files[@intCast(frame.InputFile)].?.Filename});
+            if (frame.InputFile != 0 and editor.files[@intCast(frame.InputFile)] != null) {
+                try writer.print("  Input:  {s}\n", .{editor.files[@intCast(frame.InputFile)].?.Filename});
                 line_count += 1;
             }
-            if (frame.OutputFile != 0 and editor.Files[@intCast(frame.OutputFile)] != null) {
-                try writer.print("  Output: {s}\n", .{editor.Files[@intCast(frame.OutputFile)].?.Filename});
+            if (frame.OutputFile != 0 and editor.files[@intCast(frame.OutputFile)] != null) {
+                try writer.print("  Output: {s}\n", .{editor.files[@intCast(frame.OutputFile)].?.Filename});
                 line_count += 1;
             }
         }
@@ -317,7 +317,7 @@ fn showInteractiveSpanIndex(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !void {
-    const page_height: usize = @intCast(@max(@as(isize, 1), editor.TerminalInfo.Height - 1));
+    const page_height: usize = @intCast(@max(@as(isize, 1), editor.terminal_info.Height - 1));
     const spans_header = [_][]const u8{ "Spans", "=====" };
     const frames_header = [_][]const u8{ "", "Frames", "======" };
 
@@ -327,7 +327,7 @@ fn showInteractiveSpanIndex(
     try startInteractiveSpanSection(allocator, &page_lines, page_height, &spans_header);
 
     var have_spans = false;
-    var span = editor.FirstSpan;
+    var span = editor.first_span;
     while (span) |this_span| : (span = this_span.FLink) {
         if (this_span.Frame == null) {
             have_spans = true;
@@ -341,12 +341,12 @@ fn showInteractiveSpanIndex(
     }
 
     var have_frames = false;
-    span = editor.FirstSpan;
+    span = editor.first_span;
     while (span) |this_span| : (span = this_span.FLink) {
         if (this_span.Frame) |frame| {
             const file_lines: usize =
-                (if (frame.InputFile != 0 and editor.Files[@intCast(frame.InputFile)] != null) @as(usize, 1) else 0) +
-                (if (frame.OutputFile != 0 and editor.Files[@intCast(frame.OutputFile)] != null) @as(usize, 1) else 0);
+                (if (frame.InputFile != 0 and editor.files[@intCast(frame.InputFile)] != null) @as(usize, 1) else 0) +
+                (if (frame.OutputFile != 0 and editor.files[@intCast(frame.OutputFile)] != null) @as(usize, 1) else 0);
             const item_lines = 1 + file_lines;
             if (!have_frames) {
                 try startInteractiveSpanSection(allocator, &page_lines, page_height, &frames_header);
@@ -376,7 +376,7 @@ pub fn spanIndex(
     try lines.append(temp_allocator, "=====");
 
     var have_spans = false;
-    var span = editor.FirstSpan;
+    var span = editor.first_span;
     while (span) |this_span| : (span = this_span.FLink) {
         if (this_span.Frame == null) {
             have_spans = true;
@@ -388,7 +388,7 @@ pub fn spanIndex(
     }
 
     var have_frames = false;
-    span = editor.FirstSpan;
+    span = editor.first_span;
     while (span) |this_span| : (span = this_span.FLink) {
         if (this_span.Frame) |frame| {
             if (!have_frames) {
@@ -408,9 +408,9 @@ pub fn spanIndex(
         return false;
     }
 
-    switch (editor.LudwigMode) {
+    switch (editor.ludwig_mode) {
         .LudwigScreen => try showInteractiveSpanIndex(editor, temp_allocator),
-        .LudwigBatch, .LudwigHardcopy => if (editor.BatchOutputEnabled) {
+        .LudwigBatch, .LudwigHardcopy => if (editor.batch_output_enabled) {
             try printBatchSpanIndex(editor, temp_allocator);
         },
     }
@@ -442,19 +442,19 @@ test "span create find and destroy maintain ordering" {
     try std.testing.expect(try spanCreate(&editor, allocator, "charlie", first_mark.?, last_mark.?));
     try std.testing.expect(try spanCreate(&editor, allocator, "alpha", first_mark.?, last_mark.?));
     try std.testing.expect(try spanCreate(&editor, allocator, "bravo", first_mark.?, last_mark.?));
-    try std.testing.expectEqualStrings("alpha", editor.FirstSpan.?.Name);
-    try std.testing.expectEqualStrings("bravo", editor.FirstSpan.?.FLink.?.Name);
-    try std.testing.expectEqualStrings("charlie", editor.FirstSpan.?.FLink.?.FLink.?.Name);
+    try std.testing.expectEqualStrings("alpha", editor.first_span.?.Name);
+    try std.testing.expectEqualStrings("bravo", editor.first_span.?.FLink.?.Name);
+    try std.testing.expectEqualStrings("charlie", editor.first_span.?.FLink.?.FLink.?.Name);
 
     var found: ?*types.SpanObject = null;
     var prev: ?*types.SpanObject = null;
     try std.testing.expect(try spanFind(&editor, allocator, "bravo", &found, &prev));
-    try std.testing.expect(found == editor.FirstSpan.?.FLink);
-    try std.testing.expect(prev == editor.FirstSpan);
+    try std.testing.expect(found == editor.first_span.?.FLink);
+    try std.testing.expect(prev == editor.first_span);
 
     try std.testing.expect(spanDestroy(&editor, allocator, &found));
-    try std.testing.expect(editor.FirstSpan.?.FLink != null);
-    try std.testing.expectEqualStrings("charlie", editor.FirstSpan.?.FLink.?.Name);
+    try std.testing.expect(editor.first_span.?.FLink != null);
+    try std.testing.expectEqualStrings("charlie", editor.first_span.?.FLink.?.Name);
 }
 
 test "span create normalizes reversed marks and supports redefine" {
@@ -470,14 +470,14 @@ test "span create normalizes reversed marks and supports redefine" {
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 15, &mark1);
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 5, &mark2);
     try std.testing.expect(try spanCreate(&editor, allocator, "ordered", mark1.?, mark2.?));
-    try std.testing.expectEqual(@as(isize, 5), editor.FirstSpan.?.MarkOne.?.Col);
-    try std.testing.expectEqual(@as(isize, 15), editor.FirstSpan.?.MarkTwo.?.Col);
+    try std.testing.expectEqual(@as(isize, 5), editor.first_span.?.MarkOne.?.Col);
+    try std.testing.expectEqual(@as(isize, 15), editor.first_span.?.MarkTwo.?.Col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 7, &mark3);
     try mark_ops.markCreate(allocator, fixture.content_lines[1], 2, &mark4);
     try std.testing.expect(try spanCreate(&editor, allocator, "ordered", mark3.?, mark4.?));
-    try std.testing.expect(editor.FirstSpan.?.MarkOne.?.Line == fixture.content_lines[0]);
-    try std.testing.expect(editor.FirstSpan.?.MarkTwo.?.Line == fixture.content_lines[1]);
+    try std.testing.expect(editor.first_span.?.MarkOne.?.Line == fixture.content_lines[0]);
+    try std.testing.expect(editor.first_span.?.MarkTwo.?.Line == fixture.content_lines[1]);
 }
 
 test "span find refreshes frame-backed spans" {
@@ -491,7 +491,7 @@ test "span find refreshes frame-backed spans" {
         .Name = "frame",
         .Frame = fixture.frame,
     };
-    editor.FirstSpan = frame_span;
+    editor.first_span = frame_span;
 
     var found: ?*types.SpanObject = null;
     var prev: ?*types.SpanObject = null;
@@ -523,12 +523,12 @@ test "span index writes a non-interactive report into the target frame" {
 
     const input_file = try allocator.create(types.FileObject);
     input_file.* = .{ .Filename = "input.txt" };
-    editor.Files[1] = input_file;
+    editor.files[1] = input_file;
     command.InputFile = 1;
 
     const output_file = try allocator.create(types.FileObject);
     output_file.* = .{ .Filename = "output.txt" };
-    editor.Files[2] = output_file;
+    editor.files[2] = output_file;
     command.OutputFile = 2;
 
     try std.testing.expect(try spanIndex(&editor, allocator, oops));

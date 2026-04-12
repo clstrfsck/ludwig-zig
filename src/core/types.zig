@@ -38,7 +38,7 @@ pub const NameLen = 31;
 pub const FileNameLen = 1024;
 pub const KeyLen = 4;
 pub const MaxSpecialKeys = 1000;
-pub const MaxNrKeyNames = 1000;
+pub const Maxnum_key_names = 1000;
 pub const MaxParseTable = 300;
 pub const MaxNFAStateRange = 200;
 pub const MaxDFAStateRange = 255;
@@ -196,7 +196,7 @@ pub const Commands = enum(u16) {
     CmdFileGlobalOutput,
     CmdFileGlobalRewind,
     CmdFileGlobalKill,
-    CmduserCommandIntroducer,
+    Cmdusercommand_introducer,
     CmdUserKey,
     CmdUserParent,
     CmdUserSubprocess,
@@ -214,7 +214,7 @@ pub const Commands = enum(u16) {
     CmdExecuteString,
     CmdDoLastCommand,
     CmdExtended,
-    CmdExitAbort,
+    Cmdexit_abort,
     CmdExitFail,
     CmdExitSuccess,
     CmdPatternDummyPattern,
@@ -379,15 +379,15 @@ pub const HighlightMatchEntries = std.ArrayList(HighlightMatchEntry);
 pub const AcceptSet = struct {
     bits: [MaxSetRange + 1]bool = [_]bool{false} ** (MaxSetRange + 1),
 
-    pub fn Bit(self: *const AcceptSet, index: usize) u1 {
+    pub fn bit(self: *const AcceptSet, index: usize) u1 {
         return if (index <= MaxSetRange and self.bits[index]) 1 else 0;
     }
 
-    pub fn Set(self: *AcceptSet, other: *const AcceptSet) void {
+    pub fn set(self: *AcceptSet, other: *const AcceptSet) void {
         self.bits = other.bits;
     }
 
-    pub fn Clear(self: *AcceptSet) void {
+    pub fn clear(self: *AcceptSet) void {
         self.bits = [_]bool{false} ** (MaxSetRange + 1);
     }
 
@@ -398,8 +398,8 @@ pub const AcceptSet = struct {
     }
 
     pub fn isEmpty(self: *const AcceptSet) bool {
-        for (self.bits) |bit| {
-            if (bit) return false;
+        for (self.bits) |b| {
+            if (b) return false;
         }
         return true;
     }
@@ -514,7 +514,7 @@ pub const LineHdrObject = struct {
     HlState: HighlightState = null,
     HlMatch: HighlightMatchEntries = .{},
 
-    pub fn Len(self: *const LineHdrObject) isize {
+    pub fn len(self: *const LineHdrObject) isize {
         if (self.Str) |str| {
             return @intCast(str.len());
         }
@@ -601,26 +601,26 @@ pub const ScreenState = struct {
     StdinReaderInitialized: bool = false,
 };
 
-pub const CommandCount = @as(usize, @intFromEnum(Commands.CmdNoSuch)) + 1;
-pub const LookupCount = OrdMaxChar + MaxSpecialKeys + 1;
-pub const LookupExpCount = ExpandLim + 1;
+pub const command_count = @as(usize, @intFromEnum(Commands.CmdNoSuch)) + 1;
+pub const lookup_count = OrdMaxChar + MaxSpecialKeys + 1;
+pub const lookup_exp_count = ExpandLim + 1;
 
-pub const TerminalKeyCodes = struct {
-    const base: isize = LookupCount - 15;
+pub const terminal_key_codes = struct {
+    const base: isize = lookup_count - 15;
 
-    pub const UpArrow: isize = base;
-    pub const DownArrow: isize = base + 1;
-    pub const LeftArrow: isize = base + 2;
-    pub const RightArrow: isize = base + 3;
-    pub const Home: isize = base + 4;
-    pub const BackTab: isize = base + 5;
-    pub const InsertChar: isize = base + 6;
-    pub const DeleteChar: isize = base + 7;
-    pub const PageUp: isize = base + 8;
-    pub const PageDown: isize = base + 9;
-    pub const WindowResize: isize = base + 10;
-    pub const InsertLine: isize = base + 11;
-    pub const DeleteLine: isize = base + 12;
-    pub const Find: isize = base + 13;
-    pub const Help: isize = base + 14;
+    pub const up_arrow: isize = base;
+    pub const down_arrow: isize = base + 1;
+    pub const left_arrow: isize = base + 2;
+    pub const right_arrow: isize = base + 3;
+    pub const home: isize = base + 4;
+    pub const back_tab: isize = base + 5;
+    pub const insert_char: isize = base + 6;
+    pub const delete_char: isize = base + 7;
+    pub const page_up: isize = base + 8;
+    pub const page_down: isize = base + 9;
+    pub const window_resize: isize = base + 10;
+    pub const insert_line: isize = base + 11;
+    pub const delete_line: isize = base + 12;
+    pub const find: isize = base + 13;
+    pub const help: isize = base + 14;
 };

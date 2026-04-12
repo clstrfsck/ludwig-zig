@@ -151,7 +151,7 @@ fn promptNextTopic(allocator: std.mem.Allocator) ![]u8 {
 }
 
 fn selectedIndexData(editor: *const state.Editor) []const u8 {
-    return if (editor.FileData.OldCmds)
+    return if (editor.file_data.OldCmds)
         help_assets.old_help_index
     else
         help_assets.new_help_index;

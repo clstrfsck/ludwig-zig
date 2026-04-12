@@ -48,12 +48,12 @@ var last_drawn_status_bottom_row: isize = 0;
 var last_drawn_status_rows: usize = 0;
 
 pub fn terminalWidthForEditor(editor: *const state.Editor) isize {
-    const width = @min(editor.TerminalInfo.Width, @as(isize, types.MaxScrCols));
+    const width = @min(editor.terminal_info.Width, @as(isize, types.MaxScrCols));
     return if (width > 0) width else 1;
 }
 
 pub fn terminalHeightForEditor(editor: *const state.Editor) isize {
-    const height = @min(editor.TerminalInfo.Height, @as(isize, types.MaxScrRows));
+    const height = @min(editor.terminal_info.Height, @as(isize, types.MaxScrRows));
     return if (height > 0) height else 1;
 }
 
@@ -66,11 +66,11 @@ pub fn frameDisplayHeight(editor: *const state.Editor, frame: *const types.Frame
 }
 
 fn frameHiddenAbove(editor: *const state.Editor, frame: *const types.FrameObject) bool {
-    return editor.Screen.Frame == frame and editor.Screen.TopLine != null and editor.Screen.TopLine.?.BLink != null;
+    return editor.screen.Frame == frame and editor.screen.TopLine != null and editor.screen.TopLine.?.BLink != null;
 }
 
 fn frameHiddenBelow(editor: *const state.Editor, frame: *const types.FrameObject) bool {
-    return editor.Screen.Frame == frame and editor.Screen.BotLine != null and editor.Screen.BotLine.?.FLink != null;
+    return editor.screen.Frame == frame and editor.screen.BotLine != null and editor.screen.BotLine.?.FLink != null;
 }
 
 pub fn visibleContentTopRow(editor: *const state.Editor, frame: *const types.FrameObject) isize {
@@ -99,7 +99,7 @@ pub fn topMarkerRow(editor: *const state.Editor, frame: *const types.FrameObject
     if (!frameHiddenAbove(editor, frame)) {
         return 0;
     }
-    const top_line = editor.Screen.TopLine orelse return 0;
+    const top_line = editor.screen.TopLine orelse return 0;
     const row = absoluteScreenRow(editor, frame, top_line.ScrRowNr);
     return if (row > 1) row - 1 else 0;
 }
@@ -108,7 +108,7 @@ pub fn bottomMarkerRow(editor: *const state.Editor, frame: *const types.FrameObj
     if (!frameHiddenBelow(editor, frame)) {
         return 0;
     }
-    const bot_line = editor.Screen.BotLine orelse return 0;
+    const bot_line = editor.screen.BotLine orelse return 0;
     const row = absoluteScreenRow(editor, frame, bot_line.ScrRowNr);
     const terminal_height = terminalHeightForEditor(editor);
     return if (row < terminal_height) row + 1 else 0;
@@ -227,7 +227,7 @@ pub fn readKey() !?u8 {
 
     while (true) {
         const input = terminal.readKey() orelse return null;
-        if (input == types.TerminalKeyCodes.DeleteChar) {
+        if (input == types.terminal_key_codes.delete_char) {
             traceKey("live", 127);
             return 127;
         }
@@ -594,23 +594,23 @@ fn computePromptPosition(editor: *state.Editor, frame: *types.FrameObject, max_t
     const height = @max(dims.height, 1);
     const max_tp_clamped = @max(max_tp, 1);
     const this_tp_clamped = @max(this_tp, 1);
-    const region = &editor.PromptRegion[@intCast(this_tp_clamped)];
+    const region = &editor.prompt_region[@intCast(this_tp_clamped)];
     region.* = .{};
 
     const top_row = this_tp_clamped;
     const bottom_row = @max(@as(isize, 1), height - max_tp_clamped + this_tp_clamped);
     region.LineNr = bottom_row;
 
-    if (editor.Screen.Frame != frame or editor.Screen.TopLine == null or editor.Screen.BotLine == null) {
+    if (editor.screen.Frame != frame or editor.screen.TopLine == null or editor.screen.BotLine == null) {
         return region.LineNr;
     }
 
-    const top_line = editor.Screen.TopLine.?;
-    const bot_line = editor.Screen.BotLine.?;
+    const top_line = editor.screen.TopLine.?;
+    const bot_line = editor.screen.BotLine.?;
     const top_line_row = absoluteScreenRow(editor, frame, top_line.ScrRowNr);
     const bot_line_row = absoluteScreenRow(editor, frame, bot_line.ScrRowNr);
-    const msg_row = if (editor.Screen.MsgRow > 0 and editor.Screen.MsgRow < types.MaxInt)
-        editor.Screen.MsgRow
+    const msg_row = if (editor.screen.MsgRow > 0 and editor.screen.MsgRow < types.MaxInt)
+        editor.screen.MsgRow
     else
         height + 1;
 
@@ -637,7 +637,7 @@ fn restorePromptLines(editor: *state.Editor, frame: *types.FrameObject, max_tp: 
     var index: isize = 1;
     const count = @max(max_tp, 1);
     while (index <= count) : (index += 1) {
-        const region = &editor.PromptRegion[@intCast(index)];
+        const region = &editor.prompt_region[@intCast(index)];
         if (region.Redraw) |line| {
             drawFrameLine(editor, frame, region.LineNr, line);
         } else if (region.LineNr != 0) {
@@ -817,7 +817,7 @@ pub fn readPromptLineWithOptions(
         if (buffer.items.len == 0) {
             var index = options.this_tp + 1;
             while (index <= options.max_tp) : (index += 1) {
-                options.editor.?.PromptRegion[@intCast(index)] = .{};
+                options.editor.?.prompt_region[@intCast(index)] = .{};
             }
         }
         if (options.this_tp >= options.max_tp or buffer.items.len == 0) {
@@ -856,7 +856,7 @@ pub fn readVerifyReply(
     prompt: []const u8,
 ) !?u8 {
     const dims = detectDimensions();
-    const max_height = @max(@min(dims.height, editor.TerminalInfo.Height), 1);
+    const max_height = @max(@min(dims.height, editor.terminal_info.Height), 1);
     var view_height = @min(if (frame.ScrHeight > verify_start_height) verify_start_height else frame.ScrHeight, max_height);
     if (view_height < 1) {
         view_height = @min(verify_start_height, max_height);
@@ -868,7 +868,7 @@ pub fn readVerifyReply(
         drawVerifyViewport(editor, frame, top_number, view_height, if (use_prompt) prompt else verify_choices_message);
         const raw_key = (try readInputKey()) orelse return null;
         if (raw_key == 3) {
-            editor.TtControlC = true;
+            editor.tt_control_c = true;
             return null;
         }
         if (raw_key < 0 or raw_key > std.math.maxInt(u8)) {
@@ -940,8 +940,8 @@ test "interactive io verify reply handles invalid keys and more context" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 40, .Height = 6 };
+    editor.ludwig_mode = .LudwigScreen;
+    editor.terminal_info = .{ .Width = 40, .Height = 6 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1",

@@ -17,13 +17,13 @@ pub const Session = struct {
 };
 
 fn configureBatchTerminal(editor: *state.Editor) void {
-    editor.LudwigMode = .LudwigBatch;
-    editor.TerminalInfo = .{
+    editor.ludwig_mode = .LudwigBatch;
+    editor.terminal_info = .{
         .Name = "",
         .Width = 80,
         .Height = 4,
     };
-    editor.Screen.MsgRow = editor.TerminalInfo.Height + 1;
+    editor.screen.MsgRow = editor.terminal_info.Height + 1;
 }
 
 fn makeSpecialFrame(
@@ -43,13 +43,13 @@ fn attachStartupFiles(
     output: ?*types.FileObject,
 ) void {
     if (input) |input_file| {
-        editor.Files[1] = input_file;
-        editor.FilesFrames[1] = current_frame;
+        editor.files[1] = input_file;
+        editor.files_frames[1] = current_frame;
         current_frame.InputFile = 1;
     }
     if (output) |output_file| {
-        editor.Files[2] = output_file;
-        editor.FilesFrames[2] = current_frame;
+        editor.files[2] = output_file;
+        editor.files_frames[2] = current_frame;
         current_frame.OutputFile = 2;
     }
 }
@@ -146,7 +146,7 @@ pub fn startUp(
     input: ?*types.FileObject,
     output: ?*types.FileObject,
 ) !Session {
-    defaults.setRegularTabStops(editor, editor.FileData.TabWidth);
+    defaults.setRegularTabStops(editor, editor.file_data.TabWidth);
     configureBatchTerminal(editor);
 
     var special_frames: types.SpecialFrames = .{};
@@ -163,19 +163,19 @@ pub fn startUp(
         return error.BatchStartupFailed;
     }
 
-    if (editor.FileData.Initial.len > 0) {
+    if (editor.file_data.Initial.len > 0) {
         const init_outcome = try executeCommandFrameFile(
             editor,
             allocator,
             current_frame,
             &special_frames,
-            editor.FileData.Initial,
+            editor.file_data.Initial,
         );
         current_frame = init_outcome.frame;
-        if (!init_outcome.ok and editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+        if (!init_outcome.ok and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
             batch_output.printMessage("COMMAND FAILED");
         }
-        editor.ExitAbort = false;
+        editor.exit_abort = false;
     }
 
     return .{
@@ -209,7 +209,7 @@ pub fn runBatchCommands(
         const command_span = try makeBatchCommandSpan(allocator, source);
         if (!try code_ops.codeCompile(editor, allocator, session.current_frame, command_span.span, true)) {
             ok = false;
-            if (editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+            if (editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
                 batch_output.printMessage("Syntax error.");
             }
         } else {
@@ -225,18 +225,18 @@ pub fn runBatchCommands(
             );
             session.current_frame = outcome.frame;
             ok = outcome.ok;
-            if (!ok and editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+            if (!ok and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
                 batch_output.printMessage("COMMAND FAILED");
             }
         }
-        editor.ExitAbort = false;
-        editor.TtControlC = false;
+        editor.exit_abort = false;
+        editor.tt_control_c = false;
     }
 
-    if (!editor.QuitRequested) {
+    if (!editor.quit_requested) {
         _ = try file_ops.quitCloseFiles(editor, allocator);
     } else {
-        editor.QuitRequested = false;
+        editor.quit_requested = false;
     }
     return ok;
 }
@@ -266,7 +266,7 @@ test "batch runtime can edit a file from stdin commands" {
     const argv = [_][]const u8{ "-M", "-I", file_path };
     const parse = try filesys.fileCreateOpen(&editor, allocator, &argv, .parse_command, &input, &output);
     try std.testing.expect(parse.ok);
-    editor.BatchOutputEnabled = false;
+    editor.batch_output_enabled = false;
 
     var session = try startUp(&editor, allocator, input, output);
     try std.testing.expect(try runBatchCommands(&editor, allocator, &session, "i/x/"));

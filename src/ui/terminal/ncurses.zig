@@ -203,29 +203,29 @@ pub fn beep() void {
 
 fn mapKey(key: c_int) isize {
     if (@hasDecl(c, "KEY_IL") and key == c.KEY_IL) {
-        return types.TerminalKeyCodes.InsertLine;
+        return types.terminal_key_codes.insert_line;
     }
     if (@hasDecl(c, "KEY_DL") and key == c.KEY_DL) {
-        return types.TerminalKeyCodes.DeleteLine;
+        return types.terminal_key_codes.delete_line;
     }
     if (@hasDecl(c, "KEY_FIND") and key == c.KEY_FIND) {
-        return types.TerminalKeyCodes.Find;
+        return types.terminal_key_codes.find;
     }
     if (@hasDecl(c, "KEY_HELP") and key == c.KEY_HELP) {
-        return types.TerminalKeyCodes.Help;
+        return types.terminal_key_codes.help;
     }
     return switch (key) {
-        c.KEY_UP => types.TerminalKeyCodes.UpArrow,
-        c.KEY_DOWN => types.TerminalKeyCodes.DownArrow,
-        c.KEY_LEFT => types.TerminalKeyCodes.LeftArrow,
-        c.KEY_RIGHT => types.TerminalKeyCodes.RightArrow,
-        c.KEY_HOME => types.TerminalKeyCodes.Home,
-        c.KEY_BTAB => types.TerminalKeyCodes.BackTab,
-        c.KEY_IC => types.TerminalKeyCodes.InsertChar,
-        c.KEY_DC => types.TerminalKeyCodes.DeleteChar,
-        c.KEY_PPAGE => types.TerminalKeyCodes.PageUp,
-        c.KEY_NPAGE => types.TerminalKeyCodes.PageDown,
-        c.KEY_RESIZE => types.TerminalKeyCodes.WindowResize,
+        c.KEY_UP => types.terminal_key_codes.up_arrow,
+        c.KEY_DOWN => types.terminal_key_codes.down_arrow,
+        c.KEY_LEFT => types.terminal_key_codes.left_arrow,
+        c.KEY_RIGHT => types.terminal_key_codes.right_arrow,
+        c.KEY_HOME => types.terminal_key_codes.home,
+        c.KEY_BTAB => types.terminal_key_codes.back_tab,
+        c.KEY_IC => types.terminal_key_codes.insert_char,
+        c.KEY_DC => types.terminal_key_codes.delete_char,
+        c.KEY_PPAGE => types.terminal_key_codes.page_up,
+        c.KEY_NPAGE => types.terminal_key_codes.page_down,
+        c.KEY_RESIZE => types.terminal_key_codes.window_resize,
         c.KEY_BACKSPACE => 127,
         c.KEY_ENTER => '\r',
         else => key,

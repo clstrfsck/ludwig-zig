@@ -43,27 +43,27 @@ fn padRight(allocator: std.mem.Allocator, text_in: []const u8, width: usize) ![]
 }
 
 fn usageLabel(editor: *const state.Editor, slot: usize, file: *const types.FileObject) []const u8 {
-    if (editor.FilesFrames[slot] != null) {
+    if (editor.files_frames[slot] != null) {
         return if (file.OutputFlag) "FO" else "FI";
     }
-    if (slot == @as(usize, @intCast(editor.FgiFile))) {
+    if (slot == @as(usize, @intCast(editor.fgi_file))) {
         return "FGI";
     }
-    if (slot == @as(usize, @intCast(editor.FgoFile))) {
+    if (slot == @as(usize, @intCast(editor.fgo_file))) {
         return "FGO";
     }
     return if (file.OutputFlag) "FFO" else "FFI";
 }
 
 fn reportNameWidth(editor: *const state.Editor) usize {
-    if (editor.LudwigMode == .LudwigScreen and editor.TerminalInfo.Width > 19) {
-        return @intCast(@max(editor.TerminalInfo.Width - 19, 5));
+    if (editor.ludwig_mode == .LudwigScreen and editor.terminal_info.Width > 19) {
+        return @intCast(@max(editor.terminal_info.Width - 19, 5));
     }
     return types.FileNameLen;
 }
 
 fn renderFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slot: usize, file: *const types.FileObject) ![]const u8 {
-    const frame = editor.FilesFrames[slot];
+    const frame = editor.files_frames[slot];
     const usage = try padRight(allocator, usageLabel(editor, slot, file), 3);
     const eof_status: []const u8 = if (file.Eof) "EOF" else "   ";
     const mod_status: []const u8 = if (frame != null and frame.?.TextModified) " * " else "   ";
@@ -79,7 +79,7 @@ fn renderFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slo
 }
 
 fn renderBatchFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slot: usize, file: *const types.FileObject) ![]const u8 {
-    const frame = editor.FilesFrames[slot];
+    const frame = editor.files_frames[slot];
     const usage = try padRight(allocator, usageLabel(editor, slot, file), 3);
     const eof_status: []const u8 = if (file.Eof) "EOF" else "   ";
     const mod_status: []const u8 = if (frame != null and frame.?.TextModified) " * " else "   ";
@@ -148,7 +148,7 @@ pub fn fileTable(
     var have_files = false;
     var slot: usize = 1;
     while (slot <= types.MaxFiles) : (slot += 1) {
-        const file = editor.Files[slot] orelse continue;
+        const file = editor.files[slot] orelse continue;
         have_files = true;
         try lines.append(allocator, try renderFileLine(editor, allocator, slot, file));
     }
@@ -158,9 +158,9 @@ pub fn fileTable(
 
     const ok = try replaceReportFrame(allocator, report_frame, lines.items);
     if (ok) {
-        switch (editor.LudwigMode) {
+        switch (editor.ludwig_mode) {
             .LudwigScreen => try interactive_io.showTemporaryReport(allocator, lines.items),
-            .LudwigBatch, .LudwigHardcopy => if (editor.BatchOutputEnabled) {
+            .LudwigBatch, .LudwigHardcopy => if (editor.batch_output_enabled) {
                 var batch_lines: std.ArrayList([]const u8) = .{};
                 try batch_lines.append(allocator, "Usage   Mod Frame  Filename");
                 try batch_lines.append(allocator, "------- --- ------ --------");
@@ -169,7 +169,7 @@ pub fn fileTable(
                 if (have_files) {
                     slot = 1;
                     while (slot <= types.MaxFiles) : (slot += 1) {
-                        const file = editor.Files[slot] orelse continue;
+                        const file = editor.files[slot] orelse continue;
                         try batch_lines.append(allocator, try renderBatchFileLine(editor, allocator, slot, file));
                     }
                 } else {
@@ -299,9 +299,9 @@ fn linePlural(count: isize) []const u8 {
 }
 
 fn emitStatusMessage(editor: *const state.Editor, message: []const u8) void {
-    switch (editor.LudwigMode) {
+    switch (editor.ludwig_mode) {
         .LudwigScreen => interactive_io.queueStatusMessage(message),
-        .LudwigBatch, .LudwigHardcopy => if (editor.BatchOutputEnabled) {
+        .LudwigBatch, .LudwigHardcopy => if (editor.batch_output_enabled) {
             batch_output.printMessage(message);
         },
     }
@@ -316,7 +316,7 @@ fn pageFileWithLoadingMessage(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    if (editor.LudwigMode == .LudwigScreen) {
+    if (editor.ludwig_mode == .LudwigScreen) {
         interactive_io.queueStatusMessage(loading_file_message);
     }
     defer interactive_io.clearStatusMessage();
@@ -412,7 +412,7 @@ fn setSnapshotFromQueue(
 }
 
 fn clampTabWidth(editor: *const state.Editor) usize {
-    return @intCast(@min(@as(isize, 8), @max(@as(isize, 2), editor.FileData.TabWidth)));
+    return @intCast(@min(@as(isize, 8), @max(@as(isize, 2), editor.file_data.TabWidth)));
 }
 
 fn isLineTerminator(byte: u8) bool {
@@ -519,12 +519,12 @@ fn makeDiskOutputFile(
     file.Filename = owned_name;
     file.Memory = if (options.memory) |memory| memory else "";
     file.Tnm = try buildTempOutputName(allocator, owned_name);
-    file.Entab = editor.FileData.Entab;
+    file.Entab = editor.file_data.Entab;
     file.Create = options.create;
     file.Mode = if (status.valid) status.mode else sys_ops.fileMask();
     file.PreviousFileId = if (status.valid) @intCast(status.m_time) else 0;
-    file.Purge = editor.FileData.Purge;
-    file.Versions = editor.FileData.Versions;
+    file.Purge = editor.file_data.Purge;
+    file.Versions = editor.file_data.Versions;
     file.Eof = false;
     return file;
 }
@@ -913,10 +913,10 @@ pub fn fileReadCommand(
     rept: types.LeadParam,
     count: isize,
 ) !bool {
-    if (editor.FgiFile <= 0 or editor.FgiFile > types.MaxFiles) {
+    if (editor.fgi_file <= 0 or editor.fgi_file > types.MaxFiles) {
         return false;
     }
-    const input_file = editor.Files[@intCast(editor.FgiFile)] orelse return false;
+    const input_file = editor.files[@intCast(editor.fgi_file)] orelse return false;
     const lines_to_read = if (rept == .LeadParamPIndef) types.MaxInt else count;
     const read_result = fileReadBuffered(input_file, lines_to_read, rept == .LeadParamPIndef) orelse return false;
     if (read_result.first) |first| {
@@ -939,10 +939,10 @@ pub fn fileWriteCommand(
     count: isize,
     mark: ?*types.MarkObject,
 ) !bool {
-    if (editor.FgoFile <= 0 or editor.FgoFile > types.MaxFiles) {
+    if (editor.fgo_file <= 0 or editor.fgo_file > types.MaxFiles) {
         return false;
     }
-    const output_file = editor.Files[@intCast(editor.FgoFile)] orelse return false;
+    const output_file = editor.files[@intCast(editor.fgo_file)] orelse return false;
     const range = computeLineRange(frame, rept, count, mark) orelse return false;
     if (range.first) |first| {
         return fileWriteBuffered(allocator, first, range.last.?, output_file);
@@ -959,9 +959,9 @@ pub fn filePage(
     if (page_out.first) |first| {
         const last = page_out.last.?;
         if (frame.OutputFile != 0) {
-            const output_file = editor.Files[@intCast(frame.OutputFile)] orelse return false;
+            const output_file = editor.files[@intCast(frame.OutputFile)] orelse return false;
             if (!try fileWriteBuffered(allocator, first, last, output_file)) {
-                editor.ExitAbort = true;
+                editor.exit_abort = true;
                 return false;
             }
         }
@@ -974,8 +974,8 @@ pub fn filePage(
         frame.DirtyLine = 1;
         return true;
     }
-    const input_file = editor.Files[@intCast(frame.InputFile)] orelse return false;
-    while (frame.SpaceLeft * 10 > frame.SpaceLimit and !editor.TtControlC) {
+    const input_file = editor.files[@intCast(frame.InputFile)] orelse return false;
+    while (frame.SpaceLeft * 10 > frame.SpaceLimit and !editor.tt_control_c) {
         const read_result = fileReadBuffered(input_file, 50, true) orelse return false;
         frame.InputCount += read_result.count;
         if (read_result.first == null) {
@@ -1042,7 +1042,7 @@ fn findBufferedInputByFilename(
 ) ?*types.FileObject {
     var slot: usize = 1;
     while (slot <= types.MaxFiles) : (slot += 1) {
-        const file = editor.Files[slot] orelse continue;
+        const file = editor.files[slot] orelse continue;
         if (!file.OutputFlag and std.mem.eql(u8, file.Filename, file_name)) {
             return file;
         }
@@ -1077,7 +1077,7 @@ fn getFreeSlot(editor: *const state.Editor, reserved_slot: isize) ?isize {
         if (slot == reserved_slot) {
             continue;
         }
-        if (editor.Files[@intCast(slot)] == null) {
+        if (editor.files[@intCast(slot)] == null) {
             return slot;
         }
     }
@@ -1088,7 +1088,7 @@ fn getFileSlot(editor: *state.Editor, slot: isize) ?*types.FileObject {
     if (slot <= 0 or slot > types.MaxFiles) {
         return null;
     }
-    return editor.Files[@intCast(slot)];
+    return editor.files[@intCast(slot)];
 }
 
 fn requireFileSlot(editor: *state.Editor, slot: isize, output_flag: bool) ?*types.FileObject {
@@ -1113,19 +1113,19 @@ pub fn fileOpenCommand(
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
             const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
-            editor.Files[@intCast(slot)] = input_file;
-            editor.FilesFrames[@intCast(slot)] = frame;
+            editor.files[@intCast(slot)] = input_file;
+            editor.files_frames[@intCast(slot)] = frame;
             frame.InputFile = slot;
             break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
         },
         .CmdFileGlobalInput => blk: {
-            if (editor.FgiFile != 0) {
+            if (editor.fgi_file != 0) {
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
             const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
-            editor.Files[@intCast(slot)] = input_file;
-            editor.FgiFile = slot;
+            editor.files[@intCast(slot)] = input_file;
+            editor.fgi_file = slot;
             break :blk true;
         },
         .CmdFileOutput => blk: {
@@ -1138,19 +1138,19 @@ pub fn fileOpenCommand(
             else
                 null;
             const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{ .related_name = related_name })) orelse break :blk false;
-            editor.Files[@intCast(slot)] = output_file;
-            editor.FilesFrames[@intCast(slot)] = frame;
+            editor.files[@intCast(slot)] = output_file;
+            editor.files_frames[@intCast(slot)] = frame;
             frame.OutputFile = slot;
             break :blk true;
         },
         .CmdFileGlobalOutput => blk: {
-            if (editor.FgoFile != 0) {
+            if (editor.fgo_file != 0) {
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
             const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{})) orelse break :blk false;
-            editor.Files[@intCast(slot)] = output_file;
-            editor.FgoFile = slot;
+            editor.files[@intCast(slot)] = output_file;
+            editor.fgo_file = slot;
             break :blk true;
         },
         .CmdFileEdit => blk: {
@@ -1161,11 +1161,11 @@ pub fn fileOpenCommand(
             const output_slot = getFreeSlot(editor, input_slot) orelse break :blk false;
             const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
             const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{ .related_name = input_file.Filename })) orelse break :blk false;
-            editor.Files[@intCast(input_slot)] = input_file;
-            editor.FilesFrames[@intCast(input_slot)] = frame;
+            editor.files[@intCast(input_slot)] = input_file;
+            editor.files_frames[@intCast(input_slot)] = frame;
             frame.InputFile = input_slot;
-            editor.Files[@intCast(output_slot)] = output_file;
-            editor.FilesFrames[@intCast(output_slot)] = frame;
+            editor.files[@intCast(output_slot)] = output_file;
+            editor.files_frames[@intCast(output_slot)] = frame;
             frame.OutputFile = output_slot;
             break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
         },
@@ -1192,7 +1192,7 @@ pub fn fileGlobalRewindCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
-    const input_file = requireFileSlot(editor, editor.FgiFile, false) orelse return false;
+    const input_file = requireFileSlot(editor, editor.fgi_file, false) orelse return false;
     return loadFileQueueFromSnapshot(allocator, input_file);
 }
 
@@ -1229,7 +1229,7 @@ fn detachFileSlot(
     _ = getFileSlot(editor, slot) orelse return false;
     const slot_index: usize = @intCast(slot);
 
-    if (editor.FilesFrames[slot_index]) |frame| {
+    if (editor.files_frames[slot_index]) |frame| {
         if (slot == frame.OutputFile) {
             frame.OutputFile = 0;
         } else {
@@ -1237,14 +1237,14 @@ fn detachFileSlot(
             try fileFixEOP(allocator, true, frame.LastGroup.?.LastLine.?);
             frame.DirtyLine = 1;
         }
-        editor.FilesFrames[slot_index] = null;
-    } else if (slot == editor.FgiFile) {
-        editor.FgiFile = 0;
-    } else if (slot == editor.FgoFile) {
-        editor.FgoFile = 0;
+        editor.files_frames[slot_index] = null;
+    } else if (slot == editor.fgi_file) {
+        editor.fgi_file = 0;
+    } else if (slot == editor.fgo_file) {
+        editor.fgo_file = 0;
     }
 
-    editor.Files[slot_index] = null;
+    editor.files[slot_index] = null;
     return true;
 }
 
@@ -1318,14 +1318,14 @@ pub fn fileGlobalKillCommand(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
-    const output_file = requireFileSlot(editor, editor.FgoFile, true) orelse {
+    const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse {
         emitNoFileOpenMessage(editor);
         return false;
     };
     if (output_file.Tnm.len > 0) {
         sys_ops.deleteFile(output_file.Tnm) catch {};
     }
-    if (!try detachFileSlot(editor, allocator, editor.FgoFile)) {
+    if (!try detachFileSlot(editor, allocator, editor.fgo_file)) {
         return false;
     }
     emitOutputDeletedMessage(editor, output_file);
@@ -1366,15 +1366,15 @@ pub fn fileCloseCommand(
             break :blk try detachFileSlot(editor, allocator, frame.InputFile);
         },
         .CmdFileGlobalInput => blk: {
-            _ = requireFileSlot(editor, editor.FgiFile, false) orelse break :blk false;
-            break :blk try detachFileSlot(editor, allocator, editor.FgiFile);
+            _ = requireFileSlot(editor, editor.fgi_file, false) orelse break :blk false;
+            break :blk try detachFileSlot(editor, allocator, editor.fgi_file);
         },
         .CmdFileGlobalOutput => blk: {
-            const output_file = requireFileSlot(editor, editor.FgoFile, true) orelse break :blk false;
+            const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse break :blk false;
             if (!try persistDiskBackedOutputFile(editor, allocator, output_file)) {
                 break :blk false;
             }
-            break :blk try detachFileSlot(editor, allocator, editor.FgoFile);
+            break :blk try detachFileSlot(editor, allocator, editor.fgo_file);
         },
         else => false,
     };
@@ -1408,7 +1408,7 @@ fn closeFrameFilesForQuit(
 
         if (input_slot != 0) {
             const input_file = requireFileSlot(editor, input_slot, false) orelse return false;
-            if (editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+            if (editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
                 emitInputClosedMessage(editor, input_file);
             }
             if (!try detachFileSlot(editor, allocator, input_slot)) {
@@ -1416,7 +1416,7 @@ fn closeFrameFilesForQuit(
             }
         }
 
-        if (had_modifications and output_file.Filename.len > 0 and editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+        if (had_modifications and output_file.Filename.len > 0 and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
             emitOutputCreatedMessage(editor, output_file);
         }
         return detachFileSlot(editor, allocator, output_slot);
@@ -1424,7 +1424,7 @@ fn closeFrameFilesForQuit(
 
     if (input_slot != 0 and input_slot == slot) {
         const input_file = requireFileSlot(editor, input_slot, false) orelse return false;
-        if (editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+        if (editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
             emitInputClosedMessage(editor, input_file);
         }
         return detachFileSlot(editor, allocator, input_slot);
@@ -1437,25 +1437,25 @@ fn closeGlobalInputForQuit(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
-    const input_file = requireFileSlot(editor, editor.FgiFile, false) orelse return false;
-    if (editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+    const input_file = requireFileSlot(editor, editor.fgi_file, false) orelse return false;
+    if (editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
         emitInputClosedMessage(editor, input_file);
     }
-    return detachFileSlot(editor, allocator, editor.FgiFile);
+    return detachFileSlot(editor, allocator, editor.fgi_file);
 }
 
 fn closeGlobalOutputForQuit(
     editor: *state.Editor,
     allocator: std.mem.Allocator,
 ) !bool {
-    const output_file = requireFileSlot(editor, editor.FgoFile, true) orelse return false;
+    const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse return false;
     if (!try persistDiskBackedOutputFile(editor, allocator, output_file)) {
         return false;
     }
-    if (output_file.Filename.len > 0 and editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+    if (output_file.Filename.len > 0 and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
         emitOutputCreatedMessage(editor, output_file);
     }
-    return detachFileSlot(editor, allocator, editor.FgoFile);
+    return detachFileSlot(editor, allocator, editor.fgo_file);
 }
 
 fn closeUnattachedSlotForQuit(
@@ -1468,10 +1468,10 @@ fn closeUnattachedSlotForQuit(
         if (!try persistDiskBackedOutputFile(editor, allocator, file)) {
             return false;
         }
-        if (file.Filename.len > 0 and editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+        if (file.Filename.len > 0 and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
             emitOutputCreatedMessage(editor, file);
         }
-    } else if (editor.LudwigMode == .LudwigBatch and editor.BatchOutputEnabled) {
+    } else if (editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
         emitInputClosedMessage(editor, file);
     }
     return detachFileSlot(editor, allocator, slot);
@@ -1484,25 +1484,25 @@ pub fn quitCloseFiles(
     var slot: isize = 1;
     while (slot <= types.MaxFiles) : (slot += 1) {
         const slot_index: usize = @intCast(slot);
-        if (editor.Files[slot_index] == null) {
+        if (editor.files[slot_index] == null) {
             continue;
         }
 
-        if (editor.FilesFrames[slot_index]) |frame| {
+        if (editor.files_frames[slot_index]) |frame| {
             if (!try closeFrameFilesForQuit(editor, allocator, frame, slot)) {
                 return false;
             }
             continue;
         }
 
-        if (slot == editor.FgiFile) {
+        if (slot == editor.fgi_file) {
             if (!try closeGlobalInputForQuit(editor, allocator)) {
                 return false;
             }
             continue;
         }
 
-        if (slot == editor.FgoFile) {
+        if (slot == editor.fgo_file) {
             if (!try closeGlobalOutputForQuit(editor, allocator)) {
                 return false;
             }
@@ -1564,8 +1564,8 @@ test "file table writes current file usage into report frame" {
         .Filename = "input.txt",
         .Eof = true,
     };
-    editor.Files[1] = input;
-    editor.FilesFrames[1] = work;
+    editor.files[1] = input;
+    editor.files_frames[1] = work;
     work.InputFile = 1;
     work.TextModified = true;
 
@@ -1574,24 +1574,24 @@ test "file table writes current file usage into report frame" {
         .Filename = "output.txt",
         .OutputFlag = true,
     };
-    editor.Files[2] = output;
-    editor.FilesFrames[2] = work;
+    editor.files[2] = output;
+    editor.files_frames[2] = work;
     work.OutputFile = 2;
 
     const global_input = try allocator.create(types.FileObject);
     global_input.* = .{
         .Filename = "global.in",
     };
-    editor.Files[3] = global_input;
-    editor.FgiFile = 3;
+    editor.files[3] = global_input;
+    editor.fgi_file = 3;
 
     const global_output = try allocator.create(types.FileObject);
     global_output.* = .{
         .Filename = "global.out",
         .OutputFlag = true,
     };
-    editor.Files[4] = global_output;
-    editor.FgoFile = 4;
+    editor.files[4] = global_output;
+    editor.fgo_file = 4;
 
     try std.testing.expect(try fileTable(&editor, allocator, oops));
     try expectFrameLines(oops, &[_][]const u8{
@@ -1635,15 +1635,15 @@ test "file save appends frame and unread input to output buffer" {
         "tail1",
         "tail2",
     }, false);
-    editor.Files[1] = input;
-    editor.FilesFrames[1] = fixture.frame;
+    editor.files[1] = input;
+    editor.files_frames[1] = fixture.frame;
     fixture.frame.InputFile = 1;
 
     const output = try makeBufferedFile(allocator, &[_][]const u8{
         "paged",
     }, true);
-    editor.Files[2] = output;
-    editor.FilesFrames[2] = fixture.frame;
+    editor.files[2] = output;
+    editor.files_frames[2] = fixture.frame;
     fixture.frame.OutputFile = 2;
     fixture.frame.TextModified = true;
     try mark_ops.markCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].Used + 1, &fixture.frame.Marks[types.MarkModified]);
@@ -1666,28 +1666,28 @@ test "file kill detaches current output file" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
-    editor.Files[1] = output;
-    editor.FilesFrames[1] = fixture.frame;
+    editor.files[1] = output;
+    editor.files_frames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
 
     try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.OutputFile);
-    try std.testing.expect(editor.Files[1] == null);
-    try std.testing.expect(editor.FilesFrames[1] == null);
+    try std.testing.expect(editor.files[1] == null);
+    try std.testing.expect(editor.files_frames[1] == null);
 }
 
 test "file kill queues interactive deleted status message" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
+    editor.ludwig_mode = .LudwigScreen;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     output.Filename = "output.txt";
     output.Tnm = "output.txt-lw";
-    editor.Files[1] = output;
-    editor.FilesFrames[1] = fixture.frame;
+    editor.files[1] = output;
+    editor.files_frames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
 
     try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
@@ -1701,7 +1701,7 @@ test "file kill queues no-file-open status message when no output is attached" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
+    editor.ludwig_mode = .LudwigScreen;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
 
@@ -1716,13 +1716,13 @@ test "file close detaches current input file and marks eof" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const input = try makeBufferedFile(allocator, &[_][]const u8{"tail"}, false);
-    editor.Files[1] = input;
-    editor.FilesFrames[1] = fixture.frame;
+    editor.files[1] = input;
+    editor.files_frames[1] = fixture.frame;
     fixture.frame.InputFile = 1;
 
     try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileInput));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.InputFile);
-    try std.testing.expect(editor.Files[1] == null);
+    try std.testing.expect(editor.files[1] == null);
     try std.testing.expectEqualStrings("<End of File>", line_ops.getDisplayLineContent(fixture.frame.LastGroup.?.LastLine.?));
 }
 
@@ -1732,13 +1732,13 @@ test "file close detaches global output file" {
     const allocator = editor.allocator();
 
     const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
-    editor.Files[1] = output;
-    editor.FgoFile = 1;
+    editor.files[1] = output;
+    editor.fgo_file = 1;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileGlobalOutput));
-    try std.testing.expectEqual(@as(isize, 0), editor.FgoFile);
-    try std.testing.expect(editor.Files[1] == null);
+    try std.testing.expectEqual(@as(isize, 0), editor.fgo_file);
+    try std.testing.expect(editor.files[1] == null);
 }
 
 test "file save rotates disk backups and updates memory file" {
@@ -1748,7 +1748,7 @@ test "file save rotates disk backups and updates memory file" {
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
-    editor.FileData.Versions = 2;
+    editor.file_data.Versions = 2;
 
     const file_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/save.txt", .{tmp_dir.sub_path});
     const backup1_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/save.txt~1", .{tmp_dir.sub_path});
@@ -1761,8 +1761,8 @@ test "file save rotates disk backups and updates memory file" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"new"});
     const output = (try openDiskOutputFile(&editor, allocator, file_path, .{ .memory = expanded_memory })) orelse return error.TestUnexpectedResult;
-    editor.Files[1] = output;
-    editor.FilesFrames[1] = fixture.frame;
+    editor.files[1] = output;
+    editor.files_frames[1] = fixture.frame;
     fixture.frame.OutputFile = 1;
     fixture.frame.TextModified = true;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].Used + 1, &fixture.frame.Marks[types.MarkModified]);

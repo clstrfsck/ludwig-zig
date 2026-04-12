@@ -84,7 +84,7 @@ pub fn textInsert(
         dst_line = dst_line.BLink.?;
     }
 
-    if (final_len > dst_line.Len()) {
+    if (final_len > dst_line.len()) {
         try line_ops.lineChangeLength(allocator, dst_line, final_len);
     }
     try mark_ops.marksShift(allocator, dst_line, dst_col, types.MaxStrLenP - dst_col, dst_line, dst_col + insert_len);
@@ -104,7 +104,7 @@ pub fn textInsert(
     }
 
     if (tail_len == 0) {
-        dst_line.Used = dst_line.Str.?.trimmedLen(' ', @intCast(dst_line.Len()));
+        dst_line.Used = dst_line.Str.?.trimmedLen(' ', @intCast(dst_line.len()));
     } else {
         dst_line.Used += insert_len;
     }
@@ -136,7 +136,7 @@ pub fn textOvertype(
         dst_line = dst_line.BLink.?;
     }
 
-    if (final_len > dst_line.Len()) {
+    if (final_len > dst_line.len()) {
         try line_ops.lineChangeLength(allocator, dst_line, final_len);
     }
 
@@ -148,7 +148,7 @@ pub fn textOvertype(
     }
 
     if (new_col > dst_line.Used) {
-        dst_line.Used = dst_line.Str.?.trimmedLen(' ', @intCast(dst_line.Len()));
+        dst_line.Used = dst_line.Str.?.trimmedLen(' ', @intCast(dst_line.len()));
     }
     markLineDirty(dst_line.Group.?.Frame, dst_line);
     dst.Col += overtype_len;
@@ -574,7 +574,7 @@ fn textInterMove(
 
             if (text_len > 0) {
                 try line_ops.lineChangeLength(allocator, first_line, text_len);
-                first_line.Str.?.fillCopy(text_str, 1, text_len, 1, first_line.Len(), ' ');
+                first_line.Str.?.fillCopy(text_str, 1, text_len, 1, first_line.len(), ' ');
                 first_line.Used = text_len;
             }
             try line_ops.linesInject(allocator, first_line, last_line, dst_line);
@@ -590,7 +590,7 @@ fn textInterMove(
     try mark_ops.marksShift(allocator, dst_line, dst_col, types.MaxStrLenP + 1 - dst_col, last_line, col_two);
     if (text_len > 0) {
         try line_ops.lineChangeLength(allocator, dst_line, dst_col + text_len - 1);
-        dst_line.Str.?.fillCopy(text_str, 1, text_len, dst_col, dst_line.Len() + 1 - dst_col, ' ');
+        dst_line.Str.?.fillCopy(text_str, 1, text_len, dst_col, dst_line.len() + 1 - dst_col, ' ');
         dst_line.Used = dst_col + text_len - 1;
         markLineDirty(dst_line.Group.?.Frame, dst_line);
     } else if (dst_col <= dst_line.Used) {

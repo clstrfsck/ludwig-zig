@@ -32,7 +32,7 @@ const invalid_screen_height_message = "Invalid height for screen.";
 const screen_width_invalid_message = "Invalid screen width specified.";
 
 fn emitFrameMessage(editor: *const state.Editor, message: []const u8) void {
-    if (editor.LudwigMode == .LudwigScreen) {
+    if (editor.ludwig_mode == .LudwigScreen) {
         interactive_io.queueStatusMessage(message);
     }
 }
@@ -59,20 +59,20 @@ pub fn frameEdit(
 
     const frame = try allocator.create(types.FrameObject);
     frame.* = .{
-        .Marks = editor.InitialMarks,
-        .ScrHeight = editor.InitialScrHeight,
-        .ScrWidth = editor.InitialScrWidth,
-        .ScrOffset = editor.InitialScrOffset,
+        .Marks = editor.initial_marks,
+        .ScrHeight = editor.initial_scr_height,
+        .ScrWidth = editor.initial_scr_width,
+        .ScrOffset = editor.initial_scr_offset,
         .ScrDotLine = 1,
         .ReturnFrame = return_frame,
-        .SpaceLimit = editor.FileData.Space,
-        .SpaceLeft = editor.FileData.Space,
-        .MarginLeft = editor.InitialMarginLeft,
-        .MarginRight = editor.InitialMarginRight,
-        .MarginTop = editor.InitialMarginTop,
-        .MarginBottom = editor.InitialMarginBottom,
-        .TabStops = editor.InitialTabStops,
-        .Options = editor.InitialOptions,
+        .SpaceLimit = editor.file_data.Space,
+        .SpaceLeft = editor.file_data.Space,
+        .MarginLeft = editor.initial_margin_left,
+        .MarginRight = editor.initial_margin_right,
+        .MarginTop = editor.initial_margin_top,
+        .MarginBottom = editor.initial_margin_bottom,
+        .TabStops = editor.initial_tab_stops,
+        .Options = editor.initial_options,
     };
 
     const group = try line_ops.lineEOPCreate(allocator, frame);
@@ -90,7 +90,7 @@ pub fn frameEdit(
     if (span_prev) |prev| {
         prev.FLink = span;
     } else {
-        editor.FirstSpan = span;
+        editor.first_span = span;
     }
     if (span_ptr) |next| {
         next.BLink = span;
@@ -99,7 +99,7 @@ pub fn frameEdit(
     try mark_ops.markCreate(allocator, group.FirstLine.?, 1, &span.MarkOne);
     try mark_ops.markCreate(allocator, group.LastLine.?, 1, &span.MarkTwo);
     frame.Span = span;
-    try mark_ops.markCreate(allocator, group.FirstLine.?, editor.InitialMarginLeft, &frame.Dot);
+    try mark_ops.markCreate(allocator, group.FirstLine.?, editor.initial_margin_left, &frame.Dot);
     return frame;
 }
 
@@ -119,14 +119,14 @@ pub fn frameKill(
     }
 
     const target_frame = span_ptr.?.Frame.?;
-    if (target_frame == current_frame or target_frame == editor.Screen.Frame or target_frame.Options.specialFrame) {
+    if (target_frame == current_frame or target_frame == editor.screen.Frame or target_frame.Options.specialFrame) {
         return false;
     }
     if (target_frame.InputFile != 0 or target_frame.OutputFile != 0) {
         return false;
     }
 
-    var iter = editor.FirstSpan;
+    var iter = editor.first_span;
     while (iter) |span| {
         const next = span.FLink;
         if (span.Frame) |span_frame| {
@@ -197,9 +197,9 @@ const TparParser = struct {
 
     fn setMode(self: *TparParser) bool {
         switch (self.nextChar()) {
-            'I' => self.editor.EditMode = .ModeInsert,
-            'O' => self.editor.EditMode = .ModeOvertype,
-            'C' => self.editor.EditMode = .ModeCommand,
+            'I' => self.editor.edit_mode = .ModeInsert,
+            'O' => self.editor.edit_mode = .ModeOvertype,
+            'C' => self.editor.edit_mode = .ModeCommand,
             else => {
                 emitFrameMessage(self.editor, mode_error_message);
                 return false;
@@ -209,7 +209,7 @@ const TparParser = struct {
     }
 
     fn setCmdIntr(self: *TparParser) bool {
-        if (self.editor.LudwigMode != .LudwigScreen) {
+        if (self.editor.ludwig_mode != .LudwigScreen) {
             emitFrameMessage(self.editor, screen_mode_only_message);
             return false;
         }
@@ -239,7 +239,7 @@ const TparParser = struct {
                 emitFrameMessage(self.editor, invalid_cmd_introducer_message);
                 return false;
             }
-            self.editor.CommandIntroducer = ch;
+            self.editor.command_introducer = ch;
             return true;
         }
 
@@ -247,12 +247,12 @@ const TparParser = struct {
             emitFrameMessage(self.editor, unrecognized_key_name_message);
             return false;
         };
-        if (key_code >= 0 and key_code < types.LookupCount and self.editor.KeyIntroducers.isSet(@intCast(key_code))) {
+        if (key_code >= 0 and key_code < types.lookup_count and self.editor.key_introducers.isSet(@intCast(key_code))) {
             emitFrameMessage(self.editor, invalid_cmd_introducer_message);
             return false;
         }
 
-        self.editor.CommandIntroducer = key_code;
+        self.editor.command_introducer = key_code;
         return true;
     }
 
@@ -267,7 +267,7 @@ const TparParser = struct {
                     set_on = false;
                     ch = self.nextChar();
                 }
-                if (set_initial and !setOpt(frame, ch, set_on, &self.editor.InitialOptions)) {
+                if (set_initial and !setOpt(frame, ch, set_on, &self.editor.initial_options)) {
                     emitFrameMessage(self.editor, unknown_option_message);
                     return false;
                 }
@@ -287,7 +287,7 @@ const TparParser = struct {
                 set_on = false;
                 ch = self.nextChar();
             }
-            if (set_initial and !setOpt(frame, ch, set_on, &self.editor.InitialOptions)) {
+            if (set_initial and !setOpt(frame, ch, set_on, &self.editor.initial_options)) {
                 emitFrameMessage(self.editor, unknown_option_message);
                 return false;
             }
@@ -351,8 +351,8 @@ const TparParser = struct {
     }
 
     fn setLRMargin(self: *TparParser, frame: *types.FrameObject, set_initial: bool) bool {
-        var left = if (set_initial) self.editor.InitialMarginLeft else frame.MarginLeft;
-        var right = if (set_initial) self.editor.InitialMarginRight else frame.MarginRight;
+        var left = if (set_initial) self.editor.initial_margin_left else frame.MarginLeft;
+        var right = if (set_initial) self.editor.initial_margin_right else frame.MarginRight;
         if (!self.getMargins(frame, 1, types.MaxStrLen, &left, &right, true)) {
             return false;
         }
@@ -361,8 +361,8 @@ const TparParser = struct {
             return false;
         }
         if (set_initial) {
-            self.editor.InitialMarginLeft = left;
-            self.editor.InitialMarginRight = right;
+            self.editor.initial_margin_left = left;
+            self.editor.initial_margin_right = right;
         }
         frame.MarginLeft = left;
         frame.MarginRight = right;
@@ -370,8 +370,8 @@ const TparParser = struct {
     }
 
     fn setTBMargin(self: *TparParser, frame: *types.FrameObject, set_initial: bool) bool {
-        var top = if (set_initial) self.editor.InitialMarginTop else frame.MarginTop;
-        var bottom = if (set_initial) self.editor.InitialMarginBottom else frame.MarginBottom;
+        var top = if (set_initial) self.editor.initial_margin_top else frame.MarginTop;
+        var bottom = if (set_initial) self.editor.initial_margin_bottom else frame.MarginBottom;
         if (!self.getMargins(frame, 0, frame.ScrHeight, &top, &bottom, false)) {
             return false;
         }
@@ -380,8 +380,8 @@ const TparParser = struct {
             return false;
         }
         if (set_initial) {
-            self.editor.InitialMarginTop = top;
-            self.editor.InitialMarginBottom = bottom;
+            self.editor.initial_margin_top = top;
+            self.editor.initial_margin_bottom = bottom;
         }
         frame.MarginTop = top;
         frame.MarginBottom = bottom;
@@ -393,14 +393,14 @@ const TparParser = struct {
         switch (ch) {
             'D' => {
                 if (set_initial) {
-                    self.editor.InitialTabStops = self.editor.DefaultTabStops;
+                    self.editor.initial_tab_stops = self.editor.default_tab_stops;
                 }
-                frame.TabStops = self.editor.DefaultTabStops;
+                frame.TabStops = self.editor.default_tab_stops;
             },
             'T' => {
                 if (frame.Dot.?.Line.Used > 0) {
                     const ts = frame.Dot.?.Line.Str.?.get(1) != ' ';
-                    if (set_initial) self.editor.InitialTabStops[1] = ts;
+                    if (set_initial) self.editor.initial_tab_stops[1] = ts;
                     frame.TabStops[1] = ts;
                 }
                 var i: isize = 2;
@@ -408,12 +408,12 @@ const TparParser = struct {
                     const chi = frame.Dot.?.Line.Str.?.get(i);
                     const chim1 = frame.Dot.?.Line.Str.?.get(i - 1);
                     const value = (chi != ' ') and (chim1 == ' ');
-                    if (set_initial) self.editor.InitialTabStops[@intCast(i)] = value;
+                    if (set_initial) self.editor.initial_tab_stops[@intCast(i)] = value;
                     frame.TabStops[@intCast(i)] = value;
                 }
                 i = frame.Dot.?.Line.Used + 1;
                 while (i <= types.MaxStrLen) : (i += 1) {
-                    if (set_initial) self.editor.InitialTabStops[@intCast(i)] = false;
+                    if (set_initial) self.editor.initial_tab_stops[@intCast(i)] = false;
                     frame.TabStops[@intCast(i)] = false;
                 }
             },
@@ -424,12 +424,12 @@ const TparParser = struct {
                 var i: isize = 1;
                 if (set_initial) {
                     while (i <= types.MaxStrLen) : (i += 1) {
-                        if (self.editor.InitialTabStops[@intCast(i)]) {
+                        if (self.editor.initial_tab_stops[@intCast(i)]) {
                             first_line.Str.?.set(i, 'T');
                         }
                     }
-                    first_line.Str.?.set(self.editor.InitialMarginLeft, 'L');
-                    first_line.Str.?.set(self.editor.InitialMarginRight, 'R');
+                    first_line.Str.?.set(self.editor.initial_margin_left, 'L');
+                    first_line.Str.?.set(self.editor.initial_margin_right, 'R');
                 } else {
                     while (i <= types.MaxStrLen) : (i += 1) {
                         if (frame.TabStops[@intCast(i)]) {
@@ -476,16 +476,16 @@ const TparParser = struct {
                     const chi = chars.chToUpper(frame.Dot.?.Line.Str.?.get(i));
                     const value = chi != ' ';
                     if (set_initial) {
-                        self.editor.InitialTabStops[@intCast(i)] = value;
+                        self.editor.initial_tab_stops[@intCast(i)] = value;
                     }
                     frame.TabStops[@intCast(i)] = value;
                     switch (chi) {
                         'L' => {
-                            if (set_initial) self.editor.InitialMarginLeft = i;
+                            if (set_initial) self.editor.initial_margin_left = i;
                             frame.MarginLeft = i;
                         },
                         'R' => {
-                            if (set_initial) self.editor.InitialMarginRight = i;
+                            if (set_initial) self.editor.initial_margin_right = i;
                             frame.MarginRight = i;
                         },
                         else => {},
@@ -493,7 +493,7 @@ const TparParser = struct {
                 }
                 var j = frame.Dot.?.Line.Used + 1;
                 while (j <= types.MaxStrLen) : (j += 1) {
-                    if (set_initial) self.editor.InitialTabStops[@intCast(j)] = false;
+                    if (set_initial) self.editor.initial_tab_stops[@intCast(j)] = false;
                     frame.TabStops[@intCast(j)] = false;
                 }
 
@@ -508,7 +508,7 @@ const TparParser = struct {
                     emitFrameMessage(self.editor, out_of_range_tab_value_message);
                     return false;
                 }
-                if (set_initial) self.editor.InitialTabStops[@intCast(frame.Dot.?.Col)] = true;
+                if (set_initial) self.editor.initial_tab_stops[@intCast(frame.Dot.?.Col)] = true;
                 frame.TabStops[@intCast(frame.Dot.?.Col)] = true;
             },
             'C' => {
@@ -516,7 +516,7 @@ const TparParser = struct {
                     emitFrameMessage(self.editor, out_of_range_tab_value_message);
                     return false;
                 }
-                if (set_initial) self.editor.InitialTabStops[@intCast(frame.Dot.?.Col)] = false;
+                if (set_initial) self.editor.initial_tab_stops[@intCast(frame.Dot.?.Col)] = false;
                 frame.TabStops[@intCast(frame.Dot.?.Col)] = false;
             },
             'W' => {
@@ -533,7 +533,7 @@ const TparParser = struct {
                         tabs[@intCast(i)] = true;
                     }
                 }
-                if (set_initial) self.editor.InitialTabStops = tabs;
+                if (set_initial) self.editor.initial_tab_stops = tabs;
                 frame.TabStops = tabs;
             },
             '(' => {
@@ -559,7 +559,7 @@ const TparParser = struct {
                         break;
                     }
                 }
-                if (set_initial) self.editor.InitialTabStops = tabs;
+                if (set_initial) self.editor.initial_tab_stops = tabs;
                 frame.TabStops = tabs;
             },
             else => {
@@ -577,7 +577,7 @@ fn setMemory(editor: *state.Editor, frame: *types.FrameObject, size: isize, set_
         sz = types.MaxSpace;
     }
     if (set_initial) {
-        editor.FileData.Space = sz;
+        editor.file_data.Space = sz;
     }
 
     const used_storage = frame.SpaceLimit - frame.SpaceLeft;
@@ -591,15 +591,15 @@ fn setMemory(editor: *state.Editor, frame: *types.FrameObject, size: isize, set_
 }
 
 pub fn frameSetHeight(editor: *state.Editor, frame: *types.FrameObject, height: isize, set_initial: bool) bool {
-    if (height >= 1 and height <= editor.TerminalInfo.Height) {
+    if (height >= 1 and height <= editor.terminal_info.Height) {
         if (set_initial) {
-            editor.InitialScrHeight = height;
+            editor.initial_scr_height = height;
         }
         frame.ScrHeight = height;
         const band = @divTrunc(height, 6);
         if (set_initial) {
-            editor.InitialMarginTop = band;
-            editor.InitialMarginBottom = band;
+            editor.initial_margin_top = band;
+            editor.initial_margin_bottom = band;
         }
         frame.MarginTop = band;
         frame.MarginBottom = band;
@@ -610,9 +610,9 @@ pub fn frameSetHeight(editor: *state.Editor, frame: *types.FrameObject, height: 
 }
 
 fn setWidth(editor: *state.Editor, frame: *types.FrameObject, width: isize, set_initial: bool) bool {
-    if (width >= 10 and width <= editor.TerminalInfo.Width) {
+    if (width >= 10 and width <= editor.terminal_info.Width) {
         if (set_initial) {
-            editor.InitialScrWidth = width;
+            editor.initial_scr_width = width;
         }
         frame.ScrWidth = width;
         return true;
@@ -702,13 +702,13 @@ fn padRight(allocator: std.mem.Allocator, text_in: []const u8, width: usize) ![]
 }
 
 fn renderCommandIntroducerSummary(editor: *const state.Editor, allocator: std.mem.Allocator) ![]const u8 {
-    if (user_ops.userKeyCodeToName(editor, editor.CommandIntroducer)) |name| {
+    if (user_ops.userKeyCodeToName(editor, editor.command_introducer)) |name| {
         return allocator.dupe(u8, name);
     }
-    if (editor.CommandIntroducer >= 0 and editor.CommandIntroducer <= std.math.maxInt(u8)) {
-        return std.fmt.allocPrint(allocator, "{c}", .{@as(u8, @intCast(editor.CommandIntroducer))});
+    if (editor.command_introducer >= 0 and editor.command_introducer <= std.math.maxInt(u8)) {
+        return std.fmt.allocPrint(allocator, "{c}", .{@as(u8, @intCast(editor.command_introducer))});
     }
-    return std.fmt.allocPrint(allocator, "{d}", .{editor.CommandIntroducer});
+    return std.fmt.allocPrint(allocator, "{d}", .{editor.command_introducer});
 }
 
 fn renderInt(allocator: std.mem.Allocator, value: isize, width: usize) ![]const u8 {
@@ -776,22 +776,22 @@ fn buildInteractiveParameterLines(
     const version_underline = try allocator.alloc(u8, 7 + types.LudwigVersion.len);
     @memset(version_underline, '=');
     const current_options = try renderOptionsSummary(allocator, frame.Options);
-    const default_options = try renderOptionsSummary(allocator, editor.InitialOptions);
+    const default_options = try renderOptionsSummary(allocator, editor.initial_options);
     const current_h_margins = try renderMarginsSummary(allocator, frame.MarginLeft, frame.MarginRight);
-    const default_h_margins = try renderMarginsSummary(allocator, editor.InitialMarginLeft, editor.InitialMarginRight);
+    const default_h_margins = try renderMarginsSummary(allocator, editor.initial_margin_left, editor.initial_margin_right);
     const current_v_margins = try renderMarginsSummary(allocator, frame.MarginTop, frame.MarginBottom);
-    const default_v_margins = try renderMarginsSummary(allocator, editor.InitialMarginTop, editor.InitialMarginBottom);
+    const default_v_margins = try renderMarginsSummary(allocator, editor.initial_margin_top, editor.initial_margin_bottom);
     const introducer = try renderCommandIntroducerSummary(editor, allocator);
     const unused_memory = try renderInt(allocator, frame.SpaceLeft, 9);
     const line_count = try renderInt(allocator, line_ops.lineToNumber(frame.LastGroup.?.LastLine.?) - 1, 9);
     const input_count = try renderInt(allocator, frame.InputCount, 9);
     const current_line = try renderInt(allocator, line_ops.lineToNumber(frame.Dot.?.Line), 9);
     const current_space_limit = try renderInt(allocator, frame.SpaceLimit, 9);
-    const default_space_limit = try renderInt(allocator, editor.FileData.Space, 9);
+    const default_space_limit = try renderInt(allocator, editor.file_data.Space, 9);
     const current_scr_height = try renderInt(allocator, frame.ScrHeight, 9);
-    const default_scr_height = try renderInt(allocator, editor.InitialScrHeight, 9);
+    const default_scr_height = try renderInt(allocator, editor.initial_scr_height, 9);
     const current_scr_width = try renderInt(allocator, frame.ScrWidth, 9);
-    const default_scr_width = try renderInt(allocator, editor.InitialScrWidth, 9);
+    const default_scr_width = try renderInt(allocator, editor.initial_scr_width, 9);
 
     try lines.append(allocator, try joinWithIndent(
         allocator,
@@ -834,9 +834,9 @@ fn buildInteractiveParameterLines(
     try lines.append(allocator, try std.fmt.allocPrint(
         allocator,
         "   Keyboard Mode                      K = {s}",
-        .{keyboardModeName(editor.EditMode)},
+        .{keyboardModeName(editor.edit_mode)},
     ));
-    if (editor.LudwigMode == .LudwigScreen) {
+    if (editor.ludwig_mode == .LudwigScreen) {
         try lines.append(allocator, try std.fmt.allocPrint(
             allocator,
             "   Command introducer                 C = {s}",
@@ -994,7 +994,7 @@ pub fn frameParameter(
     if (request.Len > 0) {
         return setParam(editor, allocator, frame, &request);
     }
-    if (editor.LudwigMode == .LudwigScreen) {
+    if (editor.ludwig_mode == .LudwigScreen) {
         return showInteractiveParameters(editor, allocator, frame);
     }
     return false;
@@ -1071,7 +1071,7 @@ test "frame parameter updates batch-safe state values" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .Width = 160, .Height = 48 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha beta"});
     const frame = fixture.frame;
@@ -1082,7 +1082,7 @@ test "frame parameter updates batch-safe state values" {
         .Len = request.len,
     };
     try std.testing.expect(try frameParameter(&editor, allocator, frame, &tpar));
-    try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.EditMode);
+    try std.testing.expectEqual(types.ModeType.ModeOvertype, editor.edit_mode);
     try std.testing.expect(frame.Options.autoIndent);
     try std.testing.expect(!frame.Options.newLine);
     try std.testing.expectEqual(@as(isize, 2200), frame.SpaceLimit);
@@ -1092,19 +1092,19 @@ test "frame parameter updates batch-safe state values" {
     try std.testing.expectEqual(@as(isize, 80), frame.MarginRight);
     try std.testing.expectEqual(@as(isize, 2), frame.MarginTop);
     try std.testing.expectEqual(@as(isize, 3), frame.MarginBottom);
-    try std.testing.expectEqual(@as(isize, '\\'), editor.CommandIntroducer);
+    try std.testing.expectEqual(@as(isize, '\\'), editor.command_introducer);
     try std.testing.expect(frame.TabStops[4]);
     try std.testing.expect(frame.TabStops[8]);
     try std.testing.expect(frame.TabStops[12]);
-    try std.testing.expectEqual(@as(isize, 2200), editor.FileData.Space);
-    try std.testing.expectEqual(@as(isize, 120), editor.InitialScrWidth);
+    try std.testing.expectEqual(@as(isize, 2200), editor.file_data.Space);
+    try std.testing.expectEqual(@as(isize, 120), editor.initial_scr_width);
 }
 
 test "frame parameter accepts named command introducers in screen mode" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
+    editor.ludwig_mode = .LudwigScreen;
     try user_ops.userKeyInitialize(&editor, allocator);
     const function_key = user_ops.userKeyNameToCode(&editor, "FUNCTION-1").?;
 
@@ -1115,14 +1115,14 @@ test "frame parameter accepts named command introducers in screen mode" {
     };
 
     try std.testing.expect(try frameParameter(&editor, allocator, fixture.frame, &tpar));
-    try std.testing.expectEqual(function_key, editor.CommandIntroducer);
+    try std.testing.expectEqual(function_key, editor.command_introducer);
 }
 
 test "frame parameter reports unrecognized named introducers" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
+    editor.ludwig_mode = .LudwigScreen;
     try user_ops.userKeyInitialize(&editor, allocator);
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
@@ -1139,8 +1139,8 @@ test "frame parameter queues validation messages in screen mode" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 120, .Height = 24 };
+    editor.ludwig_mode = .LudwigScreen;
+    editor.terminal_info = .{ .Width = 120, .Height = 24 };
     try user_ops.userKeyInitialize(&editor, allocator);
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
@@ -1208,8 +1208,8 @@ test "interactive parameter display lines show current settings summary" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 120, .Height = 24 };
+    editor.ludwig_mode = .LudwigScreen;
+    editor.terminal_info = .{ .Width = 120, .Height = 24 };
     try user_ops.userKeyInitialize(&editor, allocator);
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{ "alpha", "beta" });

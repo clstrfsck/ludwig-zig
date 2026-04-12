@@ -552,7 +552,7 @@ pub fn deinit() void {
 }
 
 pub fn deinitHighlighting(base_allocator: std.mem.Allocator, editor: *const state.Editor) void {
-    var span = editor.FirstSpan;
+    var span = editor.first_span;
     while (span) |s| : (span = s.FLink) {
         if (s.Frame) |frame| {
             freeFrameHighlighting(base_allocator, frame);
@@ -561,7 +561,7 @@ pub fn deinitHighlighting(base_allocator: std.mem.Allocator, editor: *const stat
 }
 
 pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
-    if (!editor.FileData.Highlighting or editor.LudwigMode != .LudwigScreen or frame.InputFile == 0) {
+    if (!editor.file_data.Highlighting or editor.ludwig_mode != .LudwigScreen or frame.InputFile == 0) {
         freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;
@@ -577,7 +577,7 @@ pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
         return;
     };
 
-    const input_file = editor.Files[@intCast(frame.InputFile)] orelse {
+    const input_file = editor.files[@intCast(frame.InputFile)] orelse {
         freeFrameHighlighting(editor.base_allocator, frame);
         frame.DirtyLine = 0;
         return;

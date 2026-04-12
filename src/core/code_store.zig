@@ -13,20 +13,20 @@ pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
 
         var source = start;
         while (source < start + size) : (source += 1) {
-            if (editor.CompilerCode[@intCast(source)].Code != null) {
-                codeDiscard(editor, &editor.CompilerCode[@intCast(source)].Code);
+            if (editor.compiler_code[@intCast(source)].Code != null) {
+                codeDiscard(editor, &editor.compiler_code[@intCast(source)].Code);
             }
-            editor.CompilerCode[@intCast(source)].Tpar = null;
+            editor.compiler_code[@intCast(source)].Tpar = null;
         }
 
         source = start + size;
-        while (source <= editor.CodeTop) : (source += 1) {
-            editor.CompilerCode[@intCast(source - size)] = editor.CompilerCode[@intCast(source)];
+        while (source <= editor.code_top) : (source += 1) {
+            editor.compiler_code[@intCast(source - size)] = editor.compiler_code[@intCast(source)];
         }
-        editor.CodeTop -= size;
+        editor.code_top -= size;
 
         var link = code_head.*.?.BLink;
-        while (link != editor.CodeList) {
+        while (link != editor.code_list) {
             link.?.Code -= size;
             link = link.?.BLink;
         }

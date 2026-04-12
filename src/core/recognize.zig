@@ -425,7 +425,7 @@ fn appendCursorUnique(list: *std.ArrayList(Cursor), allocator: std.mem.Allocator
 fn acceptSetIntersects(a: *const types.AcceptSet, b: *const types.AcceptSet) bool {
     var index: usize = 0;
     while (index <= types.MaxSetRange) : (index += 1) {
-        if (a.Bit(index) == 1 and b.Bit(index) == 1) {
+        if (a.bit(index) == 1 and b.bit(index) == 1) {
             return true;
         }
     }
@@ -533,7 +533,7 @@ const Matcher = struct {
             return &.{};
         }
         const ok = switch (event.kind) {
-            .char => token.accept.Bit(event.ch) == 1,
+            .char => token.accept.bit(event.ch) == 1,
             .positional => acceptSetIntersects(&token.accept, &event.accept),
         };
         if (!ok) {

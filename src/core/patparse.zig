@@ -96,7 +96,7 @@ pub fn setUnion(a: *const types.AcceptSet, b: *const types.AcceptSet) types.Acce
     var out: types.AcceptSet = .{};
     var i: usize = 0;
     while (i <= types.MaxSetRange) : (i += 1) {
-        if (a.Bit(i) == 1 or b.Bit(i) == 1) {
+        if (a.bit(i) == 1 or b.bit(i) == 1) {
             out.setBit(i);
         }
     }
@@ -107,7 +107,7 @@ pub fn setRemove(a: *const types.AcceptSet, b: *const types.AcceptSet) types.Acc
     var out: types.AcceptSet = .{};
     var i: usize = 0;
     while (i <= types.MaxSetRange) : (i += 1) {
-        if (a.Bit(i) == 1 and b.Bit(i) == 0) {
+        if (a.bit(i) == 1 and b.bit(i) == 0) {
             out.setBit(i);
         }
     }
@@ -510,21 +510,21 @@ fn countBits(set: *const types.AcceptSet) usize {
     var count: usize = 0;
     var i: usize = 0;
     while (i <= types.MaxSetRange) : (i += 1) {
-        if (set.Bit(i) == 1) count += 1;
+        if (set.bit(i) == 1) count += 1;
     }
     return count;
 }
 
 test "pattern helper sets build expected character memberships" {
     const az = rangeSet('a', 'z');
-    try std.testing.expectEqual(@as(u1, 1), singletonSet('a').Bit('a'));
+    try std.testing.expectEqual(@as(u1, 1), singletonSet('a').bit('a'));
     try std.testing.expectEqual(@as(usize, 26), countBits(&az));
-    try std.testing.expectEqual(@as(u1, 1), space_set.Bit(' '));
-    try std.testing.expectEqual(@as(u1, 1), lower_set.Bit('a'));
-    try std.testing.expectEqual(@as(u1, 1), upper_set.Bit('A'));
-    try std.testing.expectEqual(@as(u1, 1), alpha_set.Bit('z'));
-    try std.testing.expectEqual(@as(u1, 1), numeric_set.Bit('8'));
-    try std.testing.expectEqual(@as(u1, 1), punctuation_set.Bit('!'));
+    try std.testing.expectEqual(@as(u1, 1), space_set.bit(' '));
+    try std.testing.expectEqual(@as(u1, 1), lower_set.bit('a'));
+    try std.testing.expectEqual(@as(u1, 1), upper_set.bit('A'));
+    try std.testing.expectEqual(@as(u1, 1), alpha_set.bit('z'));
+    try std.testing.expectEqual(@as(u1, 1), numeric_set.bit('8'));
+    try std.testing.expectEqual(@as(u1, 1), punctuation_set.bit('!'));
     try std.testing.expect(quoted_set[types.TpdLit]);
     try std.testing.expect(delimited_set[types.PatternKStar]);
     try std.testing.expect(charsets_set['s']);
@@ -553,7 +553,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
 
     try std.testing.expect(patternParser(null, @constCast(&tpar), &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     try std.testing.expect(states_used > types.PatternNFAStart);
-    try std.testing.expectEqual(@as(u1, 1), nfa_table[types.PatternNFAStart].AcceptSet.Bit(' '));
+    try std.testing.expectEqual(@as(u1, 1), nfa_table[types.PatternNFAStart].AcceptSet.bit(' '));
 
     const email_like = "+a'@'+a'.'+a";
     var literal = types.TParObject{

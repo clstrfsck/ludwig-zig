@@ -75,7 +75,7 @@ pub fn linesInject(
     var space: isize = 0;
     var scan_line: ?*types.LineHdrObject = first_line;
     while (scan_line) |line| {
-        space += line.Len();
+        space += line.len();
         nr_new_lines += 1;
         scan_line = line.FLink;
     }
@@ -234,7 +234,7 @@ pub fn linesExtract(
     var this_line: ?*types.LineHdrObject = first_line;
     var line_nr: isize = 1;
     while (line_nr <= nr_lines_to_remove) : (line_nr += 1) {
-        space += this_line.?.Len();
+        space += this_line.?.len();
         this_line = this_line.?.FLink;
     }
     this_frame.SpaceLeft += space;
@@ -311,7 +311,7 @@ pub fn lineChangeLength(
     line: *types.LineHdrObject,
     new_length: isize,
 ) !void {
-    const old_length = line.Len();
+    const old_length = line.len();
     var adjusted_length = new_length;
     var new_str: ?*str_object.StrObject = null;
 
@@ -444,8 +444,8 @@ pub fn setupLinkedLines(
 pub fn setLineContent(line: *types.LineHdrObject, content: []const u8) !void {
     try line.Str.?.assign(content);
     line.Used = @intCast(content.len);
-    if (line.Len() > line.Used) {
-        line.Str.?.fillN(' ', line.Len() - line.Used, line.Used + 1);
+    if (line.len() > line.Used) {
+        line.Str.?.fillN(' ', line.len() - line.Used, line.Used + 1);
     }
 }
 
@@ -456,14 +456,14 @@ pub fn setSentinelDisplayContent(
     frame_name: []const u8,
 ) !void {
     const min_len = @as(isize, @intCast(prefix.len + types.NameLen));
-    if (line.Len() < min_len) {
+    if (line.len() < min_len) {
         try lineChangeLength(allocator, line, min_len);
     }
     if (line.Str == null) {
         return error.MissingSentinelStorage;
     }
 
-    const storage_len: isize = @intCast(line.Len());
+    const storage_len: isize = @intCast(line.len());
     line.Str.?.fillCopyBytes(prefix, 1, storage_len, ' ');
     if (frame_name.len > 0) {
         line.Str.?.fillCopyBytes(frame_name, @intCast(prefix.len + 1), storage_len - @as(isize, @intCast(prefix.len)), ' ');
@@ -592,11 +592,11 @@ test "line change length quantizes and adjusts frame space" {
     const fixture = try createContentFrame(allocator, &[_][]const u8{""});
     const line = fixture.content_lines[0];
     const original_space = fixture.frame.SpaceLeft;
-    const old_length = line.Len();
+    const old_length = line.len();
 
     try lineChangeLength(allocator, line, 13);
     try std.testing.expect(line.Str != null);
-    try std.testing.expectEqual(@as(isize, 20), line.Len());
+    try std.testing.expectEqual(@as(isize, 20), line.len());
     try std.testing.expectEqual(original_space + old_length - 20, fixture.frame.SpaceLeft);
 }
 

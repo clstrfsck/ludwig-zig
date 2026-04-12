@@ -15,7 +15,7 @@ pub fn validateCommand(
     if (special_frames.Oops == null or special_frames.Cmd == null or special_frames.Heap == null) {
         return false;
     }
-    if (editor.FirstSpan == null) {
+    if (editor.first_span == null) {
         return false;
     }
 
@@ -23,7 +23,7 @@ pub fn validateCommand(
     var saw_cmd = false;
     var saw_heap = false;
     var prev_span: ?*types.SpanObject = null;
-    var span = editor.FirstSpan;
+    var span = editor.first_span;
     while (span) |this_span| {
         if (this_span.BLink != prev_span) {
             return false;
@@ -57,13 +57,13 @@ pub fn validateCommand(
             if (this_frame.ScrHeight <= 0) {
                 return false;
             }
-            if (editor.TerminalInfo.Height > 0 and this_frame.ScrHeight > editor.TerminalInfo.Height) {
+            if (editor.terminal_info.Height > 0 and this_frame.ScrHeight > editor.terminal_info.Height) {
                 return false;
             }
             if (this_frame.ScrWidth <= 0) {
                 return false;
             }
-            if (editor.TerminalInfo.Width > 0 and this_frame.ScrWidth > editor.TerminalInfo.Width) {
+            if (editor.terminal_info.Width > 0 and this_frame.ScrWidth > editor.terminal_info.Width) {
                 return false;
             }
             if (this_frame.Span != this_span) {
@@ -108,7 +108,7 @@ fn makeSpecialFrame(
 test "validate command accepts healthy special frames and spans" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .Width = 160, .Height = 48 };
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -134,7 +134,7 @@ test "validate command accepts healthy special frames and spans" {
 test "validate command rejects missing special frames" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .Width = 160, .Height = 48 };
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -146,7 +146,7 @@ test "validate command rejects missing special frames" {
 test "validate command rejects spans with marks in different frames" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .Width = 160, .Height = 48 };
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -170,12 +170,12 @@ test "validate command rejects spans with marks in different frames" {
         .Name = "BROKEN",
         .MarkOne = mark_one,
         .MarkTwo = mark_two,
-        .BLink = editor.FirstSpan,
+        .BLink = editor.first_span,
     };
-    if (editor.FirstSpan) |first| {
+    if (editor.first_span) |first| {
         first.FLink = span;
     } else {
-        editor.FirstSpan = span;
+        editor.first_span = span;
     }
 
     try std.testing.expect(!validateCommand(&editor, current, &special_frames));
