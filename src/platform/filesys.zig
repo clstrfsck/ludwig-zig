@@ -106,12 +106,12 @@ pub fn fileCreateOpen(
         return .{ .ok = true };
     }
 
-    var entab = editor.file_data.Entab;
-    var highlighting = editor.file_data.Highlighting;
-    var space = editor.file_data.Space;
-    var purge = editor.file_data.Purge;
-    var versions = editor.file_data.Versions;
-    var tab_width = editor.file_data.TabWidth;
+    var entab = editor.file_data.entab;
+    var highlighting = editor.file_data.highlighting;
+    var space = editor.file_data.space;
+    var purge = editor.file_data.purge;
+    var versions = editor.file_data.versions;
+    var tab_width = editor.file_data.tab_width;
 
     var create_flag = false;
     var read_only_flag = false;
@@ -181,11 +181,11 @@ pub fn fileCreateOpen(
                 'M' => memory = "",
                 'o' => {
                     version_flag = true;
-                    editor.file_data.OldCmds = true;
+                    editor.file_data.old_cmds = true;
                 },
                 'O' => {
                     version_flag = true;
-                    editor.file_data.OldCmds = false;
+                    editor.file_data.old_cmds = false;
                 },
                 'r' => {
                     if (create_flag) {
@@ -232,14 +232,14 @@ pub fn fileCreateOpen(
     }
 
     if (parse_type == .parse_command) {
-        editor.file_data.Highlighting = highlighting;
-        editor.file_data.Entab = entab;
-        editor.file_data.Space = space;
-        editor.file_data.Initial = initialize;
-        editor.file_data.Purge = purge;
-        editor.file_data.Versions = versions;
-        editor.file_data.TabWidth = tab_width;
-        editor.loadCommandTable(editor.file_data.OldCmds);
+        editor.file_data.highlighting = highlighting;
+        editor.file_data.entab = entab;
+        editor.file_data.space = space;
+        editor.file_data.initial = initialize;
+        editor.file_data.purge = purge;
+        editor.file_data.versions = versions;
+        editor.file_data.tab_width = tab_width;
+        editor.loadCommandTable(editor.file_data.old_cmds);
     } else if (create_flag or read_only_flag or initialize.len != 0 or space_flag or version_flag) {
         return .{
             .ok = false,
@@ -367,11 +367,11 @@ test "filesys parser applies command flags and opens command/edit files" {
     const argv = [_][]const u8{ "-B", "3", "-t", "-w", "4", "-O", input_path, output_path };
     const result = try fileCreateOpen(&editor, allocator, &argv, .parse_command, &input, &output);
     try std.testing.expect(result.ok);
-    try std.testing.expect(!editor.file_data.OldCmds);
-    try std.testing.expect(editor.file_data.Entab);
-    try std.testing.expect(editor.file_data.Purge);
-    try std.testing.expectEqual(@as(isize, 3), editor.file_data.Versions);
-    try std.testing.expectEqual(@as(isize, 4), editor.file_data.TabWidth);
+    try std.testing.expect(!editor.file_data.old_cmds);
+    try std.testing.expect(editor.file_data.entab);
+    try std.testing.expect(editor.file_data.purge);
+    try std.testing.expectEqual(@as(isize, 3), editor.file_data.versions);
+    try std.testing.expectEqual(@as(isize, 4), editor.file_data.tab_width);
     try std.testing.expect(input != null);
     try std.testing.expect(output != null);
 }

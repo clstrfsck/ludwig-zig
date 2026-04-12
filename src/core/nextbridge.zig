@@ -4,13 +4,13 @@ const line_ops = @import("line.zig");
 const str_object = @import("str_object.zig");
 const types = @import("types.zig");
 
-fn contains(char_set: *const [types.MaxSetRange + 1]bool, invert: bool, ch: u8) bool {
+fn contains(char_set: *const [types.max_set_range + 1]bool, invert: bool, ch: u8) bool {
     const in_set = char_set[@intCast(ch)];
     return if (invert) !in_set else in_set;
 }
 
 pub fn searchForward(
-    char_set: *const [types.MaxSetRange + 1]bool,
+    char_set: *const [types.max_set_range + 1]bool,
     invert: bool,
     line: ?*types.LineHdrObject,
     col: isize,
@@ -19,22 +19,22 @@ pub fn searchForward(
     var start_col = col;
     while (this_line) |current_line| {
         var i = start_col;
-        while (i <= current_line.Used) : (i += 1) {
-            if (contains(char_set, invert, current_line.Str.?.get(i))) {
+        while (i <= current_line.used) : (i += 1) {
+            if (contains(char_set, invert, current_line.str.?.get(i))) {
                 return .{ current_line, i };
             }
         }
-        if (contains(char_set, invert, ' ') and i == current_line.Used + 1) {
+        if (contains(char_set, invert, ' ') and i == current_line.used + 1) {
             return .{ current_line, i };
         }
-        this_line = current_line.FLink;
+        this_line = current_line.f_link;
         start_col = 1;
     }
     return .{ null, 0 };
 }
 
 pub fn searchBackward(
-    char_set: *const [types.MaxSetRange + 1]bool,
+    char_set: *const [types.max_set_range + 1]bool,
     invert: bool,
     line: ?*types.LineHdrObject,
     col: isize,
@@ -43,22 +43,22 @@ pub fn searchBackward(
     var this_line = line;
     var start_col = col;
     while (this_line) |current_line| {
-        if (current_line.Used < start_col) {
+        if (current_line.used < start_col) {
             if (contains(char_set, invert, ' ')) {
                 return .{ current_line, start_col };
             }
-            start_col = current_line.Used;
+            start_col = current_line.used;
         }
         var j = start_col;
         while (j >= 1) : (j -= 1) {
-            if (contains(char_set, invert, current_line.Str.?.get(j))) {
+            if (contains(char_set, invert, current_line.str.?.get(j))) {
                 return .{ current_line, j };
             }
             if (j == 1) break;
         }
-        if (current_line.BLink) |back| {
+        if (current_line.b_link) |back| {
             this_line = back;
-            start_col = back.Used + 1;
+            start_col = back.used + 1;
         } else if (bridge) {
             return .{ current_line, start_col };
         } else {
@@ -71,10 +71,10 @@ pub fn searchBackward(
 fn buildCharSet(
     allocator: std.mem.Allocator,
     tpar: *types.TParObject,
-) !*[types.MaxSetRange + 1]bool {
-    const buffer = try allocator.create([types.MaxSetRange + 1]bool);
-    buffer.* = [_]bool{false} ** (types.MaxSetRange + 1);
-    const str = tpar.Str.?;
+) !*[types.max_set_range + 1]bool {
+    const buffer = try allocator.create([types.max_set_range + 1]bool);
+    buffer.* = [_]bool{false} ** (types.max_set_range + 1);
+    const str = tpar.str.?;
     var i: isize = 1;
     while (i <= tpar.Len) {
         const ch1 = str.get(i);
@@ -103,12 +103,12 @@ pub fn nextbridgeCommand(
     const char_set = try buildCharSet(allocator, tpar);
     defer allocator.destroy(char_set);
 
-    var new_line = frame.Dot.?.Line;
+    var new_line = frame.dot.?.Line;
     var new_col: isize = undefined;
     var count_mut = count;
 
     if (count_mut > 0) {
-        new_col = frame.Dot.?.Col;
+        new_col = frame.dot.?.Col;
         if (!bridge) {
             new_col += 1;
         }
@@ -121,9 +121,9 @@ pub fn nextbridgeCommand(
             if (count_mut == 0) break;
         }
         new_col -= 1;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_equals]);
     } else if (count_mut < 0) {
-        new_col = frame.Dot.?.Col - 1;
+        new_col = frame.dot.?.Col - 1;
         if (!bridge) {
             new_col -= 1;
         }
@@ -136,13 +136,13 @@ pub fn nextbridgeCommand(
             if (count_mut == 0) break;
         }
         new_col += 2;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_equals]);
     } else {
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkEquals]);
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_equals]);
         return true;
     }
 
-    try mark_ops.markCreate(allocator, new_line, new_col, &frame.Dot);
+    try mark_ops.markCreate(allocator, new_line, new_col, &frame.dot);
     return true;
 }
 
@@ -156,7 +156,7 @@ test "search forward and backward scan across lines and eol space" {
     try line_ops.setLineContent(fixture.content_lines[1], "bbb");
 
     const b = try str_object.newStrObjectFrom(allocator, "b");
-    var b_tpar = types.TParObject{ .Str = b, .Len = 1 };
+    var b_tpar = types.TParObject{ .str = b, .Len = 1 };
     const forward_set = try buildCharSet(allocator, &b_tpar);
     defer allocator.destroy(forward_set);
     const forward = searchForward(forward_set, false, fixture.content_lines[0], 1);
@@ -164,7 +164,7 @@ test "search forward and backward scan across lines and eol space" {
     try std.testing.expectEqual(@as(isize, 1), forward.@"1");
 
     const sp = try str_object.newStrObjectFrom(allocator, " ");
-    var sp_tpar = types.TParObject{ .Str = sp, .Len = 1 };
+    var sp_tpar = types.TParObject{ .str = sp, .Len = 1 };
     const space_set = try buildCharSet(allocator, &sp_tpar);
     defer allocator.destroy(space_set);
     const backward = searchBackward(space_set, false, fixture.content_lines[0], 5, false);
@@ -179,25 +179,25 @@ test "nextbridge command supports forward backward bridge and ranges" {
 
     const forward_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello world"});
     const space = try str_object.newStrObjectFrom(allocator, " ");
-    var space_tpar = types.TParObject{ .Str = space, .Len = 1 };
+    var space_tpar = types.TParObject{ .str = space, .Len = 1 };
     try std.testing.expect(try nextbridgeCommand(allocator, forward_fixture.frame, 1, &space_tpar, false));
-    try std.testing.expectEqual(@as(isize, 6), forward_fixture.frame.Dot.?.Col);
-    try std.testing.expectEqual(@as(isize, 1), forward_fixture.frame.Marks[types.MarkEquals].?.Col);
+    try std.testing.expectEqual(@as(isize, 6), forward_fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 1), forward_fixture.frame.marks[types.mark_equals].?.Col);
 
-    try mark_ops.markCreate(allocator, forward_fixture.content_lines[0], 8, &forward_fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, forward_fixture.content_lines[0], 8, &forward_fixture.frame.dot);
     try std.testing.expect(try nextbridgeCommand(allocator, forward_fixture.frame, -1, &space_tpar, false));
-    try std.testing.expectEqual(@as(isize, 7), forward_fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 7), forward_fixture.frame.dot.?.Col);
 
     const bridge_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"hello"});
-    try mark_ops.markCreate(allocator, bridge_fixture.content_lines[0], 2, &bridge_fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, bridge_fixture.content_lines[0], 2, &bridge_fixture.frame.dot);
     const vowels = try str_object.newStrObjectFrom(allocator, "aeiou");
-    var vowels_tpar = types.TParObject{ .Str = vowels, .Len = 5 };
+    var vowels_tpar = types.TParObject{ .str = vowels, .Len = 5 };
     try std.testing.expect(try nextbridgeCommand(allocator, bridge_fixture.frame, 1, &vowels_tpar, true));
-    try std.testing.expectEqual(@as(isize, 3), bridge_fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 3), bridge_fixture.frame.dot.?.Col);
 
     const range_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"HELLO world"});
     const lower = try str_object.newStrObjectFrom(allocator, "a..z");
-    var lower_tpar = types.TParObject{ .Str = lower, .Len = 4 };
+    var lower_tpar = types.TParObject{ .str = lower, .Len = 4 };
     try std.testing.expect(try nextbridgeCommand(allocator, range_fixture.frame, 1, &lower_tpar, false));
-    try std.testing.expectEqual(@as(isize, 7), range_fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 7), range_fixture.frame.dot.?.Col);
 }

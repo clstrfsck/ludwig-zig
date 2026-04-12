@@ -17,22 +17,22 @@ fn initCmd(
     tr2: bool,
     mla2: bool,
 ) void {
-    attrib.LpAllowed = 0;
+    attrib.lp_allowed = 0;
     for (lps) |lp| {
-        attrib.LpAllowed |= (@as(u32, 1) << @intCast(@intFromEnum(lp)));
+        attrib.lp_allowed |= (@as(u32, 1) << @intCast(@intFromEnum(lp)));
     }
-    attrib.EqAction = eqa;
-    attrib.TpCount = tpc;
+    attrib.eq_action = eqa;
+    attrib.tp_count = tpc;
 
     if (tpc >= 1) {
-        attrib.TparInfo[1].PromptName = pnm1;
-        attrib.TparInfo[1].TrimReply = tr1;
-        attrib.TparInfo[1].MlAllowed = mla1;
+        attrib.tpar_info[1].prompt_name = pnm1;
+        attrib.tpar_info[1].trim_reply = tr1;
+        attrib.tpar_info[1].ml_allowed = mla1;
     }
     if (tpc >= 2) {
-        attrib.TparInfo[2].PromptName = pnm2;
-        attrib.TparInfo[2].TrimReply = tr2;
-        attrib.TparInfo[2].MlAllowed = mla2;
+        attrib.tpar_info[2].prompt_name = pnm2;
+        attrib.tpar_info[2].trim_reply = tr2;
+        attrib.tpar_info[2].ml_allowed = mla2;
     }
 }
 
@@ -177,61 +177,61 @@ pub fn loadCommandTable(editor: *state.Editor, old_version: bool) void {
     editor.lookup_exp = [_]types.LookupExpType{.{}} ** types.lookup_exp_count;
     editor.lookup_exp_ptr = [_]usize{0} ** types.command_count;
 
-    editor.lookup[2].Command = .CmdWindowBackward;
-    editor.lookup[4].Command = .CmdDeleteChar;
-    editor.lookup[5].Command = .CmdWindowEnd;
-    editor.lookup[6].Command = .CmdWindowForward;
-    editor.lookup[7].Command = .CmdDoLastCommand;
-    editor.lookup[9].Command = .CmdTab;
-    editor.lookup[10].Command = .CmdDown;
-    editor.lookup[11].Command = .CmdDeleteLine;
-    editor.lookup[12].Command = .CmdInsertLine;
-    editor.lookup[13].Command = .CmdReturn;
-    editor.lookup[14].Command = .CmdWindowNew;
-    editor.lookup[16].Command = .Cmdusercommand_introducer;
-    editor.lookup[18].Command = .CmdRight;
-    editor.lookup[20].Command = .CmdWindowTop;
-    editor.lookup[21].Command = .CmdUp;
-    editor.lookup[23].Command = .CmdWordAdvance;
-    editor.lookup[26].Command = .CmdUserParent;
-    editor.lookup[30].Command = .CmdInsertChar;
-    editor.lookup['"'].Command = .CmdDittoUp;
-    editor.lookup['\''].Command = .CmdDittoDown;
-    editor.lookup['B'].Command = .CmdPrefixB;
-    editor.lookup['E'].Command = .CmdPrefixE;
-    editor.lookup['F'].Command = .CmdPrefixF;
-    editor.lookup['G'].Command = .CmdGet;
-    editor.lookup['H'].Command = .CmdHelp;
-    editor.lookup['M'].Command = .CmdMark;
-    editor.lookup['Q'].Command = .CmdQuit;
-    editor.lookup['R'].Command = .CmdReplace;
-    editor.lookup['S'].Command = .CmdPrefixS;
-    editor.lookup['U'].Command = .CmdPrefixU;
-    editor.lookup['V'].Command = .CmdVerify;
-    editor.lookup['W'].Command = .CmdPrefixW;
-    editor.lookup['X'].Command = .CmdPrefixX;
-    editor.lookup['\\'].Command = .CmdCommand;
-    editor.lookup['{'].Command = .CmdSetMarginLeft;
-    editor.lookup['}'].Command = .CmdSetMarginRight;
-    editor.lookup['~'].Command = .CmdPrefixTilde;
-    editor.lookup[127].Command = .CmdRubout;
+    editor.lookup[2].command = .CmdWindowBackward;
+    editor.lookup[4].command = .CmdDeleteChar;
+    editor.lookup[5].command = .CmdWindowEnd;
+    editor.lookup[6].command = .CmdWindowForward;
+    editor.lookup[7].command = .CmdDoLastCommand;
+    editor.lookup[9].command = .CmdTab;
+    editor.lookup[10].command = .CmdDown;
+    editor.lookup[11].command = .CmdDeleteLine;
+    editor.lookup[12].command = .CmdInsertLine;
+    editor.lookup[13].command = .CmdReturn;
+    editor.lookup[14].command = .CmdWindowNew;
+    editor.lookup[16].command = .Cmdusercommand_introducer;
+    editor.lookup[18].command = .CmdRight;
+    editor.lookup[20].command = .CmdWindowTop;
+    editor.lookup[21].command = .CmdUp;
+    editor.lookup[23].command = .CmdWordAdvance;
+    editor.lookup[26].command = .CmdUserParent;
+    editor.lookup[30].command = .CmdInsertChar;
+    editor.lookup['"'].command = .CmdDittoUp;
+    editor.lookup['\''].command = .CmdDittoDown;
+    editor.lookup['B'].command = .CmdPrefixB;
+    editor.lookup['E'].command = .CmdPrefixE;
+    editor.lookup['F'].command = .CmdPrefixF;
+    editor.lookup['G'].command = .CmdGet;
+    editor.lookup['H'].command = .CmdHelp;
+    editor.lookup['M'].command = .CmdMark;
+    editor.lookup['Q'].command = .CmdQuit;
+    editor.lookup['R'].command = .CmdReplace;
+    editor.lookup['S'].command = .CmdPrefixS;
+    editor.lookup['U'].command = .CmdPrefixU;
+    editor.lookup['V'].command = .CmdVerify;
+    editor.lookup['W'].command = .CmdPrefixW;
+    editor.lookup['X'].command = .CmdPrefixX;
+    editor.lookup['\\'].command = .CmdCommand;
+    editor.lookup['{'].command = .CmdSetMarginLeft;
+    editor.lookup['}'].command = .CmdSetMarginRight;
+    editor.lookup['~'].command = .CmdPrefixTilde;
+    editor.lookup[127].command = .CmdRubout;
 
     if (old_version) {
-        editor.lookup[8].Command = .CmdRubout;
-        editor.lookup['*'].Command = .CmdPrefixAst;
-        editor.lookup['?'].Command = .CmdInsertInvisible;
-        editor.lookup['A'].Command = .CmdAdvance;
-        editor.lookup['C'].Command = .CmdInsertChar;
-        editor.lookup['D'].Command = .CmdDeleteChar;
-        editor.lookup['I'].Command = .CmdInsertText;
-        editor.lookup['J'].Command = .CmdJump;
-        editor.lookup['K'].Command = .CmdDeleteLine;
-        editor.lookup['L'].Command = .CmdInsertLine;
-        editor.lookup['N'].Command = .CmdNext;
-        editor.lookup['O'].Command = .CmdOvertypeText;
-        editor.lookup['Y'].Command = .CmdPrefixY;
-        editor.lookup['Z'].Command = .CmdPrefixZ;
-        editor.lookup['^'].Command = .CmdExecuteString;
+        editor.lookup[8].command = .CmdRubout;
+        editor.lookup['*'].command = .CmdPrefixAst;
+        editor.lookup['?'].command = .CmdInsertInvisible;
+        editor.lookup['A'].command = .CmdAdvance;
+        editor.lookup['C'].command = .CmdInsertChar;
+        editor.lookup['D'].command = .CmdDeleteChar;
+        editor.lookup['I'].command = .CmdInsertText;
+        editor.lookup['J'].command = .CmdJump;
+        editor.lookup['K'].command = .CmdDeleteLine;
+        editor.lookup['L'].command = .CmdInsertLine;
+        editor.lookup['N'].command = .CmdNext;
+        editor.lookup['O'].command = .CmdOvertypeText;
+        editor.lookup['Y'].command = .CmdPrefixY;
+        editor.lookup['Z'].command = .CmdPrefixZ;
+        editor.lookup['^'].command = .CmdExecuteString;
 
         addLookupExp(editor, 1, 'U', .CmdCaseUp);
         addLookupExp(editor, 2, 'L', .CmdCaseLow);
@@ -342,15 +342,15 @@ pub fn loadCommandTable(editor: *state.Editor, old_version: bool) void {
         editor.lookup_exp_ptr[cmdIndex(.CmdPrefixTilde)] = 79;
         editor.lookup_exp_ptr[cmdIndex(.CmdNoSuch)] = 81;
     } else {
-        editor.lookup[8].Command = .CmdLeft;
-        editor.lookup['A'].Command = .CmdPrefixA;
-        editor.lookup['C'].Command = .CmdPrefixC;
-        editor.lookup['D'].Command = .CmdPrefixD;
-        editor.lookup['K'].Command = .CmdPrefixK;
-        editor.lookup['L'].Command = .CmdPrefixL;
-        editor.lookup['O'].Command = .CmdPrefixO;
-        editor.lookup['P'].Command = .CmdPrefixP;
-        editor.lookup['T'].Command = .CmdPrefixT;
+        editor.lookup[8].command = .CmdLeft;
+        editor.lookup['A'].command = .CmdPrefixA;
+        editor.lookup['C'].command = .CmdPrefixC;
+        editor.lookup['D'].command = .CmdPrefixD;
+        editor.lookup['K'].command = .CmdPrefixK;
+        editor.lookup['L'].command = .CmdPrefixL;
+        editor.lookup['O'].command = .CmdPrefixO;
+        editor.lookup['P'].command = .CmdPrefixP;
+        editor.lookup['T'].command = .CmdPrefixT;
 
         addLookupExp(editor, 1, 'C', .CmdJump);
         addLookupExp(editor, 2, 'L', .CmdAdvance);

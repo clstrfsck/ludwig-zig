@@ -34,7 +34,7 @@ pub fn chIsWordElement(set: usize, ch: u8) bool {
 }
 
 pub fn chKeyToUpper(key: isize) isize {
-    if (key >= 0 and key <= types.MaxSetRange) {
+    if (key >= 0 and key <= types.max_set_range) {
         return @intCast(chToUpper(@intCast(key)));
     }
     return key;

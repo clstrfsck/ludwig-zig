@@ -12,10 +12,10 @@ fn moveDotTo(
     frame: *types.FrameObject,
     target_line: *types.LineHdrObject,
 ) !bool {
-    if (frame.Dot == null) {
+    if (frame.dot == null) {
         return false;
     }
-    try mark_ops.markCreate(allocator, target_line, frame.Dot.?.Col, &frame.Dot);
+    try mark_ops.markCreate(allocator, target_line, frame.dot.?.Col, &frame.dot);
     return true;
 }
 
@@ -25,35 +25,35 @@ fn changeFrameSize(
     band: isize,
     half_screen: isize,
 ) void {
-    if (frame.ScrHeight == editor.initial_scr_height or frame.ScrHeight > editor.terminal_info.Height) {
-        frame.ScrHeight = editor.terminal_info.Height;
+    if (frame.scr_height == editor.initial_scr_height or frame.scr_height > editor.terminal_info.height) {
+        frame.scr_height = editor.terminal_info.height;
     }
-    if (frame.ScrWidth == editor.initial_scr_width or frame.ScrWidth > editor.terminal_info.Width) {
-        frame.ScrWidth = editor.terminal_info.Width;
+    if (frame.scr_width == editor.initial_scr_width or frame.scr_width > editor.terminal_info.width) {
+        frame.scr_width = editor.terminal_info.width;
     }
-    if (frame.MarginTop == editor.initial_margin_top or frame.MarginTop >= half_screen) {
-        frame.MarginTop = band;
+    if (frame.margin_top == editor.initial_margin_top or frame.margin_top >= half_screen) {
+        frame.margin_top = band;
     }
-    if (frame.MarginBottom == editor.initial_margin_bottom or frame.MarginBottom >= half_screen) {
-        frame.MarginBottom = band;
+    if (frame.margin_bottom == editor.initial_margin_bottom or frame.margin_bottom >= half_screen) {
+        frame.margin_bottom = band;
     }
-    if (frame.MarginLeft > editor.terminal_info.Width) {
-        frame.MarginLeft = 1;
+    if (frame.margin_left > editor.terminal_info.width) {
+        frame.margin_left = 1;
     }
-    if (frame.MarginRight == editor.initial_margin_right or frame.MarginRight > editor.terminal_info.Width) {
-        frame.MarginRight = editor.terminal_info.Width;
+    if (frame.margin_right == editor.initial_margin_right or frame.margin_right > editor.terminal_info.width) {
+        frame.margin_right = editor.terminal_info.width;
     }
 
-    const max_offset = @max(@as(isize, 0), types.MaxStrLenP - frame.ScrWidth);
-    if (frame.ScrOffset > max_offset) {
-        frame.ScrOffset = max_offset;
+    const max_offset = @max(@as(isize, 0), types.max_str_len_p1 - frame.scr_width);
+    if (frame.scr_offset > max_offset) {
+        frame.scr_offset = max_offset;
     }
-    if (frame.Dot) |dot| {
-        if (dot.Col <= frame.ScrOffset) {
-            dot.Col = frame.ScrOffset + 1;
+    if (frame.dot) |dot| {
+        if (dot.Col <= frame.scr_offset) {
+            dot.Col = frame.scr_offset + 1;
         }
-        if (dot.Col > frame.ScrOffset + frame.ScrWidth) {
-            dot.Col = frame.ScrOffset + frame.ScrWidth;
+        if (dot.Col > frame.scr_offset + frame.scr_width) {
+            dot.Col = frame.scr_offset + frame.scr_width;
         }
     }
 }
@@ -61,15 +61,15 @@ fn changeFrameSize(
 fn resizeWindow(editor: *state.Editor) void {
     const dimensions = interactive_io.detectDimensions();
     editor.tt_win_changed = false;
-    editor.terminal_info.Width = dimensions.width;
-    editor.terminal_info.Height = dimensions.height;
-    editor.screen.MsgRow = dimensions.height + 1;
+    editor.terminal_info.width = dimensions.width;
+    editor.terminal_info.height = dimensions.height;
+    editor.screen.msg_row = dimensions.height + 1;
 
     const band = @divTrunc(dimensions.height, 6);
     const half_screen = @divTrunc(dimensions.height, 2);
     var span = editor.first_span;
-    while (span) |current_span| : (span = current_span.FLink) {
-        if (current_span.Frame) |span_frame| {
+    while (span) |current_span| : (span = current_span.f_link) {
+        if (current_span.frame) |span_frame| {
             changeFrameSize(editor, span_frame, band, half_screen);
         }
     }
@@ -80,9 +80,9 @@ fn resizeWindow(editor: *state.Editor) void {
     editor.initial_scr_width = dimensions.width;
     editor.initial_scr_height = dimensions.height;
 
-    editor.screen.Frame = null;
-    editor.screen.TopLine = null;
-    editor.screen.BotLine = null;
+    editor.screen.frame = null;
+    editor.screen.top_line = null;
+    editor.screen.bot_line = null;
 }
 
 fn terminalHeight(editor: *const state.Editor) isize {
@@ -99,26 +99,26 @@ fn displayHeight(editor: *const state.Editor, frame: *const types.FrameObject) i
 
 fn displayWidth(editor: *const state.Editor, frame: *const types.FrameObject) isize {
     var width = terminalWidth(editor);
-    if (frame.ScrWidth > 0 and frame.ScrWidth < width) {
-        width = frame.ScrWidth;
+    if (frame.scr_width > 0 and frame.scr_width < width) {
+        width = frame.scr_width;
     }
     return if (width > 0) width else 1;
 }
 
 fn clearVisibleRows(editor: *state.Editor) void {
-    var line = editor.screen.TopLine;
-    const bot_line = editor.screen.BotLine;
+    var line = editor.screen.top_line;
+    const bot_line = editor.screen.bot_line;
     while (line) |current| {
-        current.ScrRowNr = 0;
+        current.scr_row_num = 0;
         if (bot_line != null and current == bot_line.?) {
             break;
         }
-        line = current.FLink;
+        line = current.f_link;
     }
 }
 
 fn clampTopLine(frame: *types.FrameObject, top_number: isize, height: isize) isize {
-    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.last_group.?.last_line.?);
     const max_top = @max(@as(isize, 1), last_number - height + 1);
     return @min(@max(top_number, 1), max_top);
 }
@@ -131,32 +131,32 @@ fn setViewport(
 ) void {
     clearVisibleRows(editor);
 
-    const top_line = line_ops.lineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
+    const top_line = line_ops.lineFromNumber(frame, top_number) orelse frame.first_group.?.first_line.?;
     var current = top_line;
     var row: isize = 1;
     var bot_line = top_line;
     while (true) {
-        current.ScrRowNr = row;
+        current.scr_row_num = row;
         bot_line = current;
-        if (row >= height or current.FLink == null) {
+        if (row >= height or current.f_link == null) {
             break;
         }
-        current = current.FLink.?;
+        current = current.f_link.?;
         row += 1;
     }
 
-    editor.screen.Frame = frame;
-    editor.screen.TopLine = top_line;
-    editor.screen.BotLine = bot_line;
-    frame.ScrDotLine = frame.Dot.?.Line.ScrRowNr;
+    editor.screen.frame = frame;
+    editor.screen.top_line = top_line;
+    editor.screen.bot_line = bot_line;
+    frame.scr_dot_line = frame.dot.?.Line.scr_row_num;
 }
 
 fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
-    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.Line);
+    const last_number = line_ops.lineToNumber(frame.last_group.?.last_line.?);
 
-    var desired_row = frame.ScrDotLine;
+    var desired_row = frame.scr_dot_line;
     if (desired_row < 1) {
         desired_row = 1;
     }
@@ -177,14 +177,14 @@ fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn positionViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    var top_number = if (editor.screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
-    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
-    const bottom_limit = @max(@as(isize, 1), height - frame.MarginBottom);
+    var top_number = if (editor.screen.top_line) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.Line);
+    const bottom_limit = @max(@as(isize, 1), height - frame.margin_bottom);
 
     top_number = clampTopLine(frame, top_number, height);
     const dot_row = dot_number - top_number + 1;
-    if (dot_row <= frame.MarginTop and top_number > 1) {
-        top_number = dot_number - frame.MarginTop;
+    if (dot_row <= frame.margin_top and top_number > 1) {
+        top_number = dot_number - frame.margin_top;
     } else if (dot_row > bottom_limit) {
         top_number = dot_number - bottom_limit + 1;
     }
@@ -194,27 +194,27 @@ fn positionViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn ensureHorizontalVisibility(editor: *const state.Editor, frame: *types.FrameObject) void {
     const width = displayWidth(editor, frame);
-    const max_offset = @max(@as(isize, 0), types.MaxStrLenP - width);
+    const max_offset = @max(@as(isize, 0), types.max_str_len_p1 - width);
 
-    if (frame.ScrOffset < 0) {
-        frame.ScrOffset = 0;
+    if (frame.scr_offset < 0) {
+        frame.scr_offset = 0;
     }
-    if (frame.Dot.?.Col <= frame.ScrOffset) {
-        frame.ScrOffset = frame.Dot.?.Col - 1;
-    } else if (frame.Dot.?.Col > frame.ScrOffset + width) {
-        frame.ScrOffset = frame.Dot.?.Col - width;
+    if (frame.dot.?.Col <= frame.scr_offset) {
+        frame.scr_offset = frame.dot.?.Col - 1;
+    } else if (frame.dot.?.Col > frame.scr_offset + width) {
+        frame.scr_offset = frame.dot.?.Col - width;
     }
-    if (frame.ScrOffset < 0) {
-        frame.ScrOffset = 0;
+    if (frame.scr_offset < 0) {
+        frame.scr_offset = 0;
     }
-    if (frame.ScrOffset > max_offset) {
-        frame.ScrOffset = max_offset;
+    if (frame.scr_offset > max_offset) {
+        frame.scr_offset = max_offset;
     }
 }
 
 fn syncViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     ensureHorizontalVisibility(editor, frame);
-    if (editor.screen.Frame != frame or editor.screen.TopLine == null or editor.screen.BotLine == null) {
+    if (editor.screen.frame != frame or editor.screen.top_line == null or editor.screen.bot_line == null) {
         loadViewport(editor, frame);
     } else {
         positionViewport(editor, frame);
@@ -223,14 +223,14 @@ fn syncViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn invalidateViewport(editor: *state.Editor) void {
     clearVisibleRows(editor);
-    editor.screen.Frame = null;
-    editor.screen.TopLine = null;
-    editor.screen.BotLine = null;
+    editor.screen.frame = null;
+    editor.screen.top_line = null;
+    editor.screen.bot_line = null;
 }
 
 fn scrollViewport(editor: *state.Editor, frame: *types.FrameObject, count: isize) void {
     syncViewport(editor, frame);
-    const top_number = if (editor.screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
+    const top_number = if (editor.screen.top_line) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
     const height = displayHeight(editor, frame);
     setViewport(editor, frame, clampTopLine(frame, top_number + count, height), height);
 }
@@ -243,8 +243,8 @@ const CursorPosition = struct {
 fn visibleCursorPosition(editor: *const state.Editor, frame: *const types.FrameObject) CursorPosition {
     const height = terminalHeight(editor);
     const width = displayWidth(editor, frame);
-    var cursor_row = interactive_io.absoluteScreenRow(editor, frame, frame.Dot.?.Line.ScrRowNr);
-    var cursor_col = frame.Dot.?.Col - frame.ScrOffset;
+    var cursor_row = interactive_io.absoluteScreenRow(editor, frame, frame.dot.?.Line.scr_row_num);
+    var cursor_col = frame.dot.?.Col - frame.scr_offset;
     if (cursor_row < 1) {
         cursor_row = 1;
     }
@@ -272,20 +272,20 @@ fn redrawScreenNow(editor: *state.Editor, frame: *types.FrameObject) void {
     interactive_io.clearScreen();
 
     var row: isize = 1;
-    var line = editor.screen.TopLine;
+    var line = editor.screen.top_line;
     while (row <= height) : (row += 1) {
         if (row == top_marker_row) {
             interactive_io.drawStyledLine(row, "<TOP>", .bold);
         } else if (row == bottom_marker_row) {
             interactive_io.drawStyledLine(row, "<BOTTOM>", .bold);
         } else if (line) |current| {
-            const line_row = interactive_io.absoluteScreenRow(editor, frame, current.ScrRowNr);
+            const line_row = interactive_io.absoluteScreenRow(editor, frame, current.scr_row_num);
             if (line_row == row) {
                 interactive_io.drawFrameLine(editor, frame, row, current);
-                if (editor.screen.BotLine != null and current == editor.screen.BotLine.?) {
+                if (editor.screen.bot_line != null and current == editor.screen.bot_line.?) {
                     line = null;
                 } else {
-                    line = current.FLink;
+                    line = current.f_link;
                 }
             } else {
                 interactive_io.drawLine(row, "");
@@ -295,16 +295,16 @@ fn redrawScreenNow(editor: *state.Editor, frame: *types.FrameObject) void {
         }
     }
 
-    editor.screen.MsgRow = height + 1;
+    editor.screen.msg_row = height + 1;
     const cursor = visibleCursorPosition(editor, frame);
     interactive_io.moveCursor(cursor.col, cursor.row);
     interactive_io.refresh();
 }
 
 fn dotVisible(editor: *const state.Editor, frame: *const types.FrameObject) bool {
-    const dot = frame.Dot orelse return false;
+    const dot = frame.dot orelse return false;
     const width = displayWidth(editor, frame);
-    return dot.Line.ScrRowNr != 0 and dot.Col > frame.ScrOffset and dot.Col <= frame.ScrOffset + width;
+    return dot.Line.scr_row_num != 0 and dot.Col > frame.scr_offset and dot.Col <= frame.scr_offset + width;
 }
 
 pub fn windowCommand(
@@ -316,54 +316,54 @@ pub fn windowCommand(
     count: isize,
     from_span: bool,
 ) !bool {
-    if (frame.FirstGroup == null or frame.LastGroup == null) {
+    if (frame.first_group == null or frame.last_group == null) {
         return false;
     }
 
     return switch (command) {
         .CmdWindowBackward => blk: {
-            if (frame.Dot == null or count < 0) break :blk false;
-            const step = frame.ScrHeight * count;
-            const current_nr = line_ops.lineToNumber(frame.Dot.?.Line);
+            if (frame.dot == null or count < 0) break :blk false;
+            const step = frame.scr_height * count;
+            const current_nr = line_ops.lineToNumber(frame.dot.?.Line);
             const target_nr = if (current_nr <= step) @as(isize, 1) else current_nr - step;
-            const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.FirstGroup.?.FirstLine.?;
+            const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.first_group.?.first_line.?;
             break :blk try moveDotTo(allocator, frame, target_line);
         },
-        .CmdWindowEnd => try moveDotTo(allocator, frame, frame.LastGroup.?.LastLine.?),
+        .CmdWindowEnd => try moveDotTo(allocator, frame, frame.last_group.?.last_line.?),
         .CmdWindowForward => blk: {
-            if (frame.Dot == null or count < 0) break :blk false;
-            const step = frame.ScrHeight * count;
-            const current_nr = line_ops.lineToNumber(frame.Dot.?.Line);
-            const last_nr = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+            if (frame.dot == null or count < 0) break :blk false;
+            const step = frame.scr_height * count;
+            const current_nr = line_ops.lineToNumber(frame.dot.?.Line);
+            const last_nr = line_ops.lineToNumber(frame.last_group.?.last_line.?);
             const target_nr = @min(last_nr, current_nr + step);
-            const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.LastGroup.?.LastLine.?;
+            const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.last_group.?.last_line.?;
             break :blk try moveDotTo(allocator, frame, target_line);
         },
         .CmdWindowLeft => blk: {
-            if (frame.Dot == null) break :blk false;
-            if (editor.screen.Frame != frame) break :blk true;
-            var delta = if (rept == .LeadParamNone) @divTrunc(frame.ScrWidth, 2) else count;
+            if (frame.dot == null) break :blk false;
+            if (editor.screen.frame != frame) break :blk true;
+            var delta = if (rept == .LeadParamNone) @divTrunc(frame.scr_width, 2) else count;
             if (delta < 0) break :blk false;
-            if (frame.ScrOffset < delta) {
-                delta = frame.ScrOffset;
+            if (frame.scr_offset < delta) {
+                delta = frame.scr_offset;
             }
-            frame.ScrOffset -= delta;
-            if (frame.ScrOffset + frame.ScrWidth < frame.Dot.?.Col) {
-                frame.Dot.?.Col = frame.ScrOffset + frame.ScrWidth;
+            frame.scr_offset -= delta;
+            if (frame.scr_offset + frame.scr_width < frame.dot.?.Col) {
+                frame.dot.?.Col = frame.scr_offset + frame.scr_width;
             }
             break :blk true;
         },
         .CmdWindowMiddle => blk: {
-            if (editor.screen.Frame == frame) {
-                frame.ScrDotLine = @divTrunc(displayHeight(editor, frame) + 1, 2);
+            if (editor.screen.frame == frame) {
+                frame.scr_dot_line = @divTrunc(displayHeight(editor, frame) + 1, 2);
                 loadViewport(editor, frame);
                 redrawScreenNow(editor, frame);
             }
             break :blk true;
         },
         .CmdWindowNew => blk: {
-            if (editor.screen.Frame == frame) {
-                const top_number = if (editor.screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else line_ops.lineToNumber(frame.Dot.?.Line);
+            if (editor.screen.frame == frame) {
+                const top_number = if (editor.screen.top_line) |top_line| line_ops.lineToNumber(top_line) else line_ops.lineToNumber(frame.dot.?.Line);
                 invalidateViewport(editor);
                 const height = displayHeight(editor, frame);
                 setViewport(editor, frame, clampTopLine(frame, top_number, height), height);
@@ -372,7 +372,7 @@ pub fn windowCommand(
             break :blk true;
         },
         .CmdWindowScroll => blk: {
-            if (editor.screen.Frame == frame) {
+            if (editor.screen.frame == frame) {
                 syncViewport(editor, frame);
                 redrawScreenNow(editor, frame);
 
@@ -380,8 +380,8 @@ pub fn windowCommand(
                 var scroll_count = count;
                 while (true) {
                     switch (scroll_rept) {
-                        .LeadParamPIndef => scroll_count = @max(frame.Dot.?.Line.ScrRowNr - 1, 0),
-                        .LeadParamNIndef => scroll_count = frame.Dot.?.Line.ScrRowNr - frame.ScrHeight,
+                        .LeadParamPIndef => scroll_count = @max(frame.dot.?.Line.scr_row_num - 1, 0),
+                        .LeadParamNIndef => scroll_count = frame.dot.?.Line.scr_row_num - frame.scr_height,
                         else => {},
                     }
 
@@ -429,28 +429,28 @@ pub fn windowCommand(
             break :blk true;
         },
         .CmdWindowRight => blk: {
-            if (frame.Dot == null) break :blk false;
-            if (editor.screen.Frame != frame) break :blk true;
-            var delta = if (rept == .LeadParamNone) @divTrunc(frame.ScrWidth, 2) else count;
+            if (frame.dot == null) break :blk false;
+            if (editor.screen.frame != frame) break :blk true;
+            var delta = if (rept == .LeadParamNone) @divTrunc(frame.scr_width, 2) else count;
             if (delta < 0) break :blk false;
-            const max_delta = types.MaxStrLenP - (frame.ScrOffset + frame.ScrWidth);
+            const max_delta = types.max_str_len_p1 - (frame.scr_offset + frame.scr_width);
             if (max_delta < delta) {
                 delta = max_delta;
             }
             if (delta < 0) {
                 delta = 0;
             }
-            frame.ScrOffset += delta;
-            if (frame.Dot.?.Col <= frame.ScrOffset) {
-                frame.Dot.?.Col = frame.ScrOffset + 1;
+            frame.scr_offset += delta;
+            if (frame.dot.?.Col <= frame.scr_offset) {
+                frame.dot.?.Col = frame.scr_offset + 1;
             }
             break :blk true;
         },
         .CmdWindowSetHeight => blk: {
-            const target_height = if (rept == .LeadParamNone) editor.terminal_info.Height else count;
+            const target_height = if (rept == .LeadParamNone) editor.terminal_info.height else count;
             break :blk frame_ops.frameSetHeight(editor, frame, target_height, false);
         },
-        .CmdWindowTop => try moveDotTo(allocator, frame, frame.FirstGroup.?.FirstLine.?),
+        .CmdWindowTop => try moveDotTo(allocator, frame, frame.first_group.?.first_line.?),
         else => false,
     };
 }
@@ -467,20 +467,20 @@ test "window command moves dot by screen height and clamps" {
         "four",
         "five",
     });
-    fixture.frame.ScrHeight = 2;
-    try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
+    fixture.frame.scr_height = 2;
+    try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.dot);
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowForward, .LeadParamNone, 1, false));
-    try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[4]);
+    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[4]);
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowBackward, .LeadParamPInt, 2, false));
-    try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
+    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[0]);
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowEnd, .LeadParamNone, 1, false));
-    try std.testing.expect(fixture.frame.Dot.?.Line == fixture.sentinel_line);
+    try std.testing.expect(fixture.frame.dot.?.Line == fixture.sentinel_line);
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowTop, .LeadParamNone, 1, false));
-    try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
+    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[0]);
 }
 
 test "window command adjusts horizontal offset on active screen frame" {
@@ -489,32 +489,32 @@ test "window command adjusts horizontal offset on active screen frame" {
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
-    fixture.frame.ScrWidth = 10;
-    fixture.frame.ScrOffset = 5;
-    try mark_ops.markCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.Dot);
-    editor.screen.Frame = fixture.frame;
+    fixture.frame.scr_width = 10;
+    fixture.frame.scr_offset = 5;
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.dot);
+    editor.screen.frame = fixture.frame;
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowLeft, .LeadParamNone, 1, false));
-    try std.testing.expectEqual(@as(isize, 0), fixture.frame.ScrOffset);
-    try std.testing.expectEqual(@as(isize, 10), fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 0), fixture.frame.scr_offset);
+    try std.testing.expectEqual(@as(isize, 10), fixture.frame.dot.?.Col);
 
-    try mark_ops.markCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.Dot);
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.dot);
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowRight, .LeadParamNone, 1, false));
-    try std.testing.expectEqual(@as(isize, 5), fixture.frame.ScrOffset);
-    try std.testing.expectEqual(@as(isize, 6), fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 5), fixture.frame.scr_offset);
+    try std.testing.expectEqual(@as(isize, 6), fixture.frame.dot.?.Col);
 }
 
 test "window set height uses terminal height by default" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.terminal_info = .{ .Width = 120, .Height = 24 };
+    editor.terminal_info = .{ .width = 120, .height = 24 };
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowSetHeight, .LeadParamNone, 1, false));
-    try std.testing.expectEqual(@as(isize, 24), fixture.frame.ScrHeight);
-    try std.testing.expectEqual(@as(isize, 4), fixture.frame.MarginTop);
-    try std.testing.expectEqual(@as(isize, 4), fixture.frame.MarginBottom);
+    try std.testing.expectEqual(@as(isize, 24), fixture.frame.scr_height);
+    try std.testing.expectEqual(@as(isize, 4), fixture.frame.margin_top);
+    try std.testing.expectEqual(@as(isize, 4), fixture.frame.margin_bottom);
 }
 
 test "window resize updates terminal dimensions and frame sizing" {
@@ -522,7 +522,7 @@ test "window resize updates terminal dimensions and frame sizing" {
     defer editor.deinit();
     const allocator = editor.allocator();
 
-    editor.terminal_info = .{ .Width = 80, .Height = 24 };
+    editor.terminal_info = .{ .width = 80, .height = 24 };
     editor.initial_scr_width = 80;
     editor.initial_scr_height = 24;
     editor.initial_margin_right = 80;
@@ -530,75 +530,75 @@ test "window resize updates terminal dimensions and frame sizing" {
     editor.initial_margin_bottom = 4;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
-    fixture.frame.ScrWidth = 80;
-    fixture.frame.ScrHeight = 24;
-    fixture.frame.MarginTop = 4;
-    fixture.frame.MarginBottom = 4;
-    fixture.frame.MarginRight = 80;
-    fixture.frame.ScrOffset = 70;
-    try mark_ops.markCreate(allocator, fixture.content_lines[0], 90, &fixture.frame.Dot);
+    fixture.frame.scr_width = 80;
+    fixture.frame.scr_height = 24;
+    fixture.frame.margin_top = 4;
+    fixture.frame.margin_bottom = 4;
+    fixture.frame.margin_right = 80;
+    fixture.frame.scr_offset = 70;
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 90, &fixture.frame.dot);
 
     const span = try allocator.create(types.SpanObject);
     span.* = .{
-        .Name = "LUDWIG",
-        .Frame = fixture.frame,
+        .name = "LUDWIG",
+        .frame = fixture.frame,
     };
-    fixture.frame.Span = span;
+    fixture.frame.span = span;
     editor.first_span = span;
 
     interactive_io.testing.setDimensionsOverride(100, 40);
     defer interactive_io.testing.clearInput();
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdResizeWindow, .LeadParamNone, 1, false));
-    try std.testing.expectEqual(@as(isize, 100), editor.terminal_info.Width);
-    try std.testing.expectEqual(@as(isize, 40), editor.terminal_info.Height);
-    try std.testing.expectEqual(@as(isize, 100), fixture.frame.ScrWidth);
-    try std.testing.expectEqual(@as(isize, 40), fixture.frame.ScrHeight);
-    try std.testing.expectEqual(@as(isize, 6), fixture.frame.MarginTop);
-    try std.testing.expectEqual(@as(isize, 6), fixture.frame.MarginBottom);
-    try std.testing.expectEqual(@as(isize, 100), fixture.frame.MarginRight);
-    try std.testing.expectEqual(@as(isize, 70), fixture.frame.ScrOffset);
-    try std.testing.expectEqual(@as(isize, 90), fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 100), editor.terminal_info.width);
+    try std.testing.expectEqual(@as(isize, 40), editor.terminal_info.height);
+    try std.testing.expectEqual(@as(isize, 100), fixture.frame.scr_width);
+    try std.testing.expectEqual(@as(isize, 40), fixture.frame.scr_height);
+    try std.testing.expectEqual(@as(isize, 6), fixture.frame.margin_top);
+    try std.testing.expectEqual(@as(isize, 6), fixture.frame.margin_bottom);
+    try std.testing.expectEqual(@as(isize, 100), fixture.frame.margin_right);
+    try std.testing.expectEqual(@as(isize, 70), fixture.frame.scr_offset);
+    try std.testing.expectEqual(@as(isize, 90), fixture.frame.dot.?.Col);
 }
 
 test "window middle recenters the dot on the active screen" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     editor.ludwig_mode = .LudwigScreen;
-    editor.terminal_info = .{ .Width = 80, .Height = 10 };
+    editor.terminal_info = .{ .width = 80, .height = 10 };
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
     });
-    try mark_ops.markCreate(allocator, fixture.content_lines[8], 1, &fixture.frame.Dot);
-    fixture.frame.ScrHeight = 10;
+    try mark_ops.markCreate(allocator, fixture.content_lines[8], 1, &fixture.frame.dot);
+    fixture.frame.scr_height = 10;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowMiddle, .LeadParamNone, 1, false));
-    try std.testing.expectEqual(@as(isize, 6), fixture.frame.Dot.?.Line.ScrRowNr);
-    try std.testing.expectEqual(@as(isize, 6), fixture.frame.ScrDotLine);
+    try std.testing.expectEqual(@as(isize, 6), fixture.frame.dot.?.Line.scr_row_num);
+    try std.testing.expectEqual(@as(isize, 6), fixture.frame.scr_dot_line);
 }
 
 test "window scroll supports stay-behind up and takeback" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     editor.ludwig_mode = .LudwigScreen;
-    editor.terminal_info = .{ .Width = 80, .Height = 5 };
+    editor.terminal_info = .{ .width = 80, .height = 5 };
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1", "2", "3", "4", "5", "6", "7",
     });
-    try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.Dot);
-    fixture.frame.ScrHeight = 5;
+    try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.dot);
+    fixture.frame.scr_height = 5;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
     interactive_io.testing.installInput("\x1b[AQ");
     defer interactive_io.testing.clearInput();
 
     try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowScroll, .LeadParamNone, 1, false));
-    try std.testing.expectEqualStrings("2", editor.screen.TopLine.?.Str.?.slice(1, 1));
-    try std.testing.expectEqual(@as(isize, 2), fixture.frame.Dot.?.Line.ScrRowNr);
+    try std.testing.expectEqualStrings("2", editor.screen.top_line.?.str.?.slice(1, 1));
+    try std.testing.expectEqual(@as(isize, 2), fixture.frame.dot.?.Line.scr_row_num);
     try std.testing.expectEqual(@as(?isize, 'Q'), interactive_io.testing.readInputKey());
 }

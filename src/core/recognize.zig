@@ -159,11 +159,11 @@ const Parser = struct {
         self.skipSpaces();
         const ch = self.peek() orelse return .{ .child = undefined, .min = 1, .max = 1 };
         return switch (ch) {
-            types.PatternKStar => blk: {
+            types.pattern_k_star => blk: {
                 self.index += 1;
                 break :blk .{ .child = undefined, .min = 0, .max = null };
             },
-            types.PatternPlus => blk: {
+            types.pattern_plus => blk: {
                 self.index += 1;
                 break :blk .{ .child = undefined, .min = 1, .max = null };
             },
@@ -171,7 +171,7 @@ const Parser = struct {
                 const count = try self.parseCount();
                 break :blk .{ .child = undefined, .min = count, .max = count };
             },
-            types.PatternLRangeDelim => blk: {
+            types.pattern_l_range_delim => blk: {
                 self.index += 1;
                 self.skipSpaces();
                 var min_count: usize = 0;
@@ -182,7 +182,7 @@ const Parser = struct {
                     }
                 }
                 self.skipSpaces();
-                if (self.peek() != types.PatternComma) {
+                if (self.peek() != types.pattern_comma) {
                     return PatternError.InvalidPattern;
                 }
                 self.index += 1;
@@ -193,7 +193,7 @@ const Parser = struct {
                     }
                 }
                 self.skipSpaces();
-                if (self.peek() != types.PatternRRangeDelim) {
+                if (self.peek() != types.pattern_r_range_delim) {
                     return PatternError.InvalidPattern;
                 }
                 self.index += 1;
@@ -213,22 +213,22 @@ const Parser = struct {
         const ch = self.peek() orelse return PatternError.UnexpectedEnd;
 
         switch (ch) {
-            types.TpdLit => return self.parseQuotedLiteral(types.TpdLit),
-            types.TpdExact => return self.parseQuotedLiteral(types.TpdExact),
-            types.PatternLParen => {
+            types.tpd_lit => return self.parseQuotedLiteral(types.tpd_lit),
+            types.tpd_exact => return self.parseQuotedLiteral(types.tpd_exact),
+            types.pattern_l_paren => {
                 self.index += 1;
                 const expr = try self.parseExpression(true);
                 self.skipSpaces();
-                if (self.peek() != types.PatternRParen) {
+                if (self.peek() != types.pattern_r_paren) {
                     return PatternError.InvalidPattern;
                 }
                 self.index += 1;
                 return expr;
             },
-            types.PatternMark => {
+            types.pattern_mark => {
                 self.index += 1;
                 var accept: types.AcceptSet = .{};
-                patparse.setAdd(&accept, @intCast(types.PatternMarksStart + try self.parseMarkNumber()));
+                patparse.setAdd(&accept, @intCast(types.pattern_marks_start + try self.parseMarkNumber()));
                 return self.makeNode(.{
                     .token = .{
                         .kind = .positional,
@@ -236,21 +236,21 @@ const Parser = struct {
                     },
                 });
             },
-            types.PatternEquals => {
+            types.pattern_equals => {
                 self.index += 1;
                 return self.makeNode(.{
                     .token = .{
                         .kind = .positional,
-                        .accept = patparse.singletonSet(types.PatternMarksEquals),
+                        .accept = patparse.singletonSet(types.pattern_marks_equals),
                     },
                 });
             },
-            types.PatternModified => {
+            types.pattern_modified => {
                 self.index += 1;
                 return self.makeNode(.{
                     .token = .{
                         .kind = .positional,
-                        .accept = patparse.singletonSet(types.PatternMarksModified),
+                        .accept = patparse.singletonSet(types.pattern_marks_modified),
                     },
                 });
             },
@@ -258,7 +258,7 @@ const Parser = struct {
         }
 
         var negate = false;
-        if (ch == types.PatternNegate) {
+        if (ch == types.pattern_negate) {
             negate = true;
             self.index += 1;
         }
@@ -270,11 +270,11 @@ const Parser = struct {
         };
 
         switch (actual) {
-            types.PatternDefineSetU, types.PatternDefineSetL => {
+            types.pattern_define_set_u, types.pattern_define_set_l => {
                 self.index += 1;
                 token.accept = try self.parseDefineSet();
                 if (negate) {
-                    const full = patparse.rangeSet(types.PatternAlphaStart, types.MaxSetRange);
+                    const full = patparse.rangeSet(types.pattern_alpha_start, types.max_set_range);
                     token.accept = patparse.setRemove(&full, &token.accept);
                 }
             },
@@ -284,11 +284,11 @@ const Parser = struct {
                 }
                 token.kind = .positional;
                 token.accept = switch (actual) {
-                    '<' => patparse.singletonSet(types.PatternBegLine),
-                    '>' => patparse.singletonSet(types.PatternEndLine),
-                    '{' => patparse.singletonSet(types.PatternLeftMargin),
-                    '}' => patparse.singletonSet(types.PatternRightMargin),
-                    '^' => patparse.singletonSet(types.PatternDotColumn),
+                    '<' => patparse.singletonSet(types.pattern_beg_line),
+                    '>' => patparse.singletonSet(types.pattern_end_line),
+                    '{' => patparse.singletonSet(types.pattern_left_margin),
+                    '}' => patparse.singletonSet(types.pattern_right_margin),
+                    '^' => patparse.singletonSet(types.pattern_dot_column),
                     else => unreachable,
                 };
                 self.index += 1;
@@ -306,7 +306,7 @@ const Parser = struct {
                     else => return PatternError.InvalidPattern,
                 };
                 if (negate) {
-                    const full = patparse.rangeSet(types.PatternAlphaStart, types.MaxSetRange);
+                    const full = patparse.rangeSet(types.pattern_alpha_start, types.max_set_range);
                     token.accept = patparse.setRemove(&full, &token.accept);
                 }
                 self.index += 1;
@@ -329,7 +329,7 @@ const Parser = struct {
             }
             self.index += 1;
             var accept: types.AcceptSet = .{};
-            if (delimiter == types.TpdExact or !chars.chIsLetter(ch)) {
+            if (delimiter == types.tpd_exact or !chars.chIsLetter(ch)) {
                 patparse.setAdd(&accept, ch);
             } else if (chars.chIsLower(ch)) {
                 patparse.setAdd(&accept, ch);
@@ -389,7 +389,7 @@ const Parser = struct {
 
     fn parseMarkNumber(self: *Parser) ParseError!usize {
         const value = try self.parseCount();
-        if (value < types.MinUserMarkNumber or value > types.MaxUserMarkNumber) {
+        if (value < types.min_user_mark_number or value > types.max_user_mark_number) {
             return PatternError.InvalidPattern;
         }
         return value;
@@ -424,7 +424,7 @@ fn appendCursorUnique(list: *std.ArrayList(Cursor), allocator: std.mem.Allocator
 
 fn acceptSetIntersects(a: *const types.AcceptSet, b: *const types.AcceptSet) bool {
     var index: usize = 0;
-    while (index <= types.MaxSetRange) : (index += 1) {
+    while (index <= types.max_set_range) : (index += 1) {
         if (a.bit(index) == 1 and b.bit(index) == 1) {
             return true;
         }
@@ -433,7 +433,7 @@ fn acceptSetIntersects(a: *const types.AcceptSet, b: *const types.AcceptSet) boo
 }
 
 fn searchableLineUsed(line: *types.LineHdrObject) isize {
-    return if (line.FLink == null) 0 else line.Used;
+    return if (line.f_link == null) 0 else line.used;
 }
 
 fn buildEvents(
@@ -448,24 +448,24 @@ fn buildEvents(
     while (col <= final_col) : (col += 1) {
         var positional: types.AcceptSet = .{};
         if (col == 1) {
-            patparse.setAdd(&positional, types.PatternBegLine);
+            patparse.setAdd(&positional, types.pattern_beg_line);
         }
         if (col > used) {
-            patparse.setAdd(&positional, types.PatternEndLine);
+            patparse.setAdd(&positional, types.pattern_end_line);
         }
-        if (col == frame.MarginLeft) {
-            patparse.setAdd(&positional, types.PatternLeftMargin);
+        if (col == frame.margin_left) {
+            patparse.setAdd(&positional, types.pattern_left_margin);
         }
-        if (col == frame.MarginRight) {
-            patparse.setAdd(&positional, types.PatternRightMargin);
+        if (col == frame.margin_right) {
+            patparse.setAdd(&positional, types.pattern_right_margin);
         }
-        if (frame.Dot != null and col == frame.Dot.?.Col) {
-            patparse.setAdd(&positional, types.PatternDotColumn);
+        if (frame.dot != null and col == frame.dot.?.Col) {
+            patparse.setAdd(&positional, types.pattern_dot_column);
         }
-        for (0..types.MaxMarkNumber + 1) |mark_no| {
-            if (frame.Marks[mark_no]) |mark| {
+        for (0..types.max_mark_number + 1) |mark_no| {
+            if (frame.marks[mark_no]) |mark| {
                 if (mark.Line == line and mark.Col == col) {
-                    patparse.setAdd(&positional, @intCast(mark_no + types.PatternMarksStart));
+                    patparse.setAdd(&positional, @intCast(mark_no + types.pattern_marks_start));
                 }
             }
         }
@@ -481,7 +481,7 @@ fn buildEvents(
         if (col <= used) {
             try events.append(allocator, .{
                 .kind = .char,
-                .ch = line.Str.?.get(col),
+                .ch = line.str.?.get(col),
                 .before_col = col,
                 .after_col = col + 1,
             });
@@ -760,8 +760,8 @@ test "pattern recognize handles positional marks and initial mark flag skipping"
     const allocator = arena.allocator();
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"abc"});
-    try @import("mark.zig").markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Marks[1]);
-    fixture.frame.MarginLeft = 1;
+    try @import("mark.zig").markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.marks[1]);
+    fixture.frame.margin_left = 1;
 
     var dfa: types.DFATableObject = .{
         .Definition = .{

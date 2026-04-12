@@ -56,18 +56,18 @@ fn usageLabel(editor: *const state.Editor, slot: usize, file: *const types.FileO
 }
 
 fn reportNameWidth(editor: *const state.Editor) usize {
-    if (editor.ludwig_mode == .LudwigScreen and editor.terminal_info.Width > 19) {
-        return @intCast(@max(editor.terminal_info.Width - 19, 5));
+    if (editor.ludwig_mode == .LudwigScreen and editor.terminal_info.width > 19) {
+        return @intCast(@max(editor.terminal_info.width - 19, 5));
     }
-    return types.FileNameLen;
+    return types.file_name_len;
 }
 
 fn renderFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slot: usize, file: *const types.FileObject) ![]const u8 {
     const frame = editor.files_frames[slot];
     const usage = try padRight(allocator, usageLabel(editor, slot, file), 3);
     const eof_status: []const u8 = if (file.Eof) "EOF" else "   ";
-    const mod_status: []const u8 = if (frame != null and frame.?.TextModified) " * " else "   ";
-    const frame_name = try padRight(allocator, if (frame != null and frame.?.Span != null) frame.?.Span.?.Name else "", 6);
+    const mod_status: []const u8 = if (frame != null and frame.?.text_modified) " * " else "   ";
+    const frame_name = try padRight(allocator, if (frame != null and frame.?.span != null) frame.?.span.?.name else "", 6);
     const filename = try fileNameForWidth(allocator, file, reportNameWidth(editor));
     return std.fmt.allocPrint(allocator, "{s} {s} {s}{s} {s}", .{
         usage,
@@ -82,8 +82,8 @@ fn renderBatchFileLine(editor: *const state.Editor, allocator: std.mem.Allocator
     const frame = editor.files_frames[slot];
     const usage = try padRight(allocator, usageLabel(editor, slot, file), 3);
     const eof_status: []const u8 = if (file.Eof) "EOF" else "   ";
-    const mod_status: []const u8 = if (frame != null and frame.?.TextModified) " * " else "   ";
-    const frame_name = try padRight(allocator, if (frame != null and frame.?.Span != null) frame.?.Span.?.Name else "", 6);
+    const mod_status: []const u8 = if (frame != null and frame.?.text_modified) " * " else "   ";
+    const frame_name = try padRight(allocator, if (frame != null and frame.?.span != null) frame.?.span.?.name else "", 6);
     const filename = try fileNameForWidth(allocator, file, reportNameWidth(editor));
     return std.fmt.allocPrint(allocator, "{s} {s} {s} {s} {s}", .{
         usage,
@@ -99,14 +99,14 @@ fn replaceReportFrame(
     frame: *types.FrameObject,
     lines: []const []const u8,
 ) !bool {
-    const span = frame.Span orelse return false;
-    const mark_one = span.MarkOne orelse return false;
-    const mark_two = span.MarkTwo orelse return false;
+    const span = frame.span orelse return false;
+    const mark_one = span.mark_one orelse return false;
+    const mark_two = span.mark_two orelse return false;
     if (!try text.textRemove(allocator, mark_one, mark_two)) {
         return false;
     }
 
-    const sentinel = frame.LastGroup.?.LastLine.?;
+    const sentinel = frame.last_group.?.last_line.?;
     if (lines.len > 0) {
         const range = try line_ops.linesCreate(allocator, lines.len);
         try line_ops.linesInject(allocator, range.first, range.last, sentinel);
@@ -117,21 +117,21 @@ fn replaceReportFrame(
                 try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
                 try line_ops.setLineContent(line, content);
             } else {
-                line.Used = 0;
+                line.used = 0;
             }
             if (index + 1 < lines.len) {
-                line = line.FLink.?;
+                line = line.f_link.?;
             }
         }
     }
 
-    const first_line = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.markCreate(allocator, first_line, 1, &span.MarkOne);
-    try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
-    try mark_ops.markCreate(allocator, first_line, 1, &frame.Dot);
-    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
-    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
-    frame.TextModified = false;
+    const first_line = frame.first_group.?.first_line.?;
+    try mark_ops.markCreate(allocator, first_line, 1, &span.mark_one);
+    try mark_ops.markCreate(allocator, frame.last_group.?.last_line.?, 1, &span.mark_two);
+    try mark_ops.markCreate(allocator, first_line, 1, &frame.dot);
+    mark_ops.markDestroy(allocator, &frame.marks[types.mark_equals]);
+    mark_ops.markDestroy(allocator, &frame.marks[types.mark_modified]);
+    frame.text_modified = false;
     return true;
 }
 
@@ -147,7 +147,7 @@ pub fn fileTable(
 
     var have_files = false;
     var slot: usize = 1;
-    while (slot <= types.MaxFiles) : (slot += 1) {
+    while (slot <= types.max_files) : (slot += 1) {
         const file = editor.files[slot] orelse continue;
         have_files = true;
         try lines.append(allocator, try renderFileLine(editor, allocator, slot, file));
@@ -168,7 +168,7 @@ pub fn fileTable(
 
                 if (have_files) {
                     slot = 1;
-                    while (slot <= types.MaxFiles) : (slot += 1) {
+                    while (slot <= types.max_files) : (slot += 1) {
                         const file = editor.files[slot] orelse continue;
                         try batch_lines.append(allocator, try renderBatchFileLine(editor, allocator, slot, file));
                     }
@@ -197,7 +197,7 @@ fn countRange(first: *const types.LineHdrObject, last: *const types.LineHdrObjec
     var count: usize = 1;
     var line = first;
     while (line != last) : (count += 1) {
-        line = line.FLink orelse return null;
+        line = line.f_link orelse return null;
     }
     return count;
 }
@@ -213,17 +213,17 @@ fn cloneLineRange(
     var src = first;
     var dst = range.first;
     while (true) {
-        if (src.Used > 0) {
-            try line_ops.lineChangeLength(allocator, dst, src.Used);
-            try line_ops.setLineContent(dst, src.Str.?.slice(1, src.Used));
+        if (src.used > 0) {
+            try line_ops.lineChangeLength(allocator, dst, src.used);
+            try line_ops.setLineContent(dst, src.str.?.slice(1, src.used));
         } else {
-            dst.Used = 0;
+            dst.used = 0;
         }
         if (src == last) {
             break;
         }
-        src = src.FLink.?;
-        dst = dst.FLink.?;
+        src = src.f_link.?;
+        dst = dst.f_link.?;
     }
     return range;
 }
@@ -234,8 +234,8 @@ fn setFileQueue(
     last: ?*types.LineHdrObject,
     line_count: isize,
 ) void {
-    file.FirstLine = first;
-    file.LastLine = last;
+    file.first_line = first;
+    file.last_line = last;
     file.LineCount = line_count;
 }
 
@@ -254,10 +254,10 @@ fn buildLineRangeFromContents(
             try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
             try line_ops.setLineContent(line, content);
         } else {
-            line.Used = 0;
+            line.used = 0;
         }
         if (index + 1 < contents.len) {
-            line = line.FLink.?;
+            line = line.f_link.?;
         }
     }
     return range;
@@ -282,14 +282,14 @@ fn loadFileQueueFromSnapshot(
 
 fn appendToFile(file: *types.FileObject, first: *types.LineHdrObject, last: *types.LineHdrObject) !void {
     const appended = countRange(first, last) orelse return error.InvalidLineRange;
-    if (file.LastLine) |tail| {
-        tail.FLink = first;
-        first.BLink = tail;
+    if (file.last_line) |tail| {
+        tail.f_link = first;
+        first.b_link = tail;
     } else {
-        file.FirstLine = first;
-        first.BLink = null;
+        file.first_line = first;
+        first.b_link = null;
     }
-    file.LastLine = last;
+    file.last_line = last;
     file.LineCount += @intCast(appended);
     file.LCounter += @intCast(appended);
 }
@@ -389,7 +389,7 @@ fn appendLineBytesToFile(
         try line_ops.lineChangeLength(allocator, range.first, @intCast(content.len));
         try line_ops.setLineContent(range.first, content);
     } else {
-        range.first.Used = 0;
+        range.first.used = 0;
     }
     try appendToFile(file, range.first, range.last);
 }
@@ -401,18 +401,18 @@ fn setSnapshotFromQueue(
     file.RewindFirstLine = null;
     file.RewindLastLine = null;
     file.RewindLineCount = 0;
-    if (file.FirstLine == null or file.LastLine == null or file.LineCount == 0) {
+    if (file.first_line == null or file.last_line == null or file.LineCount == 0) {
         return;
     }
 
-    const cloned = try cloneLineRange(allocator, file.FirstLine.?, file.LastLine.?);
+    const cloned = try cloneLineRange(allocator, file.first_line.?, file.last_line.?);
     file.RewindFirstLine = cloned.first;
     file.RewindLastLine = cloned.last;
     file.RewindLineCount = file.LineCount;
 }
 
 fn clampTabWidth(editor: *const state.Editor) usize {
-    return @intCast(@min(@as(isize, 8), @max(@as(isize, 2), editor.file_data.TabWidth)));
+    return @intCast(@min(@as(isize, 8), @max(@as(isize, 2), editor.file_data.tab_width)));
 }
 
 fn isLineTerminator(byte: u8) bool {
@@ -456,7 +456,7 @@ fn makeDiskInputFile(
         if (byte == '\t') {
             var spaces = tab_width - (line_buffer.items.len % tab_width);
             while (spaces > 0) : (spaces -= 1) {
-                if (line_buffer.items.len == types.MaxStrLen) {
+                if (line_buffer.items.len == types.max_str_len) {
                     try appendLineBytesToFile(allocator, file, line_buffer.items);
                     line_buffer.clearRetainingCapacity();
                 }
@@ -469,7 +469,7 @@ fn makeDiskInputFile(
             continue;
         }
 
-        if (line_buffer.items.len == types.MaxStrLen) {
+        if (line_buffer.items.len == types.max_str_len) {
             try appendLineBytesToFile(allocator, file, line_buffer.items);
             line_buffer.clearRetainingCapacity();
         }
@@ -519,12 +519,12 @@ fn makeDiskOutputFile(
     file.Filename = owned_name;
     file.Memory = if (options.memory) |memory| memory else "";
     file.Tnm = try buildTempOutputName(allocator, owned_name);
-    file.Entab = editor.file_data.Entab;
+    file.Entab = editor.file_data.entab;
     file.Create = options.create;
     file.Mode = if (status.valid) status.mode else sys_ops.fileMask();
     file.PreviousFileId = if (status.valid) @intCast(status.m_time) else 0;
-    file.Purge = editor.file_data.Purge;
-    file.Versions = editor.file_data.Versions;
+    file.Purge = editor.file_data.purge;
+    file.Versions = editor.file_data.versions;
     file.Eof = false;
     return file;
 }
@@ -661,7 +661,7 @@ fn writeLineRangeToDisk(
             if (line == last.?) {
                 break;
             }
-            line = line.FLink.?;
+            line = line.f_link.?;
         }
     }
     return writeOutputBytes(allocator, output_file, bytes.items);
@@ -675,18 +675,18 @@ fn buildSavedFileContents(
 ) !*types.FileObject {
     const assembled = try createFileObject(allocator, false);
 
-    if (output_file.FirstLine != null and output_file.LastLine != null) {
-        try appendRangeCloneToFile(allocator, assembled, output_file.FirstLine.?, output_file.LastLine.?);
+    if (output_file.first_line != null and output_file.last_line != null) {
+        try appendRangeCloneToFile(allocator, assembled, output_file.first_line.?, output_file.last_line.?);
     }
 
-    const visible_last = frame.LastGroup.?.LastLine.?.BLink;
+    const visible_last = frame.last_group.?.last_line.?.b_link;
     if (visible_last != null) {
-        try appendRangeCloneToFile(allocator, assembled, frame.FirstGroup.?.FirstLine.?, visible_last.?);
+        try appendRangeCloneToFile(allocator, assembled, frame.first_group.?.first_line.?, visible_last.?);
     }
 
     if (input_file) |input| {
-        if (input.FirstLine != null and input.LastLine != null) {
-            try appendRangeCloneToFile(allocator, assembled, input.FirstLine.?, input.LastLine.?);
+        if (input.first_line != null and input.last_line != null) {
+            try appendRangeCloneToFile(allocator, assembled, input.first_line.?, input.last_line.?);
         }
     }
 
@@ -710,15 +710,15 @@ fn persistDiskBackedFrameOutput(
         editor,
         allocator,
         output_file,
-        assembled.FirstLine,
-        assembled.LastLine,
+        assembled.first_line,
+        assembled.last_line,
     )) {
         return null;
     }
 
     if (input_file) |input| {
-        input.RewindFirstLine = assembled.FirstLine;
-        input.RewindLastLine = assembled.LastLine;
+        input.RewindFirstLine = assembled.first_line;
+        input.RewindLastLine = assembled.last_line;
         input.RewindLineCount = assembled.LineCount;
     }
     return assembled.LineCount;
@@ -736,8 +736,8 @@ fn persistDiskBackedOutputFile(
         editor,
         allocator,
         output_file,
-        output_file.FirstLine,
-        output_file.LastLine,
+        output_file.first_line,
+        output_file.last_line,
     );
 }
 
@@ -757,8 +757,8 @@ fn fileReadBuffered(file: *types.FileObject, requested_count: isize, best_try: b
         return .{};
     }
 
-    const first = file.FirstLine orelse return null;
-    const last = file.LastLine orelse return null;
+    const first = file.first_line orelse return null;
+    const last = file.last_line orelse return null;
     if (file.LineCount == count) {
         setFileQueue(file, null, null, 0);
         file.Eof = true;
@@ -773,12 +773,12 @@ fn fileReadBuffered(file: *types.FileObject, requested_count: isize, best_try: b
     var split_last = first;
     var remaining: isize = count;
     while (remaining > 1) : (remaining -= 1) {
-        split_last = split_last.FLink orelse return null;
+        split_last = split_last.f_link orelse return null;
     }
-    const next = split_last.FLink orelse return null;
-    next.BLink = null;
-    split_last.FLink = null;
-    file.FirstLine = next;
+    const next = split_last.f_link orelse return null;
+    next.b_link = null;
+    split_last.f_link = null;
+    file.first_line = next;
     file.LineCount -= count;
     file.Eof = false;
     file.LCounter += count;
@@ -809,8 +809,8 @@ fn fileFixEOP(
     eop_line: *types.LineHdrObject,
 ) !void {
     const prefix = if (eof) "<End of File>   " else "<Page Boundary> ";
-    const frame_name = if (eop_line.Group != null and eop_line.Group.?.Frame.Span != null)
-        eop_line.Group.?.Frame.Span.?.Name
+    const frame_name = if (eop_line.group != null and eop_line.group.?.frame.span != null)
+        eop_line.group.?.frame.span.?.name
     else
         "";
     try line_ops.setSentinelDisplayContent(allocator, eop_line, prefix, frame_name);
@@ -822,7 +822,7 @@ fn computeLineRange(
     count: isize,
     mark: ?*types.MarkObject,
 ) ?LineSelection {
-    const dot = frame.Dot orelse return null;
+    const dot = frame.dot orelse return null;
     var first_line: ?*types.LineHdrObject = dot.Line;
     var last_line: ?*types.LineHdrObject = dot.Line;
 
@@ -833,26 +833,26 @@ fn computeLineRange(
             } else if (count <= 20) {
                 var line_nr: isize = 1;
                 while (line_nr < count) : (line_nr += 1) {
-                    last_line = last_line.?.FLink orelse return null;
+                    last_line = last_line.?.f_link orelse return null;
                 }
-                if (last_line.?.FLink == null) {
+                if (last_line.?.f_link == null) {
                     return null;
                 }
             } else {
                 const line_nr = line_ops.lineToNumber(first_line.?);
                 last_line = line_ops.lineFromNumber(frame, line_nr + count - 1) orelse return null;
-                if (last_line.?.FLink == null) {
+                if (last_line.?.f_link == null) {
                     return null;
                 }
             }
         },
         .LeadParamMinus, .LeadParamNInt => {
             const abs_count = -count;
-            last_line = dot.Line.BLink orelse return null;
+            last_line = dot.Line.b_link orelse return null;
             if (abs_count <= 20) {
                 var line_nr: isize = 1;
                 while (line_nr <= abs_count) : (line_nr += 1) {
-                    first_line = first_line.?.BLink orelse return null;
+                    first_line = first_line.?.b_link orelse return null;
                 }
             } else {
                 var line_nr = line_ops.lineToNumber(last_line.?);
@@ -864,37 +864,37 @@ fn computeLineRange(
             }
         },
         .LeadParamPIndef => {
-            if (dot.Line.FLink == null) {
+            if (dot.Line.f_link == null) {
                 first_line = null;
             } else {
-                last_line = frame.LastGroup.?.LastLine.?.BLink;
+                last_line = frame.last_group.?.last_line.?.b_link;
             }
         },
         .LeadParamNIndef => {
-            last_line = dot.Line.BLink;
+            last_line = dot.Line.b_link;
             if (last_line == null) {
                 first_line = null;
             } else {
-                first_line = frame.FirstGroup.?.FirstLine;
+                first_line = frame.first_group.?.first_line;
             }
         },
         .LeadParamMarker => {
             const mark_line = mark orelse return null;
             if (mark_line.Line == first_line.?) {
                 first_line = null;
-            } else if (mark_line.Line.FLink == first_line.?) {
+            } else if (mark_line.Line.f_link == first_line.?) {
                 first_line = mark_line.Line;
                 last_line = mark_line.Line;
-            } else if (mark_line.Line.BLink == first_line.?) {
+            } else if (mark_line.Line.b_link == first_line.?) {
                 last_line = first_line.?;
             } else {
                 const mark_line_nr = line_ops.lineToNumber(mark_line.Line);
                 const line_nr = line_ops.lineToNumber(dot.Line);
                 if (mark_line_nr < line_nr) {
                     first_line = mark_line.Line;
-                    last_line = last_line.?.BLink;
+                    last_line = last_line.?.b_link;
                 } else {
-                    last_line = mark_line.Line.BLink;
+                    last_line = mark_line.Line.b_link;
                 }
             }
         },
@@ -913,20 +913,20 @@ pub fn fileReadCommand(
     rept: types.LeadParam,
     count: isize,
 ) !bool {
-    if (editor.fgi_file <= 0 or editor.fgi_file > types.MaxFiles) {
+    if (editor.fgi_file <= 0 or editor.fgi_file > types.max_files) {
         return false;
     }
     const input_file = editor.files[@intCast(editor.fgi_file)] orelse return false;
-    const lines_to_read = if (rept == .LeadParamPIndef) types.MaxInt else count;
+    const lines_to_read = if (rept == .LeadParamPIndef) types.max_int else count;
     const read_result = fileReadBuffered(input_file, lines_to_read, rept == .LeadParamPIndef) orelse return false;
     if (read_result.first) |first| {
         const last = read_result.last.?;
-        try line_ops.linesInject(allocator, first, last, frame.Dot.?.Line);
-        try mark_ops.markCreate(allocator, first, 1, &frame.Marks[types.MarkEquals]);
-        frame.TextModified = true;
-        const after = last.FLink.?;
-        try mark_ops.markCreate(allocator, after, 1, &frame.Marks[types.MarkModified]);
-        try mark_ops.markCreate(allocator, after, 1, &frame.Dot);
+        try line_ops.linesInject(allocator, first, last, frame.dot.?.Line);
+        try mark_ops.markCreate(allocator, first, 1, &frame.marks[types.mark_equals]);
+        frame.text_modified = true;
+        const after = last.f_link.?;
+        try mark_ops.markCreate(allocator, after, 1, &frame.marks[types.mark_modified]);
+        try mark_ops.markCreate(allocator, after, 1, &frame.dot);
     }
     return true;
 }
@@ -939,7 +939,7 @@ pub fn fileWriteCommand(
     count: isize,
     mark: ?*types.MarkObject,
 ) !bool {
-    if (editor.fgo_file <= 0 or editor.fgo_file > types.MaxFiles) {
+    if (editor.fgo_file <= 0 or editor.fgo_file > types.max_files) {
         return false;
     }
     const output_file = editor.files[@intCast(editor.fgo_file)] orelse return false;
@@ -958,37 +958,37 @@ pub fn filePage(
     const page_out = computeLineRange(frame, .LeadParamNIndef, 0, null) orelse return false;
     if (page_out.first) |first| {
         const last = page_out.last.?;
-        if (frame.OutputFile != 0) {
-            const output_file = editor.files[@intCast(frame.OutputFile)] orelse return false;
+        if (frame.output_file != 0) {
+            const output_file = editor.files[@intCast(frame.output_file)] orelse return false;
             if (!try fileWriteBuffered(allocator, first, last, output_file)) {
                 editor.exit_abort = true;
                 return false;
             }
         }
-        const after = last.FLink orelse return false;
+        const after = last.f_link orelse return false;
         try mark_ops.marksSqueeze(allocator, first, 1, after, 1);
         line_ops.linesExtract(first, last);
     }
 
-    if (frame.InputFile == 0) {
-        frame.DirtyLine = 1;
+    if (frame.input_file == 0) {
+        frame.dirty_line = 1;
         return true;
     }
-    const input_file = editor.files[@intCast(frame.InputFile)] orelse return false;
-    while (frame.SpaceLeft * 10 > frame.SpaceLimit and !editor.tt_control_c) {
+    const input_file = editor.files[@intCast(frame.input_file)] orelse return false;
+    while (frame.space_left * 10 > frame.space_limit and !editor.tt_control_c) {
         const read_result = fileReadBuffered(input_file, 50, true) orelse return false;
-        frame.InputCount += read_result.count;
+        frame.input_count += read_result.count;
         if (read_result.first == null) {
             break;
         }
-        try line_ops.linesInject(allocator, read_result.first.?, read_result.last.?, frame.LastGroup.?.LastLine.?);
-        if (frame.Dot.?.Line.FLink == null) {
-            try mark_ops.markCreate(allocator, read_result.first.?, frame.Dot.?.Col, &frame.Dot);
+        try line_ops.linesInject(allocator, read_result.first.?, read_result.last.?, frame.last_group.?.last_line.?);
+        if (frame.dot.?.Line.f_link == null) {
+            try mark_ops.markCreate(allocator, read_result.first.?, frame.dot.?.Col, &frame.dot);
         }
     }
 
-    try fileFixEOP(allocator, input_file.Eof, frame.LastGroup.?.LastLine.?);
-    frame.DirtyLine = 1;
+    try fileFixEOP(allocator, input_file.Eof, frame.last_group.?.last_line.?);
+    frame.dirty_line = 1;
     return true;
 }
 
@@ -996,9 +996,9 @@ fn refreshFrameSpanMarks(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    if (frame.Span) |span| {
-        try mark_ops.markCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-        try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    if (frame.span) |span| {
+        try mark_ops.markCreate(allocator, frame.first_group.?.first_line.?, 1, &span.mark_one);
+        try mark_ops.markCreate(allocator, frame.last_group.?.last_line.?, 1, &span.mark_two);
     }
 }
 
@@ -1006,33 +1006,33 @@ fn clearFrameText(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    const sentinel = frame.LastGroup.?.LastLine.?;
-    const last_content = sentinel.BLink;
+    const sentinel = frame.last_group.?.last_line.?;
+    const last_content = sentinel.b_link;
     if (last_content == null) {
-        try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
+        try mark_ops.markCreate(allocator, sentinel, 1, &frame.dot);
         try refreshFrameSpanMarks(allocator, frame);
         return;
     }
 
-    const first_content = frame.FirstGroup.?.FirstLine.?;
+    const first_content = frame.first_group.?.first_line.?;
     try mark_ops.marksSqueeze(allocator, first_content, 1, sentinel, 1);
-    first_content.BLink = null;
-    last_content.?.FLink = null;
-    sentinel.BLink = null;
-    sentinel.OffsetNr = 0;
+    first_content.b_link = null;
+    last_content.?.f_link = null;
+    sentinel.b_link = null;
+    sentinel.offset_num = 0;
 
-    const empty_group = sentinel.Group.?;
-    frame.FirstGroup = empty_group;
-    frame.LastGroup = empty_group;
-    empty_group.BLink = null;
-    empty_group.FLink = null;
-    empty_group.FirstLine = sentinel;
-    empty_group.LastLine = sentinel;
-    empty_group.FirstLineNr = 1;
-    empty_group.NrLines = 0;
+    const empty_group = sentinel.group.?;
+    frame.first_group = empty_group;
+    frame.last_group = empty_group;
+    empty_group.b_link = null;
+    empty_group.f_link = null;
+    empty_group.first_line = sentinel;
+    empty_group.last_line = sentinel;
+    empty_group.first_line_num = 1;
+    empty_group.num_lines = 0;
 
     try line_ops.lineChangeLength(allocator, sentinel, 0);
-    try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
+    try mark_ops.markCreate(allocator, sentinel, 1, &frame.dot);
     try refreshFrameSpanMarks(allocator, frame);
 }
 
@@ -1041,7 +1041,7 @@ fn findBufferedInputByFilename(
     file_name: []const u8,
 ) ?*types.FileObject {
     var slot: usize = 1;
-    while (slot <= types.MaxFiles) : (slot += 1) {
+    while (slot <= types.max_files) : (slot += 1) {
         const file = editor.files[slot] orelse continue;
         if (!file.OutputFlag and std.mem.eql(u8, file.Filename, file_name)) {
             return file;
@@ -1057,13 +1057,13 @@ fn injectFileIntoFrame(
 ) !bool {
     try clearFrameText(allocator, frame);
 
-    const source_first = if (source.RewindFirstLine != null) source.RewindFirstLine else source.FirstLine;
-    const source_last = if (source.RewindLastLine != null) source.RewindLastLine else source.LastLine;
+    const source_first = if (source.RewindFirstLine != null) source.RewindFirstLine else source.first_line;
+    const source_last = if (source.RewindLastLine != null) source.RewindLastLine else source.last_line;
     if (source_first != null and source_last != null) {
         const cloned = try cloneLineRange(allocator, source_first.?, source_last.?);
-        try line_ops.linesInject(allocator, cloned.first, cloned.last, frame.LastGroup.?.LastLine.?);
-        if (frame.Dot.?.Line.FLink == null) {
-            try mark_ops.markCreate(allocator, cloned.first, frame.Dot.?.Col, &frame.Dot);
+        try line_ops.linesInject(allocator, cloned.first, cloned.last, frame.last_group.?.last_line.?);
+        if (frame.dot.?.Line.f_link == null) {
+            try mark_ops.markCreate(allocator, cloned.first, frame.dot.?.Col, &frame.dot);
         }
     }
 
@@ -1073,7 +1073,7 @@ fn injectFileIntoFrame(
 
 fn getFreeSlot(editor: *const state.Editor, reserved_slot: isize) ?isize {
     var slot: isize = 1;
-    while (slot <= types.MaxFiles) : (slot += 1) {
+    while (slot <= types.max_files) : (slot += 1) {
         if (slot == reserved_slot) {
             continue;
         }
@@ -1085,7 +1085,7 @@ fn getFreeSlot(editor: *const state.Editor, reserved_slot: isize) ?isize {
 }
 
 fn getFileSlot(editor: *state.Editor, slot: isize) ?*types.FileObject {
-    if (slot <= 0 or slot > types.MaxFiles) {
+    if (slot <= 0 or slot > types.max_files) {
         return null;
     }
     return editor.files[@intCast(slot)];
@@ -1108,14 +1108,14 @@ pub fn fileOpenCommand(
 ) !bool {
     return switch (command) {
         .CmdFileInput => blk: {
-            if (frame.InputFile != 0) {
+            if (frame.input_file != 0) {
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
             const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
             editor.files[@intCast(slot)] = input_file;
             editor.files_frames[@intCast(slot)] = frame;
-            frame.InputFile = slot;
+            frame.input_file = slot;
             break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
         },
         .CmdFileGlobalInput => blk: {
@@ -1129,18 +1129,18 @@ pub fn fileOpenCommand(
             break :blk true;
         },
         .CmdFileOutput => blk: {
-            if (frame.OutputFile != 0) {
+            if (frame.output_file != 0) {
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
-            const related_name = if (frame.InputFile != 0)
-                (requireFileSlot(editor, frame.InputFile, false) orelse break :blk false).Filename
+            const related_name = if (frame.input_file != 0)
+                (requireFileSlot(editor, frame.input_file, false) orelse break :blk false).Filename
             else
                 null;
             const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{ .related_name = related_name })) orelse break :blk false;
             editor.files[@intCast(slot)] = output_file;
             editor.files_frames[@intCast(slot)] = frame;
-            frame.OutputFile = slot;
+            frame.output_file = slot;
             break :blk true;
         },
         .CmdFileGlobalOutput => blk: {
@@ -1154,7 +1154,7 @@ pub fn fileOpenCommand(
             break :blk true;
         },
         .CmdFileEdit => blk: {
-            if (frame.InputFile != 0 or frame.OutputFile != 0) {
+            if (frame.input_file != 0 or frame.output_file != 0) {
                 break :blk false;
             }
             const input_slot = getFreeSlot(editor, 0) orelse break :blk false;
@@ -1163,10 +1163,10 @@ pub fn fileOpenCommand(
             const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{ .related_name = input_file.Filename })) orelse break :blk false;
             editor.files[@intCast(input_slot)] = input_file;
             editor.files_frames[@intCast(input_slot)] = frame;
-            frame.InputFile = input_slot;
+            frame.input_file = input_slot;
             editor.files[@intCast(output_slot)] = output_file;
             editor.files_frames[@intCast(output_slot)] = frame;
-            frame.OutputFile = output_slot;
+            frame.output_file = output_slot;
             break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
         },
         else => false,
@@ -1178,11 +1178,11 @@ pub fn fileRewindCommand(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    const input_file = requireFileSlot(editor, frame.InputFile, false) orelse return false;
+    const input_file = requireFileSlot(editor, frame.input_file, false) orelse return false;
     if (!try loadFileQueueFromSnapshot(allocator, input_file)) {
         return false;
     }
-    if (frame.Dot.?.Line.FLink == null) {
+    if (frame.dot.?.Line.f_link == null) {
         try clearFrameText(allocator, frame);
     }
     return filePage(editor, allocator, frame);
@@ -1214,10 +1214,10 @@ fn copyUnreadInputToOutput(
     input_file: *types.FileObject,
     output_file: *types.FileObject,
 ) !void {
-    if (input_file.FirstLine == null or input_file.LastLine == null) {
+    if (input_file.first_line == null or input_file.last_line == null) {
         return;
     }
-    const cloned = try cloneLineRange(allocator, input_file.FirstLine.?, input_file.LastLine.?);
+    const cloned = try cloneLineRange(allocator, input_file.first_line.?, input_file.last_line.?);
     try appendToFile(output_file, cloned.first, cloned.last);
 }
 
@@ -1230,12 +1230,12 @@ fn detachFileSlot(
     const slot_index: usize = @intCast(slot);
 
     if (editor.files_frames[slot_index]) |frame| {
-        if (slot == frame.OutputFile) {
-            frame.OutputFile = 0;
+        if (slot == frame.output_file) {
+            frame.output_file = 0;
         } else {
-            frame.InputFile = 0;
-            try fileFixEOP(allocator, true, frame.LastGroup.?.LastLine.?);
-            frame.DirtyLine = 1;
+            frame.input_file = 0;
+            try fileFixEOP(allocator, true, frame.last_group.?.last_line.?);
+            frame.dirty_line = 1;
         }
         editor.files_frames[slot_index] = null;
     } else if (slot == editor.fgi_file) {
@@ -1253,45 +1253,45 @@ pub fn fileSaveCommand(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    const output_file = requireFileSlot(editor, frame.OutputFile, true) orelse return false;
-    if (!frame.TextModified) {
+    const output_file = requireFileSlot(editor, frame.output_file, true) orelse return false;
+    if (!frame.text_modified) {
         return true;
     }
 
     if (output_file.Filename.len > 0) {
-        const input_file = if (frame.InputFile != 0)
-            requireFileSlot(editor, frame.InputFile, false) orelse return false
+        const input_file = if (frame.input_file != 0)
+            requireFileSlot(editor, frame.input_file, false) orelse return false
         else
             null;
-        const lines_read_before_save = frame.InputCount;
+        const lines_read_before_save = frame.input_count;
         const total_saved = (try persistDiskBackedFrameOutput(editor, allocator, frame, output_file, input_file)) orelse return false;
-        frame.InputCount = total_saved;
+        frame.input_count = total_saved;
         output_file.LCounter = total_saved;
         if (input_file) |input| {
             input.LCounter = lines_read_before_save + input.LineCount;
         }
     } else {
-        const last = frame.LastGroup.?.LastLine.?.BLink;
+        const last = frame.last_group.?.last_line.?.b_link;
         if (last != null) {
-            const first = frame.FirstGroup.?.FirstLine.?;
+            const first = frame.first_group.?.first_line.?;
             if (!try fileWriteBuffered(allocator, first, last.?, output_file)) {
                 return false;
             }
         }
 
-        if (frame.InputFile != 0) {
-            const input_file = requireFileSlot(editor, frame.InputFile, false) orelse return false;
-            const lines_read_before_save = frame.InputCount;
+        if (frame.input_file != 0) {
+            const input_file = requireFileSlot(editor, frame.input_file, false) orelse return false;
+            const lines_read_before_save = frame.input_count;
             try copyUnreadInputToOutput(allocator, input_file, output_file);
-            frame.InputCount = output_file.LCounter;
+            frame.input_count = output_file.LCounter;
             input_file.LCounter = lines_read_before_save + input_file.LineCount;
         } else {
-            frame.InputCount = output_file.LCounter;
+            frame.input_count = output_file.LCounter;
         }
     }
 
-    frame.TextModified = false;
-    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
+    frame.text_modified = false;
+    mark_ops.markDestroy(allocator, &frame.marks[types.mark_modified]);
     return true;
 }
 
@@ -1300,14 +1300,14 @@ pub fn fileKillCommand(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    const output_file = requireFileSlot(editor, frame.OutputFile, true) orelse {
+    const output_file = requireFileSlot(editor, frame.output_file, true) orelse {
         emitNoFileOpenMessage(editor);
         return false;
     };
     if (output_file.Tnm.len > 0) {
         sys_ops.deleteFile(output_file.Tnm) catch {};
     }
-    if (!try detachFileSlot(editor, allocator, frame.OutputFile)) {
+    if (!try detachFileSlot(editor, allocator, frame.output_file)) {
         return false;
     }
     emitOutputDeletedMessage(editor, output_file);
@@ -1340,30 +1340,30 @@ pub fn fileCloseCommand(
 ) !bool {
     return switch (command) {
         .CmdFileInput => blk: {
-            _ = requireFileSlot(editor, frame.InputFile, false) orelse break :blk false;
-            break :blk try detachFileSlot(editor, allocator, frame.InputFile);
+            _ = requireFileSlot(editor, frame.input_file, false) orelse break :blk false;
+            break :blk try detachFileSlot(editor, allocator, frame.input_file);
         },
         .CmdFileOutput => blk: {
-            const output_file = requireFileSlot(editor, frame.OutputFile, true) orelse break :blk false;
-            const had_modifications = frame.TextModified;
+            const output_file = requireFileSlot(editor, frame.output_file, true) orelse break :blk false;
+            const had_modifications = frame.text_modified;
             if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
                 break :blk false;
             }
             if (!had_modifications and !try persistDiskBackedOutputFile(editor, allocator, output_file)) {
                 break :blk false;
             }
-            break :blk try detachFileSlot(editor, allocator, frame.OutputFile);
+            break :blk try detachFileSlot(editor, allocator, frame.output_file);
         },
         .CmdFileEdit => blk: {
-            _ = requireFileSlot(editor, frame.InputFile, false) orelse break :blk false;
-            _ = requireFileSlot(editor, frame.OutputFile, true) orelse break :blk false;
-            if (frame.TextModified and !try fileSaveCommand(editor, allocator, frame)) {
+            _ = requireFileSlot(editor, frame.input_file, false) orelse break :blk false;
+            _ = requireFileSlot(editor, frame.output_file, true) orelse break :blk false;
+            if (frame.text_modified and !try fileSaveCommand(editor, allocator, frame)) {
                 break :blk false;
             }
-            if (!try detachFileSlot(editor, allocator, frame.OutputFile)) {
+            if (!try detachFileSlot(editor, allocator, frame.output_file)) {
                 break :blk false;
             }
-            break :blk try detachFileSlot(editor, allocator, frame.InputFile);
+            break :blk try detachFileSlot(editor, allocator, frame.input_file);
         },
         .CmdFileGlobalInput => blk: {
             _ = requireFileSlot(editor, editor.fgi_file, false) orelse break :blk false;
@@ -1386,12 +1386,12 @@ fn closeFrameFilesForQuit(
     frame: *types.FrameObject,
     slot: isize,
 ) !bool {
-    const output_slot = if (frame.OutputFile != 0 and getFileSlot(editor, frame.OutputFile) != null)
-        frame.OutputFile
+    const output_slot = if (frame.output_file != 0 and getFileSlot(editor, frame.output_file) != null)
+        frame.output_file
     else
         0;
-    const input_slot = if (frame.InputFile != 0 and getFileSlot(editor, frame.InputFile) != null)
-        frame.InputFile
+    const input_slot = if (frame.input_file != 0 and getFileSlot(editor, frame.input_file) != null)
+        frame.input_file
     else
         0;
 
@@ -1400,7 +1400,7 @@ fn closeFrameFilesForQuit(
             return true;
         }
         const output_file = requireFileSlot(editor, output_slot, true) orelse return false;
-        const had_modifications = frame.TextModified;
+        const had_modifications = frame.text_modified;
 
         if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
             return false;
@@ -1482,7 +1482,7 @@ pub fn quitCloseFiles(
     allocator: std.mem.Allocator,
 ) !bool {
     var slot: isize = 1;
-    while (slot <= types.MaxFiles) : (slot += 1) {
+    while (slot <= types.max_files) : (slot += 1) {
         const slot_index: usize = @intCast(slot);
         if (editor.files[slot_index] == null) {
             continue;
@@ -1540,12 +1540,12 @@ pub fn makeBufferedFile(
 }
 
 fn expectFrameLines(frame: *types.FrameObject, expected: []const []const u8) !void {
-    const sentinel = frame.LastGroup.?.LastLine.?;
-    var line = frame.FirstGroup.?.FirstLine.?;
+    const sentinel = frame.last_group.?.last_line.?;
+    var line = frame.first_group.?.first_line.?;
     for (expected) |content| {
         try std.testing.expect(line != sentinel);
         try std.testing.expectEqualStrings(content, line_ops.getLineContent(line));
-        line = line.FLink.?;
+        line = line.f_link.?;
     }
     try std.testing.expect(line == sentinel);
 }
@@ -1566,8 +1566,8 @@ test "file table writes current file usage into report frame" {
     };
     editor.files[1] = input;
     editor.files_frames[1] = work;
-    work.InputFile = 1;
-    work.TextModified = true;
+    work.input_file = 1;
+    work.text_modified = true;
 
     const output = try allocator.create(types.FileObject);
     output.* = .{
@@ -1576,7 +1576,7 @@ test "file table writes current file usage into report frame" {
     };
     editor.files[2] = output;
     editor.files_frames[2] = work;
-    work.OutputFile = 2;
+    work.output_file = 2;
 
     const global_input = try allocator.create(types.FileObject);
     global_input.* = .{
@@ -1637,26 +1637,26 @@ test "file save appends frame and unread input to output buffer" {
     }, false);
     editor.files[1] = input;
     editor.files_frames[1] = fixture.frame;
-    fixture.frame.InputFile = 1;
+    fixture.frame.input_file = 1;
 
     const output = try makeBufferedFile(allocator, &[_][]const u8{
         "paged",
     }, true);
     editor.files[2] = output;
     editor.files_frames[2] = fixture.frame;
-    fixture.frame.OutputFile = 2;
-    fixture.frame.TextModified = true;
-    try mark_ops.markCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].Used + 1, &fixture.frame.Marks[types.MarkModified]);
+    fixture.frame.output_file = 2;
+    fixture.frame.text_modified = true;
+    try mark_ops.markCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].used + 1, &fixture.frame.marks[types.mark_modified]);
 
     try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
-    try std.testing.expect(!fixture.frame.TextModified);
-    try std.testing.expect(fixture.frame.Marks[types.MarkModified] == null);
+    try std.testing.expect(!fixture.frame.text_modified);
+    try std.testing.expect(fixture.frame.marks[types.mark_modified] == null);
     try std.testing.expectEqual(@as(isize, 5), output.LineCount);
-    try std.testing.expectEqualStrings("paged", line_ops.getLineContent(output.FirstLine));
-    try std.testing.expectEqualStrings("visible1", line_ops.getLineContent(output.FirstLine.?.FLink));
-    try std.testing.expectEqualStrings("visible2", line_ops.getLineContent(output.FirstLine.?.FLink.?.FLink));
-    try std.testing.expectEqualStrings("tail1", line_ops.getLineContent(output.FirstLine.?.FLink.?.FLink.?.FLink));
-    try std.testing.expectEqualStrings("tail2", line_ops.getLineContent(output.LastLine));
+    try std.testing.expectEqualStrings("paged", line_ops.getLineContent(output.first_line));
+    try std.testing.expectEqualStrings("visible1", line_ops.getLineContent(output.first_line.?.f_link));
+    try std.testing.expectEqualStrings("visible2", line_ops.getLineContent(output.first_line.?.f_link.?.f_link));
+    try std.testing.expectEqualStrings("tail1", line_ops.getLineContent(output.first_line.?.f_link.?.f_link.?.f_link));
+    try std.testing.expectEqualStrings("tail2", line_ops.getLineContent(output.last_line));
 }
 
 test "file kill detaches current output file" {
@@ -1668,10 +1668,10 @@ test "file kill detaches current output file" {
     const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     editor.files[1] = output;
     editor.files_frames[1] = fixture.frame;
-    fixture.frame.OutputFile = 1;
+    fixture.frame.output_file = 1;
 
     try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
-    try std.testing.expectEqual(@as(isize, 0), fixture.frame.OutputFile);
+    try std.testing.expectEqual(@as(isize, 0), fixture.frame.output_file);
     try std.testing.expect(editor.files[1] == null);
     try std.testing.expect(editor.files_frames[1] == null);
 }
@@ -1688,7 +1688,7 @@ test "file kill queues interactive deleted status message" {
     output.Tnm = "output.txt-lw";
     editor.files[1] = output;
     editor.files_frames[1] = fixture.frame;
-    fixture.frame.OutputFile = 1;
+    fixture.frame.output_file = 1;
 
     try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings(
@@ -1718,12 +1718,12 @@ test "file close detaches current input file and marks eof" {
     const input = try makeBufferedFile(allocator, &[_][]const u8{"tail"}, false);
     editor.files[1] = input;
     editor.files_frames[1] = fixture.frame;
-    fixture.frame.InputFile = 1;
+    fixture.frame.input_file = 1;
 
     try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileInput));
-    try std.testing.expectEqual(@as(isize, 0), fixture.frame.InputFile);
+    try std.testing.expectEqual(@as(isize, 0), fixture.frame.input_file);
     try std.testing.expect(editor.files[1] == null);
-    try std.testing.expectEqualStrings("<End of File>", line_ops.getDisplayLineContent(fixture.frame.LastGroup.?.LastLine.?));
+    try std.testing.expectEqualStrings("<End of File>", line_ops.getDisplayLineContent(fixture.frame.last_group.?.last_line.?));
 }
 
 test "file close detaches global output file" {
@@ -1748,7 +1748,7 @@ test "file save rotates disk backups and updates memory file" {
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
-    editor.file_data.Versions = 2;
+    editor.file_data.versions = 2;
 
     const file_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/save.txt", .{tmp_dir.sub_path});
     const backup1_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/save.txt~1", .{tmp_dir.sub_path});
@@ -1763,9 +1763,9 @@ test "file save rotates disk backups and updates memory file" {
     const output = (try openDiskOutputFile(&editor, allocator, file_path, .{ .memory = expanded_memory })) orelse return error.TestUnexpectedResult;
     editor.files[1] = output;
     editor.files_frames[1] = fixture.frame;
-    fixture.frame.OutputFile = 1;
-    fixture.frame.TextModified = true;
-    try mark_ops.markCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].Used + 1, &fixture.frame.Marks[types.MarkModified]);
+    fixture.frame.output_file = 1;
+    fixture.frame.text_modified = true;
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].used + 1, &fixture.frame.marks[types.mark_modified]);
 
     try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
 

@@ -6,12 +6,12 @@ const text = @import("text.zig");
 const types = @import("types.zig");
 
 fn blankString(allocator: std.mem.Allocator) !*str_object.StrObject {
-    return str_object.newBlankStrObject(allocator, types.MaxStrLen);
+    return str_object.newBlankStrObject(allocator, types.max_str_len);
 }
 
 fn normalizeLineCommandRepeat(rept: *types.LeadParam, count: *isize) void {
     if (rept.* == .LeadParamPIndef) {
-        count.* = types.MaxInt;
+        count.* = types.max_int;
     }
     if (rept.* == .LeadParamNone or rept.* == .LeadParamPlus) {
         count.* = 1;
@@ -21,9 +21,9 @@ fn normalizeLineCommandRepeat(rept: *types.LeadParam, count: *isize) void {
 
 fn validateNonBlankLineCount(frame: *types.FrameObject, count: isize) bool {
     var line_count = count;
-    var this_line = frame.Dot.?.Line;
-    while (line_count > 0 and this_line.Used > 0) {
-        this_line = this_line.FLink orelse return false;
+    var this_line = frame.dot.?.Line;
+    while (line_count > 0 and this_line.used > 0) {
+        this_line = this_line.f_link orelse return false;
         line_count -= 1;
     }
     return line_count == 0;
@@ -35,7 +35,7 @@ fn moveDot(
     line: *types.LineHdrObject,
     col: isize,
 ) !void {
-    try mark_ops.markCreate(allocator, line, col, &frame.Dot);
+    try mark_ops.markCreate(allocator, line, col, &frame.dot);
 }
 
 pub fn wordFill(
@@ -56,7 +56,7 @@ pub fn wordFill(
     var rept_mut = rept;
     var count_mut = count;
     if (rept_mut == .LeadParamPIndef) {
-        count_mut = types.MaxInt;
+        count_mut = types.max_int;
     }
     if (rept_mut == .LeadParamNone) {
         count_mut = 1;
@@ -66,31 +66,31 @@ pub fn wordFill(
         return false;
     }
 
-    while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
-        if (frame.Dot.?.Line.FLink == null) {
+    while (count_mut > 0 and frame.dot.?.Line.used > 0) {
+        if (frame.dot.?.Line.f_link == null) {
             return false;
         }
 
-        if (frame.Dot.?.Line.BLink != null and frame.Dot.?.Line.BLink.?.Used != 0) {
+        if (frame.dot.?.Line.b_link != null and frame.dot.?.Line.b_link.?.used != 0) {
             var start_char: isize = 1;
-            while (frame.Dot.?.Line.Str.?.get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
+            while (frame.dot.?.Line.str.?.get(start_char) == ' ' and start_char < frame.dot.?.Line.used) {
                 start_char += 1;
             }
-            if (start_char < frame.MarginLeft and start_char < frame.Dot.?.Line.Used) {
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                if (!try text.textInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) {
+            if (start_char < frame.margin_left and start_char < frame.dot.?.Line.used) {
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &here);
+                if (!try text.textInsert(allocator, true, 1, blank, frame.margin_left - start_char, here.?)) {
                     return false;
                 }
                 mark_ops.markDestroy(allocator, &here);
             } else {
-                var end_char = frame.MarginLeft;
-                if (end_char < frame.Dot.?.Line.Used) {
-                    while (frame.Dot.?.Line.Str.?.get(end_char) == ' ' and end_char < frame.Dot.?.Line.Used) {
+                var end_char = frame.margin_left;
+                if (end_char < frame.dot.?.Line.used) {
+                    while (frame.dot.?.Line.str.?.get(end_char) == ' ' and end_char < frame.dot.?.Line.used) {
                         end_char += 1;
                     }
                     if (end_char > 1) {
-                        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-                        try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char, &there);
+                        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.margin_left, &here);
+                        try mark_ops.markCreate(allocator, frame.dot.?.Line, end_char, &there);
                         if (!try text.textRemove(allocator, here.?, there.?)) {
                             return false;
                         }
@@ -101,31 +101,31 @@ pub fn wordFill(
             }
         }
 
-        if (frame.Dot.?.Line.Used > frame.MarginRight) {
-            var end_char = frame.MarginRight + 1;
-            if (frame.Dot.?.Line.Str.?.get(end_char) != ' ') {
-                while (frame.Dot.?.Line.Str.?.get(end_char) != ' ' and end_char > frame.MarginLeft) {
+        if (frame.dot.?.Line.used > frame.margin_right) {
+            var end_char = frame.margin_right + 1;
+            if (frame.dot.?.Line.str.?.get(end_char) != ' ') {
+                while (frame.dot.?.Line.str.?.get(end_char) != ' ' and end_char > frame.margin_left) {
                     end_char -= 1;
                 }
-                if (end_char == frame.MarginLeft) {
+                if (end_char == frame.margin_left) {
                     return false;
                 }
             }
             var start_char = end_char;
-            while (frame.Dot.?.Line.Str.?.get(end_char) == ' ' and end_char > frame.MarginLeft) {
+            while (frame.dot.?.Line.str.?.get(end_char) == ' ' and end_char > frame.margin_left) {
                 end_char -= 1;
             }
-            if (end_char == frame.MarginLeft) {
+            if (end_char == frame.margin_left) {
                 return false;
             }
-            while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
+            while (frame.dot.?.Line.str.?.get(start_char) == ' ') {
                 start_char += 1;
             }
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-            if (frame.Dot.?.Col > end_char) {
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char, &frame.Dot);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &here);
+            if (frame.dot.?.Col > end_char) {
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, end_char, &frame.dot);
             }
-            if (!try text.textSplitLine(allocator, here.?, frame.MarginLeft, &there)) {
+            if (!try text.textSplitLine(allocator, here.?, frame.margin_left, &there)) {
                 return false;
             }
             mark_ops.markDestroy(allocator, &here);
@@ -135,27 +135,27 @@ pub fn wordFill(
             }
         } else {
             while (true) {
-                const space_to_add = frame.MarginRight - frame.Dot.?.Line.Used - 1;
-                if (space_to_add > 0 and frame.Dot.?.Line.FLink.?.Used != 0) {
-                    const next_line = frame.Dot.?.Line.FLink.?;
+                const space_to_add = frame.margin_right - frame.dot.?.Line.used - 1;
+                if (space_to_add > 0 and frame.dot.?.Line.f_link.?.used != 0) {
+                    const next_line = frame.dot.?.Line.f_link.?;
                     var start_char: isize = 1;
-                    while (next_line.Str.?.get(start_char) == ' ') {
+                    while (next_line.str.?.get(start_char) == ' ') {
                         start_char += 1;
                     }
                     var end_char = start_char;
                     var old_end = end_char;
-                    while (end_char <= next_line.Used) {
-                        while (next_line.Str.?.get(end_char) == ' ') {
+                    while (end_char <= next_line.used) {
+                        while (next_line.str.?.get(end_char) == ' ') {
                             end_char += 1;
                         }
-                        while (next_line.Str.?.get(end_char) != ' ' and end_char < next_line.Used) {
+                        while (next_line.str.?.get(end_char) != ' ' and end_char < next_line.used) {
                             end_char += 1;
                         }
-                        if (end_char == next_line.Used) {
+                        if (end_char == next_line.used) {
                             end_char += 1;
                         }
                         if (space_to_add < (end_char - start_char)) {
-                            end_char = next_line.Used + 1;
+                            end_char = next_line.used + 1;
                         } else {
                             old_end = end_char;
                         }
@@ -171,8 +171,8 @@ pub fn wordFill(
                         try mark_ops.markCreate(allocator, next_line, start_char, &old_here);
                         try mark_ops.markCreate(allocator, next_line, old_end, &there);
                         try mark_ops.markCreate(allocator, next_line, old_end, &old_there);
-                        frame.Dot.?.Col = frame.Dot.?.Line.Used + 2;
-                        if (!try text.textMove(allocator, true, 1, here.?, there.?, frame.Dot.?, &here, &there)) {
+                        frame.dot.?.Col = frame.dot.?.Line.used + 2;
+                        if (!try text.textMove(allocator, true, 1, here.?, there.?, frame.dot.?, &here, &there)) {
                             return false;
                         }
                         try mark_ops.marksShift(allocator, next_line, old_here.?.Col, old_there.?.Col - old_here.?.Col, here.?.Line, here.?.Col);
@@ -182,9 +182,9 @@ pub fn wordFill(
                             return false;
                         }
 
-                        if (frame.Dot.?.Line.FLink.?.Used == 0) {
-                            const this_line = frame.Dot.?.Line.FLink.?;
-                            try mark_ops.marksSqueeze(allocator, frame.Dot.?.Line.FLink.?, 1, frame.Dot.?.Line.FLink.?.FLink.?, 1);
+                        if (frame.dot.?.Line.f_link.?.used == 0) {
+                            const this_line = frame.dot.?.Line.f_link.?;
+                            try mark_ops.marksSqueeze(allocator, frame.dot.?.Line.f_link.?, 1, frame.dot.?.Line.f_link.?.f_link.?, 1);
                             line_ops.linesExtract(this_line, this_line);
                             count_mut -= 1;
                             if (count_mut > 0) {
@@ -194,19 +194,19 @@ pub fn wordFill(
                         }
                     }
 
-                    if (count_mut > 0 and frame.Dot.?.Line.FLink.?.Used != 0) {
-                        const next_line_after_pull = frame.Dot.?.Line.FLink.?;
+                    if (count_mut > 0 and frame.dot.?.Line.f_link.?.used != 0) {
+                        const next_line_after_pull = frame.dot.?.Line.f_link.?;
                         var next_start_char: isize = 1;
-                        while (next_line_after_pull.Str.?.get(next_start_char) == ' ') {
+                        while (next_line_after_pull.str.?.get(next_start_char) == ' ') {
                             next_start_char += 1;
                         }
                         try mark_ops.markCreate(allocator, next_line_after_pull, next_start_char, &there);
-                        if (next_start_char < frame.MarginLeft) {
-                            if (!try text.textInsert(allocator, true, 1, blank, frame.MarginLeft - next_start_char, there.?)) {
+                        if (next_start_char < frame.margin_left) {
+                            if (!try text.textInsert(allocator, true, 1, blank, frame.margin_left - next_start_char, there.?)) {
                                 return false;
                             }
                         } else {
-                            try mark_ops.markCreate(allocator, next_line_after_pull, frame.MarginLeft, &here);
+                            try mark_ops.markCreate(allocator, next_line_after_pull, frame.margin_left, &here);
                             if (!try text.textRemove(allocator, here.?, there.?)) {
                                 return false;
                             }
@@ -221,10 +221,10 @@ pub fn wordFill(
 
         count_mut -= 1;
         if (!leave_dot_alone) {
-            try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
+            try moveDot(allocator, frame, frame.dot.?.Line.f_link.?, frame.margin_left);
         }
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        frame.text_modified = true;
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -250,30 +250,30 @@ pub fn wordCentre(
         return false;
     }
 
-    while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
-        if (frame.Dot.?.Line.FLink == null) return false;
-        if (frame.Dot.?.Line.Used < frame.MarginLeft or frame.Dot.?.Line.Used > frame.MarginRight) return false;
+    while (count_mut > 0 and frame.dot.?.Line.used > 0) {
+        if (frame.dot.?.Line.f_link == null) return false;
+        if (frame.dot.?.Line.used < frame.margin_left or frame.dot.?.Line.used > frame.margin_right) return false;
 
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
+        while (frame.dot.?.Line.str.?.get(start_char) == ' ') {
             start_char += 1;
         }
-        if (start_char < frame.MarginLeft) return false;
+        if (start_char < frame.margin_left) return false;
 
-        const space_to_add = @divTrunc(frame.MarginRight - frame.MarginLeft - (frame.Dot.?.Line.Used - start_char), 2) - (start_char - frame.MarginLeft);
+        const space_to_add = @divTrunc(frame.margin_right - frame.margin_left - (frame.dot.?.Line.used - start_char), 2) - (start_char - frame.margin_left);
         if (space_to_add > 0) {
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.margin_left, &here);
             if (!try text.textInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
         } else if (space_to_add < 0) {
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft - space_to_add, &there);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.margin_left, &here);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.margin_left - space_to_add, &there);
             if (!try text.textRemove(allocator, here.?, there.?)) return false;
         }
 
         count_mut -= 1;
-        try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try moveDot(allocator, frame, frame.dot.?.Line.f_link.?, frame.margin_left);
+        frame.text_modified = true;
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -297,27 +297,27 @@ pub fn wordJustify(
         return false;
     }
 
-    while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
-        if (frame.Dot.?.Line.FLink == null) return false;
-        if (frame.Dot.?.Line.FLink.?.Used != 0) {
-            if (frame.Dot.?.Line.Used > frame.MarginRight) return false;
+    while (count_mut > 0 and frame.dot.?.Line.used > 0) {
+        if (frame.dot.?.Line.f_link == null) return false;
+        if (frame.dot.?.Line.f_link.?.used != 0) {
+            if (frame.dot.?.Line.used > frame.margin_right) return false;
 
-            var space_to_add = frame.MarginRight - frame.Dot.?.Line.Used;
-            var start_char = frame.MarginLeft;
-            while (frame.Dot.?.Line.Str.?.get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
+            var space_to_add = frame.margin_right - frame.dot.?.Line.used;
+            var start_char = frame.margin_left;
+            while (frame.dot.?.Line.str.?.get(start_char) == ' ' and start_char < frame.dot.?.Line.used) {
                 start_char += 1;
             }
             const end_char = start_char;
             var holes: isize = 0;
             while (true) {
-                while (frame.Dot.?.Line.Str.?.get(start_char) != ' ' and start_char < frame.Dot.?.Line.Used) {
+                while (frame.dot.?.Line.str.?.get(start_char) != ' ' and start_char < frame.dot.?.Line.used) {
                     start_char += 1;
                 }
-                while (frame.Dot.?.Line.Str.?.get(start_char) == ' ' and start_char < frame.Dot.?.Line.Used) {
+                while (frame.dot.?.Line.str.?.get(start_char) == ' ' and start_char < frame.dot.?.Line.used) {
                     start_char += 1;
                 }
                 holes += 1;
-                if (!(start_char < frame.Dot.?.Line.Used)) break;
+                if (!(start_char < frame.dot.?.Line.used)) break;
             }
             holes -= 1;
 
@@ -329,28 +329,28 @@ pub fn wordJustify(
             start_char = end_char;
             var i: isize = 1;
             while (i <= holes) : (i += 1) {
-                while (frame.Dot.?.Line.Str.?.get(start_char) != ' ') {
+                while (frame.dot.?.Line.str.?.get(start_char) != ' ') {
                     start_char += 1;
                 }
                 debit += fill_ratio;
                 space_to_add = @intFromFloat(debit + 0.5);
                 if (space_to_add > 0) {
                     here = null;
-                    try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
+                    try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &here);
                     if (!try text.textInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
                     mark_ops.markDestroy(allocator, &here);
                     debit -= @as(f64, @floatFromInt(space_to_add));
                 }
-                while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
+                while (frame.dot.?.Line.str.?.get(start_char) == ' ') {
                     start_char += 1;
                 }
             }
         }
 
         count_mut -= 1;
-        try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try moveDot(allocator, frame, frame.dot.?.Line.f_link.?, frame.margin_left);
+        frame.text_modified = true;
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -373,26 +373,26 @@ pub fn wordSqueeze(
         return false;
     }
 
-    while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
-        if (frame.Dot.?.Line.FLink == null) return false;
+    while (count_mut > 0 and frame.dot.?.Line.used > 0) {
+        if (frame.dot.?.Line.f_link == null) return false;
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
+        while (frame.dot.?.Line.str.?.get(start_char) == ' ') {
             start_char += 1;
         }
         while (true) {
-            while (frame.Dot.?.Line.Str.?.get(start_char) != ' ' and start_char < frame.Dot.?.Line.Used) {
+            while (frame.dot.?.Line.str.?.get(start_char) != ' ' and start_char < frame.dot.?.Line.used) {
                 start_char += 1;
             }
-            if (frame.Dot.?.Line.Str.?.get(start_char) != ' ') break;
+            if (frame.dot.?.Line.str.?.get(start_char) != ' ') break;
             var end_char = start_char;
-            while (frame.Dot.?.Line.Str.?.get(end_char) == ' ') {
+            while (frame.dot.?.Line.str.?.get(end_char) == ' ') {
                 end_char += 1;
             }
             if ((end_char - start_char) > 1) {
                 here = null;
                 there = null;
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, end_char - 1, &there);
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &here);
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, end_char - 1, &there);
                 if (!try text.textRemove(allocator, here.?, there.?)) return false;
                 start_char = here.?.Col;
             } else {
@@ -401,9 +401,9 @@ pub fn wordSqueeze(
         }
 
         count_mut -= 1;
-        try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try moveDot(allocator, frame, frame.dot.?.Line.f_link.?, frame.margin_left);
+        frame.text_modified = true;
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -429,30 +429,30 @@ pub fn wordRight(
         return false;
     }
 
-    while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
-        if (frame.Dot.?.Line.FLink == null) return false;
-        if (frame.Dot.?.Line.Used < frame.MarginLeft or frame.Dot.?.Line.Used > frame.MarginRight) return false;
+    while (count_mut > 0 and frame.dot.?.Line.used > 0) {
+        if (frame.dot.?.Line.f_link == null) return false;
+        if (frame.dot.?.Line.used < frame.margin_left or frame.dot.?.Line.used > frame.margin_right) return false;
 
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
+        while (frame.dot.?.Line.str.?.get(start_char) == ' ') {
             start_char += 1;
         }
-        if (start_char < frame.MarginLeft) return false;
+        if (start_char < frame.margin_left) return false;
 
-        const space_to_add = frame.MarginRight - frame.Dot.?.Line.Used;
+        const space_to_add = frame.margin_right - frame.dot.?.Line.used;
         if (space_to_add > 0) {
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &here);
             if (!try text.textInsert(allocator, true, 1, blank, space_to_add, here.?)) return false;
         } else if (space_to_add < 0) {
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &there);
-            try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char - space_to_add, &here);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &there);
+            try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char - space_to_add, &here);
             if (!try text.textRemove(allocator, there.?, here.?)) return false;
         }
 
         count_mut -= 1;
-        try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try moveDot(allocator, frame, frame.dot.?.Line.f_link.?, frame.margin_left);
+        frame.text_modified = true;
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -478,29 +478,29 @@ pub fn wordLeft(
         return false;
     }
 
-    while (count_mut > 0 and frame.Dot.?.Line.Used > 0) {
-        if (frame.Dot.?.Line.FLink == null) return false;
-        if (frame.Dot.?.Line.Used < frame.MarginLeft or frame.Dot.?.Line.Used > frame.MarginRight) return false;
+    while (count_mut > 0 and frame.dot.?.Line.used > 0) {
+        if (frame.dot.?.Line.f_link == null) return false;
+        if (frame.dot.?.Line.used < frame.margin_left or frame.dot.?.Line.used > frame.margin_right) return false;
 
         var start_char: isize = 1;
-        while (frame.Dot.?.Line.Str.?.get(start_char) == ' ') {
+        while (frame.dot.?.Line.str.?.get(start_char) == ' ') {
             start_char += 1;
         }
-        if (start_char != frame.MarginLeft) {
-            if (start_char < frame.MarginLeft) {
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &here);
-                if (!try text.textInsert(allocator, true, 1, blank, frame.MarginLeft - start_char, here.?)) return false;
+        if (start_char != frame.margin_left) {
+            if (start_char < frame.margin_left) {
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &here);
+                if (!try text.textInsert(allocator, true, 1, blank, frame.margin_left - start_char, here.?)) return false;
             } else {
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.MarginLeft, &here);
-                try mark_ops.markCreate(allocator, frame.Dot.?.Line, start_char, &there);
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.margin_left, &here);
+                try mark_ops.markCreate(allocator, frame.dot.?.Line, start_char, &there);
                 if (!try text.textRemove(allocator, here.?, there.?)) return false;
             }
         }
 
         count_mut -= 1;
-        try moveDot(allocator, frame, frame.Dot.?.Line.FLink.?, frame.MarginLeft);
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        try moveDot(allocator, frame, frame.dot.?.Line.f_link.?, frame.margin_left);
+        frame.text_modified = true;
+        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
     }
     return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
 }
@@ -511,8 +511,8 @@ pub fn wordAdvanceWord(
     rept: types.LeadParam,
     count: isize,
 ) !bool {
-    var this_line = frame.Dot.?.Line;
-    var pos = frame.Dot.?.Col;
+    var this_line = frame.dot.?.Line;
+    var pos = frame.dot.?.Col;
     var count_mut = count;
 
     if (rept == .LeadParamMarker) {
@@ -521,8 +521,8 @@ pub fn wordAdvanceWord(
 
     if (rept == .LeadParamNone or rept == .LeadParamPlus or rept == .LeadParamPIndef or (rept == .LeadParamPInt and count_mut != 0)) {
         if (rept == .LeadParamPIndef) {
-            while (this_line.Used != 0 and this_line.FLink != null) {
-                this_line = this_line.FLink.?;
+            while (this_line.used != 0 and this_line.f_link != null) {
+                this_line = this_line.f_link.?;
             }
             pos = 1;
             count_mut = 1;
@@ -530,8 +530,8 @@ pub fn wordAdvanceWord(
 
         outer: while (count_mut > 0) {
             while (true) {
-                if (pos < this_line.Used) {
-                    if (this_line.Str.?.get(pos) != ' ') {
+                if (pos < this_line.used) {
+                    if (this_line.str.?.get(pos) != ' ') {
                         pos += 1;
                     } else {
                         break;
@@ -541,70 +541,70 @@ pub fn wordAdvanceWord(
                 }
             }
 
-            if (pos >= this_line.Used) {
+            if (pos >= this_line.used) {
                 pos = 1;
                 while (true) {
-                    if (this_line.FLink == null) {
+                    if (this_line.f_link == null) {
                         if (rept == .LeadParamPIndef) break :outer;
                         return false;
                     }
-                    this_line = this_line.FLink.?;
-                    if (!(this_line.Used <= 0)) break;
+                    this_line = this_line.f_link.?;
+                    if (!(this_line.used <= 0)) break;
                 }
             }
-            while (this_line.Str.?.get(pos) == ' ') {
+            while (this_line.str.?.get(pos) == ' ') {
                 pos += 1;
             }
             count_mut -= 1;
         }
         try moveDot(allocator, frame, this_line, pos);
     } else if (rept == .LeadParamNIndef) {
-        while (this_line.Used == 0 and this_line.BLink != null) {
-            this_line = this_line.BLink.?;
+        while (this_line.used == 0 and this_line.b_link != null) {
+            this_line = this_line.b_link.?;
         }
-        while (this_line.Used != 0 and this_line.BLink != null) {
-            this_line = this_line.BLink.?;
+        while (this_line.used != 0 and this_line.b_link != null) {
+            this_line = this_line.b_link.?;
         }
         pos = 1;
-        while (this_line.Used == 0) {
-            if (this_line.FLink == null) return false;
-            this_line = this_line.FLink.?;
+        while (this_line.used == 0) {
+            if (this_line.f_link == null) return false;
+            this_line = this_line.f_link.?;
         }
-        while (this_line.Str.?.get(pos) == ' ') {
+        while (this_line.str.?.get(pos) == ' ') {
             pos += 1;
         }
         try moveDot(allocator, frame, this_line, pos);
     } else {
         count_mut = -count_mut;
-        if (pos > this_line.Used) {
-            pos = this_line.Used;
+        if (pos > this_line.used) {
+            pos = this_line.used;
         }
         while (true) {
-            if (pos == 0 or this_line.FLink == null) {
+            if (pos == 0 or this_line.f_link == null) {
                 while (true) {
-                    if (this_line.BLink == null) return false;
-                    this_line = this_line.BLink.?;
-                    pos = this_line.Used;
+                    if (this_line.b_link == null) return false;
+                    this_line = this_line.b_link.?;
+                    pos = this_line.used;
                     if (pos > 0) break;
                 }
             }
-            while (this_line.Str.?.get(pos) == ' ' and pos > 1) {
+            while (this_line.str.?.get(pos) == ' ' and pos > 1) {
                 pos -= 1;
             }
-            if (pos == 1 and this_line.Str.?.get(1) == ' ') {
+            if (pos == 1 and this_line.str.?.get(1) == ' ') {
                 while (true) {
-                    if (this_line.BLink == null) return false;
-                    this_line = this_line.BLink.?;
-                    pos = this_line.Used;
+                    if (this_line.b_link == null) return false;
+                    this_line = this_line.b_link.?;
+                    pos = this_line.used;
                     if (!(pos <= 0)) break;
                 }
             }
-            while (this_line.Str.?.get(pos) != ' ' and pos > 1) {
+            while (this_line.str.?.get(pos) != ' ' and pos > 1) {
                 pos -= 1;
             }
             count_mut -= 1;
             if (count_mut < 0) {
-                if (this_line.Str.?.get(pos) == ' ') pos += 1;
+                if (this_line.str.?.get(pos) == ' ') pos += 1;
             } else {
                 pos -= 1;
             }
@@ -633,21 +633,21 @@ pub fn wordDeleteWord(
         return false;
     }
 
-    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &old_pos);
+    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &old_pos);
     if (!try wordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) {
         return false;
     }
-    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &here);
+    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &here);
     if (!try wordAdvanceWord(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
         return false;
     }
 
-    const old_dot_col = frame.Dot.?.Col;
-    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &other_mark);
-    const line_nr = line_ops.lineToNumber(frame.Dot.?.Line);
+    const old_dot_col = frame.dot.?.Col;
+    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &other_mark);
+    const line_nr = line_ops.lineToNumber(frame.dot.?.Line);
     const new_line_nr = line_ops.lineToNumber(here.?.Line);
-    if (line_nr > new_line_nr or (line_nr == new_line_nr and frame.Dot.?.Col > here.?.Col)) {
+    if (line_nr > new_line_nr or (line_nr == new_line_nr and frame.dot.?.Col > here.?.Col)) {
         const another_mark = here;
         here = other_mark;
         other_mark = another_mark;
@@ -655,14 +655,14 @@ pub fn wordDeleteWord(
 
     var result = false;
     if (frame != frame_oops) {
-        if (frame_oops.Span == null) return false;
-        try mark_ops.markCreate(allocator, frame_oops.LastGroup.?.LastLine.?, 1, &frame_oops.Span.?.MarkTwo);
-        result = try text.textMove(allocator, false, 1, other_mark.?, here.?, frame_oops.Span.?.MarkTwo.?, &frame_oops.Marks[types.MarkEquals], &frame_oops.Dot);
+        if (frame_oops.span == null) return false;
+        try mark_ops.markCreate(allocator, frame_oops.last_group.?.last_line.?, 1, &frame_oops.span.?.mark_two);
+        result = try text.textMove(allocator, false, 1, other_mark.?, here.?, frame_oops.span.?.mark_two.?, &frame_oops.marks[types.mark_equals], &frame_oops.dot);
     } else {
         result = try text.textRemove(allocator, other_mark.?, here.?);
     }
     if (line_nr != new_line_nr) {
-        result = try text.textSplitLine(allocator, frame.Dot.?, old_dot_col, &here);
+        result = try text.textSplitLine(allocator, frame.dot.?, old_dot_col, &here);
     }
     return result;
 }
@@ -684,13 +684,13 @@ test "word left aligns lines to the left margin" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello", "    world" });
-    fixture.frame.MarginLeft = 3;
-    fixture.frame.MarginRight = 20;
+    fixture.frame.margin_left = 3;
+    fixture.frame.margin_right = 20;
 
     try std.testing.expect(try wordLeft(allocator, fixture.frame, .LeadParamPInt, 2));
     try expectLineContent(fixture.content_lines[0], "  hello");
     try expectLineContent(fixture.content_lines[1], "  world");
-    try std.testing.expect(fixture.frame.Dot.?.Line == fixture.sentinel_line);
+    try std.testing.expect(fixture.frame.dot.?.Line == fixture.sentinel_line);
 }
 
 test "word right aligns content to the right margin" {
@@ -699,8 +699,8 @@ test "word right aligns content to the right margin" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"  hello"});
-    fixture.frame.MarginLeft = 3;
-    fixture.frame.MarginRight = 10;
+    fixture.frame.margin_left = 3;
+    fixture.frame.margin_right = 10;
     try std.testing.expect(try wordRight(allocator, fixture.frame, .LeadParamNone, 1));
     try expectLineContent(fixture.content_lines[0], "     hello");
 }
@@ -711,8 +711,8 @@ test "word centre shifts content toward the middle of margins" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"      hello"});
-    fixture.frame.MarginLeft = 3;
-    fixture.frame.MarginRight = 11;
+    fixture.frame.margin_left = 3;
+    fixture.frame.margin_right = 11;
     try std.testing.expect(try wordCentre(allocator, fixture.frame, .LeadParamNone, 1));
     try expectLineContent(fixture.content_lines[0], "    hello");
 }
@@ -723,10 +723,10 @@ test "word justify expands interior holes when next line is nonblank" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "  hello world", "next line" });
-    fixture.frame.MarginLeft = 3;
-    fixture.frame.MarginRight = 20;
+    fixture.frame.margin_left = 3;
+    fixture.frame.margin_right = 20;
     try std.testing.expect(try wordJustify(allocator, fixture.frame, .LeadParamNone, 1));
-    try std.testing.expectEqual(@as(isize, 20), fixture.content_lines[0].Used);
+    try std.testing.expectEqual(@as(isize, 20), fixture.content_lines[0].used);
 }
 
 test "word squeeze collapses repeated spaces" {
@@ -745,13 +745,13 @@ test "word fill can split long lines and pull from the next line" {
     const allocator = arena.allocator();
 
     const split_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
-    split_fixture.frame.MarginRight = 10;
+    split_fixture.frame.margin_right = 10;
     try std.testing.expect(try wordFill(allocator, split_fixture.frame, .LeadParamNone, 1));
     try expectLineContent(split_fixture.content_lines[0], "hello");
-    try expectLineContent(split_fixture.content_lines[0].FLink, "world");
+    try expectLineContent(split_fixture.content_lines[0].f_link, "world");
 
     const pull_fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello", "hi" });
-    pull_fixture.frame.MarginRight = 10;
+    pull_fixture.frame.margin_right = 10;
     try std.testing.expect(try wordFill(allocator, pull_fixture.frame, .LeadParamNone, 1));
     try expectLineContent(pull_fixture.content_lines[0], "hello hi");
 }
@@ -764,17 +764,17 @@ test "word advance word moves across whitespace and lines" {
     const same_line = try buildWordFrame(allocator, &[_][]const u8{"hello world foo"});
     try moveDot(allocator, same_line.frame, same_line.content_lines[0], 1);
     try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .LeadParamPInt, 2));
-    try std.testing.expectEqual(@as(isize, 13), same_line.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 13), same_line.frame.dot.?.Col);
 
     const across_lines = try buildWordFrame(allocator, &[_][]const u8{ "hello", "world" });
     try moveDot(allocator, across_lines.frame, across_lines.content_lines[0], 1);
     try std.testing.expect(try wordAdvanceWord(allocator, across_lines.frame, .LeadParamNone, 1));
-    try std.testing.expect(across_lines.frame.Dot.?.Line == across_lines.content_lines[1]);
-    try std.testing.expectEqual(@as(isize, 1), across_lines.frame.Dot.?.Col);
+    try std.testing.expect(across_lines.frame.dot.?.Line == across_lines.content_lines[1]);
+    try std.testing.expectEqual(@as(isize, 1), across_lines.frame.dot.?.Col);
 
     try moveDot(allocator, same_line.frame, same_line.content_lines[0], 8);
     try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .LeadParamNInt, -1));
-    try std.testing.expectEqual(@as(isize, 1), same_line.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 1), same_line.frame.dot.?.Col);
 }
 
 test "word delete word removes the next word and restores dot on failure" {
@@ -790,5 +790,5 @@ test "word delete word removes the next word and restores dot on failure" {
     const fail_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello"});
     try moveDot(allocator, fail_fixture.frame, fail_fixture.content_lines[0], 3);
     try std.testing.expect(!(try wordDeleteWord(allocator, fail_fixture.frame, fail_fixture.frame, .LeadParamNone, 1)));
-    try std.testing.expectEqual(@as(isize, 3), fail_fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 3), fail_fixture.frame.dot.?.Col);
 }

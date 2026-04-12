@@ -29,13 +29,13 @@ pub fn setupInitialValues(editor: *state.Editor) !void {
     editor.ludwig_mode = .LudwigBatch;
     editor.command_introducer = '\\';
     editor.screen = .{
-        .StdinReaderInitialized = true,
+        .stdin_reader_initialized = true,
     };
-    editor.screen.MsgRow = types.MaxInt;
+    editor.screen.msg_row = types.max_int;
     editor.vdu_free_flag = false;
     editor.exec_level = 0;
 
-    editor.initial_marks = [_]?*types.MarkObject{null} ** (types.MaxMarkNumber + 1);
+    editor.initial_marks = [_]?*types.MarkObject{null} ** (types.max_mark_number + 1);
     editor.initial_scr_height = 1;
     editor.initial_scr_width = 132;
     editor.initial_scr_offset = 0;
@@ -72,15 +72,15 @@ pub fn setupInitialValues(editor: *state.Editor) !void {
     editor.dflt_prompts[@intFromEnum(types.PromptType.PatternSetPrompt)] = "Pat Set:";
 
     editor.file_data = .{
-        .OldCmds = true,
-        .Highlighting = false,
-        .Entab = false,
-        .Space = 500_000,
-        .Initial = "",
-        .Purge = false,
-        .Versions = 1,
-        .TabWidth = 8,
+        .old_cmds = true,
+        .highlighting = false,
+        .entab = false,
+        .space = 500_000,
+        .initial = "",
+        .purge = false,
+        .versions = 1,
+        .tab_width = 8,
     };
 
-    editor.blank_string = try str_object.newBlankStrObject(editor.allocator(), types.MaxStrLen);
+    editor.blank_string = try str_object.newBlankStrObject(editor.allocator(), types.max_str_len);
 }

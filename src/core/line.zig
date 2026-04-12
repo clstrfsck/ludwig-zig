@@ -23,13 +23,13 @@ pub fn lineEOPCreate(
 
     const new_group = try allocator.create(types.GroupObject);
     new_group.* = .{
-        .Frame = inframe,
-        .FirstLine = new_line,
-        .LastLine = new_line,
-        .FirstLineNr = 1,
-        .NrLines = 1,
+        .frame = inframe,
+        .first_line = new_line,
+        .last_line = new_line,
+        .first_line_num = 1,
+        .num_lines = 1,
     };
-    new_line.Group = new_group;
+    new_line.group = new_group;
 
     return new_group;
 }
@@ -46,13 +46,13 @@ pub fn linesCreate(
     while (line_nr < line_count) : (line_nr += 1) {
         const this_line = try allocator.create(types.LineHdrObject);
         this_line.* = .{
-            .BLink = prev_line,
+            .b_link = prev_line,
         };
         if (top_line == null) {
             top_line = this_line;
         }
         if (prev_line) |line| {
-            line.FLink = this_line;
+            line.f_link = this_line;
         }
         prev_line = this_line;
         last_line = this_line;
@@ -77,22 +77,22 @@ pub fn linesInject(
     while (scan_line) |line| {
         space += line.len();
         nr_new_lines += 1;
-        scan_line = line.FLink;
+        scan_line = line.f_link;
     }
 
-    const top_line = before_line.BLink;
-    const end_group = before_line.Group.?;
-    const top_group = end_group.BLink;
-    const this_frame = end_group.Frame;
+    const top_line = before_line.b_link;
+    const end_group = before_line.group.?;
+    const top_group = end_group.b_link;
+    const this_frame = end_group.frame;
 
-    const nr_free_lines_end = types.MaxGroupLines - end_group.NrLines;
-    const nr_free_lines_top = if (top_group) |group| types.MaxGroupLines - group.NrLines else 0;
+    const nr_free_lines_end = types.max_group_lines - end_group.num_lines;
+    const nr_free_lines_top = if (top_group) |group| types.max_group_lines - group.num_lines else 0;
     const nr_free_lines = nr_free_lines_end + nr_free_lines_top;
-    var line_nr = end_group.FirstLineNr;
+    var line_nr = end_group.first_line_num;
 
     var adjust_group: ?*types.GroupObject = null;
     if (nr_new_lines > nr_free_lines) {
-        const nr_new_groups = @divFloor(nr_new_lines - nr_free_lines - 1, types.MaxGroupLines) + 1;
+        const nr_new_groups = @divFloor(nr_new_lines - nr_free_lines - 1, types.max_group_lines) + 1;
         var first_group: ?*types.GroupObject = null;
         var last_group: ?*types.GroupObject = null;
 
@@ -100,209 +100,209 @@ pub fn linesInject(
         while (group_nr <= nr_new_groups) : (group_nr += 1) {
             const this_group = try allocator.create(types.GroupObject);
             this_group.* = .{
-                .BLink = last_group,
-                .Frame = this_frame,
-                .FirstLineNr = line_nr,
+                .b_link = last_group,
+                .frame = this_frame,
+                .first_line_num = line_nr,
             };
 
             if (first_group == null) {
                 first_group = this_group;
             }
             if (last_group) |group| {
-                group.FLink = this_group;
+                group.f_link = this_group;
             }
             last_group = this_group;
         }
 
-        last_group.?.FLink = end_group;
-        end_group.BLink = last_group;
+        last_group.?.f_link = end_group;
+        end_group.b_link = last_group;
         if (top_group) |group| {
-            group.FLink = first_group.?;
+            group.f_link = first_group.?;
             adjust_group = group;
         } else {
-            this_frame.FirstGroup = first_group.?;
+            this_frame.first_group = first_group.?;
             adjust_group = first_group.?;
         }
-        first_group.?.BLink = top_group;
+        first_group.?.b_link = top_group;
     } else if (nr_new_lines > nr_free_lines_end) {
         adjust_group = top_group.?;
     } else {
         adjust_group = end_group;
     }
 
-    last_line.FLink = before_line;
-    before_line.BLink = last_line;
-    if (before_line.OffsetNr == 0) {
-        end_group.FirstLine = first_line;
+    last_line.f_link = before_line;
+    before_line.b_link = last_line;
+    if (before_line.offset_num == 0) {
+        end_group.first_line = first_line;
     }
     if (top_line) |line| {
-        line.FLink = first_line;
+        line.f_link = first_line;
     }
-    first_line.BLink = top_line;
+    first_line.b_link = top_line;
 
     var nr_lines_to_adjust = nr_new_lines;
     var adjust_line: *types.LineHdrObject = undefined;
 
     if (nr_new_lines > nr_free_lines_end) {
-        adjust_line = end_group.FirstLine.?;
-        nr_lines_to_adjust += before_line.OffsetNr;
-        end_group.NrLines = 0;
+        adjust_line = end_group.first_line.?;
+        nr_lines_to_adjust += before_line.offset_num;
+        end_group.num_lines = 0;
     } else {
         adjust_line = first_line;
-        end_group.NrLines = before_line.OffsetNr;
+        end_group.num_lines = before_line.offset_num;
     }
-    const end_group_last_line = end_group.LastLine.?;
+    const end_group_last_line = end_group.last_line.?;
 
     while (nr_lines_to_adjust > 0) {
         const group = adjust_group.?;
-        const nr_lines_to_adjust_here = @min(types.MaxGroupLines - group.NrLines, nr_lines_to_adjust);
-        if (group.NrLines == 0) {
-            group.FirstLine = adjust_line;
-            group.FirstLineNr = line_nr;
+        const nr_lines_to_adjust_here = @min(types.max_group_lines - group.num_lines, nr_lines_to_adjust);
+        if (group.num_lines == 0) {
+            group.first_line = adjust_line;
+            group.first_line_num = line_nr;
         }
 
-        var offset = group.NrLines;
-        while (offset < group.NrLines + nr_lines_to_adjust_here) : (offset += 1) {
-            adjust_line.Group = group;
-            adjust_line.OffsetNr = offset;
-            adjust_line = adjust_line.FLink.?;
+        var offset = group.num_lines;
+        while (offset < group.num_lines + nr_lines_to_adjust_here) : (offset += 1) {
+            adjust_line.group = group;
+            adjust_line.offset_num = offset;
+            adjust_line = adjust_line.f_link.?;
         }
 
-        group.LastLine = adjust_line.BLink;
-        group.NrLines += nr_lines_to_adjust_here;
-        line_nr = group.FirstLineNr + group.NrLines;
+        group.last_line = adjust_line.b_link;
+        group.num_lines += nr_lines_to_adjust_here;
+        line_nr = group.first_line_num + group.num_lines;
         nr_lines_to_adjust -= nr_lines_to_adjust_here;
-        adjust_group = group.FLink;
+        adjust_group = group.f_link;
     }
 
-    const next_group_first_line = end_group_last_line.FLink;
-    var offset = end_group.NrLines;
+    const next_group_first_line = end_group_last_line.f_link;
+    var offset = end_group.num_lines;
     var tail_line: ?*types.LineHdrObject = adjust_line;
     while (true) {
-        tail_line.?.OffsetNr = offset;
+        tail_line.?.offset_num = offset;
         offset += 1;
-        tail_line = tail_line.?.FLink;
+        tail_line = tail_line.?.f_link;
         if (tail_line == next_group_first_line) {
             break;
         }
     }
 
-    end_group.LastLine = end_group_last_line;
+    end_group.last_line = end_group_last_line;
     if (adjust_group == end_group) {
-        end_group.FirstLineNr = line_nr;
-        end_group.FirstLine = before_line;
+        end_group.first_line_num = line_nr;
+        end_group.first_line = before_line;
     }
-    end_group.NrLines = offset;
+    end_group.num_lines = offset;
 
-    var shift_group = end_group.FLink;
+    var shift_group = end_group.f_link;
     while (shift_group) |group| {
-        group.FirstLineNr += nr_new_lines;
-        shift_group = group.FLink;
+        group.first_line_num += nr_new_lines;
+        shift_group = group.f_link;
     }
 
-    this_frame.SpaceLeft -= space;
+    this_frame.space_left -= space;
 }
 
 pub fn linesExtract(
     first_line: *types.LineHdrObject,
     last_line: *types.LineHdrObject,
 ) void {
-    const top_line = first_line.BLink;
-    const end_line = last_line.FLink.?;
+    const top_line = first_line.b_link;
+    const end_line = last_line.f_link.?;
 
-    var first_group = first_line.Group.?;
-    var last_group = last_line.Group.?;
+    var first_group = first_line.group.?;
+    var last_group = last_line.group.?;
     var top_group: ?*types.GroupObject = null;
     if (top_line) |line| {
-        top_group = line.Group.?;
+        top_group = line.group.?;
     }
-    var end_group = end_line.Group.?;
-    const this_frame = end_group.Frame;
+    var end_group = end_line.group.?;
+    const this_frame = end_group.frame;
 
-    const first_line_offset_nr = first_line.OffsetNr;
-    const first_line_nr = first_group.FirstLineNr + first_line_offset_nr;
-    var nr_lines_to_remove = last_group.FirstLineNr + last_line.OffsetNr - first_line_nr + 1;
+    const first_line_offset_nr = first_line.offset_num;
+    const first_line_nr = first_group.first_line_num + first_line_offset_nr;
+    var nr_lines_to_remove = last_group.first_line_num + last_line.offset_num - first_line_nr + 1;
 
     if (top_line) |line| {
-        line.FLink = end_line;
+        line.f_link = end_line;
     }
-    first_line.BLink = null;
-    last_line.FLink = null;
-    end_line.BLink = top_line;
+    first_line.b_link = null;
+    last_line.f_link = null;
+    end_line.b_link = top_line;
 
     var space: isize = 0;
     var this_line: ?*types.LineHdrObject = first_line;
     var line_nr: isize = 1;
     while (line_nr <= nr_lines_to_remove) : (line_nr += 1) {
         space += this_line.?.len();
-        this_line = this_line.?.FLink;
+        this_line = this_line.?.f_link;
     }
-    this_frame.SpaceLeft += space;
+    this_frame.space_left += space;
 
     if (top_group != end_group) {
         if (top_group) |group| {
-            group.LastLine = top_line;
+            group.last_line = top_line;
         }
-        end_group.FirstLine = end_line;
-        end_group.FirstLineNr = first_line_nr;
+        end_group.first_line = end_line;
+        end_group.first_line_num = first_line_nr;
     }
 
-    var renumber_group = end_group.FLink;
+    var renumber_group = end_group.f_link;
     while (renumber_group) |group| {
-        group.FirstLineNr -= nr_lines_to_remove;
-        renumber_group = group.FLink;
+        group.first_line_num -= nr_lines_to_remove;
+        renumber_group = group.f_link;
     }
 
     if (first_group == top_group) {
-        nr_lines_to_remove -= first_group.NrLines - first_line_offset_nr;
-        first_group.NrLines = first_line_offset_nr;
+        nr_lines_to_remove -= first_group.num_lines - first_line_offset_nr;
+        first_group.num_lines = first_line_offset_nr;
         if (first_group != last_group) {
-            first_group = first_group.FLink.?;
+            first_group = first_group.f_link.?;
         }
     }
 
     var consume_group: ?*types.GroupObject = first_group;
     while (nr_lines_to_remove > 0) {
         const group = consume_group.?;
-        nr_lines_to_remove -= group.NrLines;
-        group.NrLines = 0;
-        consume_group = group.FLink;
+        nr_lines_to_remove -= group.num_lines;
+        group.num_lines = 0;
+        consume_group = group.f_link;
     }
 
     if (nr_lines_to_remove < 0) {
         var offset: isize = undefined;
         if (top_group == end_group) {
             offset = first_line_offset_nr;
-            end_group.NrLines = offset - nr_lines_to_remove;
+            end_group.num_lines = offset - nr_lines_to_remove;
         } else {
             offset = 0;
-            end_group.NrLines = -nr_lines_to_remove;
+            end_group.num_lines = -nr_lines_to_remove;
         }
 
         this_line = end_line;
-        while (offset < end_group.NrLines) : (offset += 1) {
-            this_line.?.OffsetNr = offset;
-            this_line = this_line.?.FLink;
+        while (offset < end_group.num_lines) : (offset += 1) {
+            this_line.?.offset_num = offset;
+            this_line = this_line.?.f_link;
         }
     }
 
-    if (first_group.NrLines == 0) {
+    if (first_group.num_lines == 0) {
         last_group = first_group;
-        end_group = last_group.FLink.?;
-        while (end_group.NrLines == 0) {
+        end_group = last_group.f_link.?;
+        while (end_group.num_lines == 0) {
             last_group = end_group;
-            end_group = end_group.FLink.?;
+            end_group = end_group.f_link.?;
         }
 
-        top_group = first_group.BLink;
+        top_group = first_group.b_link;
         if (top_group) |group| {
-            group.FLink = end_group;
+            group.f_link = end_group;
         } else {
-            this_frame.FirstGroup = end_group;
+            this_frame.first_group = end_group;
         }
-        first_group.BLink = null;
-        last_group.FLink = null;
-        end_group.BLink = top_group;
+        first_group.b_link = null;
+        last_group.f_link = null;
+        end_group.b_link = top_group;
     }
 }
 
@@ -316,47 +316,47 @@ pub fn lineChangeLength(
     var new_str: ?*str_object.StrObject = null;
 
     if (adjusted_length > 0) {
-        if (adjusted_length < types.MaxStrLen - 10) {
+        if (adjusted_length < types.max_str_len - 10) {
             adjusted_length = (@divTrunc(adjusted_length, 10) + 1) * 10;
         } else {
-            adjusted_length = types.MaxStrLen;
+            adjusted_length = types.max_str_len;
         }
 
-        if (line.Str) |old_str| {
+        if (line.str) |old_str| {
             new_str = try str_object.newStrObjectCopy(allocator, old_str, 1, @intCast(old_str.len()), adjusted_length);
         } else {
             new_str = try str_object.newBlankStrObject(allocator, @intCast(adjusted_length));
         }
     }
 
-    if (line.Group) |group| {
-        group.Frame.SpaceLeft += old_length - adjusted_length;
+    if (line.group) |group| {
+        group.frame.space_left += old_length - adjusted_length;
     }
 
-    if (line.Str) |old_str| {
+    if (line.str) |old_str| {
         old_str.destroy();
     }
-    line.Str = new_str;
+    line.str = new_str;
 }
 
 pub fn lineToNumber(line: *const types.LineHdrObject) isize {
-    return line.Group.?.FirstLineNr + line.OffsetNr;
+    return line.group.?.first_line_num + line.offset_num;
 }
 
 pub fn lineFromNumber(frame: *const types.FrameObject, number: isize) ?*types.LineHdrObject {
-    var this_group = frame.LastGroup orelse return null;
+    var this_group = frame.last_group orelse return null;
 
-    if (number >= this_group.FirstLineNr + this_group.NrLines or number < 1) {
+    if (number >= this_group.first_line_num + this_group.num_lines or number < 1) {
         return null;
     }
-    while (this_group.FirstLineNr > number) {
-        this_group = this_group.BLink orelse return null;
+    while (this_group.first_line_num > number) {
+        this_group = this_group.b_link orelse return null;
     }
 
-    var this_line = this_group.FirstLine orelse return null;
+    var this_line = this_group.first_line orelse return null;
     var line_nr: isize = 0;
-    while (line_nr < number - this_group.FirstLineNr) : (line_nr += 1) {
-        this_line = this_line.FLink orelse return null;
+    while (line_nr < number - this_group.first_line_num) : (line_nr += 1) {
+        this_line = this_line.f_link orelse return null;
     }
     return this_line;
 }
@@ -371,18 +371,18 @@ pub fn createContentFrame(
 
     const frame = try allocator.create(types.FrameObject);
     frame.* = .{
-        .SpaceLeft = types.MaxSpace,
-        .SpaceLimit = types.MaxSpace,
-        .ScrWidth = 80,
-        .MarginLeft = 1,
-        .MarginRight = types.MaxStrLen,
+        .space_left = types.max_space,
+        .space_limit = types.max_space,
+        .scr_width = 80,
+        .margin_left = 1,
+        .margin_right = types.max_str_len,
     };
 
     const group = try allocator.create(types.GroupObject);
     group.* = .{
-        .Frame = frame,
-        .FirstLineNr = 1,
-        .NrLines = @intCast(contents.len),
+        .frame = frame,
+        .first_line_num = 1,
+        .num_lines = @intCast(contents.len),
     };
 
     const text_lines = try allocator.alloc(*types.LineHdrObject, contents.len);
@@ -391,17 +391,17 @@ pub fn createContentFrame(
     for (contents, 0..) |content, index| {
         const line = try allocator.create(types.LineHdrObject);
         line.* = .{
-            .Group = group,
-            .OffsetNr = @intCast(index),
-            .Used = @intCast(content.len),
-            .Str = try str_object.newBlankStrObject(allocator, types.MaxStrLen),
+            .group = group,
+            .offset_num = @intCast(index),
+            .used = @intCast(content.len),
+            .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
         };
-        try line.Str.?.assign(content);
+        try line.str.?.assign(content);
         text_lines[index] = line;
 
         if (prev_line) |previous| {
-            previous.FLink = line;
-            line.BLink = previous;
+            previous.f_link = line;
+            line.b_link = previous;
         } else {
             first_line = line;
         }
@@ -410,17 +410,17 @@ pub fn createContentFrame(
 
     const null_line = try allocator.create(types.LineHdrObject);
     null_line.* = .{
-        .Group = group,
-        .OffsetNr = @intCast(contents.len),
-        .BLink = prev_line,
+        .group = group,
+        .offset_num = @intCast(contents.len),
+        .b_link = prev_line,
     };
-    prev_line.?.FLink = null_line;
+    prev_line.?.f_link = null_line;
 
-    group.FirstLine = first_line;
-    group.LastLine = null_line;
-    frame.FirstGroup = group;
-    frame.LastGroup = group;
-    try mark.markCreate(allocator, first_line.?, 1, &frame.Dot);
+    group.first_line = first_line;
+    group.last_line = null_line;
+    frame.first_group = group;
+    frame.last_group = group;
+    try mark.markCreate(allocator, first_line.?, 1, &frame.dot);
 
     return .{
         .frame = frame,
@@ -442,10 +442,10 @@ pub fn setupLinkedLines(
 }
 
 pub fn setLineContent(line: *types.LineHdrObject, content: []const u8) !void {
-    try line.Str.?.assign(content);
-    line.Used = @intCast(content.len);
-    if (line.len() > line.Used) {
-        line.Str.?.fillN(' ', line.len() - line.Used, line.Used + 1);
+    try line.str.?.assign(content);
+    line.used = @intCast(content.len);
+    if (line.len() > line.used) {
+        line.str.?.fillN(' ', line.len() - line.used, line.used + 1);
     }
 }
 
@@ -455,35 +455,35 @@ pub fn setSentinelDisplayContent(
     prefix: []const u8,
     frame_name: []const u8,
 ) !void {
-    const min_len = @as(isize, @intCast(prefix.len + types.NameLen));
+    const min_len = @as(isize, @intCast(prefix.len + types.name_len));
     if (line.len() < min_len) {
         try lineChangeLength(allocator, line, min_len);
     }
-    if (line.Str == null) {
+    if (line.str == null) {
         return error.MissingSentinelStorage;
     }
 
     const storage_len: isize = @intCast(line.len());
-    line.Str.?.fillCopyBytes(prefix, 1, storage_len, ' ');
+    line.str.?.fillCopyBytes(prefix, 1, storage_len, ' ');
     if (frame_name.len > 0) {
-        line.Str.?.fillCopyBytes(frame_name, @intCast(prefix.len + 1), storage_len - @as(isize, @intCast(prefix.len)), ' ');
+        line.str.?.fillCopyBytes(frame_name, @intCast(prefix.len + 1), storage_len - @as(isize, @intCast(prefix.len)), ' ');
     }
-    line.Used = 0;
+    line.used = 0;
 }
 
 pub fn getLineContent(line: ?*const types.LineHdrObject) []const u8 {
-    if (line == null or line.?.Str == null or line.?.Used <= 0) {
+    if (line == null or line.?.str == null or line.?.used <= 0) {
         return "";
     }
-    return line.?.Str.?.slice(1, line.?.Used);
+    return line.?.str.?.slice(1, line.?.used);
 }
 
 pub fn getDisplayLineContent(line: ?*const types.LineHdrObject) []const u8 {
-    if (line == null or line.?.Str == null) {
+    if (line == null or line.?.str == null) {
         return "";
     }
-    if (line.?.FLink == null) {
-        const str = line.?.Str.?;
+    if (line.?.f_link == null) {
+        const str = line.?.str.?;
         const trimmed_len = str.trimmedLen(' ', @intCast(str.len()));
         if (trimmed_len <= 0) {
             return "";
@@ -494,51 +494,51 @@ pub fn getDisplayLineContent(line: ?*const types.LineHdrObject) []const u8 {
 }
 
 pub fn validateFrameShape(frame: *const types.FrameObject) !void {
-    if (frame.FirstGroup == null or frame.LastGroup == null) {
+    if (frame.first_group == null or frame.last_group == null) {
         return error.InvalidGroupPtr;
     }
-    if (frame.FirstGroup.?.BLink != null) {
+    if (frame.first_group.?.b_link != null) {
         return error.InvalidBlink;
     }
-    if (frame.LastGroup.?.FLink != null) {
+    if (frame.last_group.?.f_link != null) {
         return error.InvalidBlink;
     }
 
     var prev_group: ?*types.GroupObject = null;
-    var group = frame.FirstGroup;
+    var group = frame.first_group;
     while (group) |current_group| {
-        if (current_group.BLink != prev_group) {
+        if (current_group.b_link != prev_group) {
             return error.InvalidBlink;
         }
-        if (current_group.Frame != frame) {
+        if (current_group.frame != frame) {
             return error.InvalidFramePtr;
         }
-        if (current_group.FirstLine == null or current_group.LastLine == null) {
+        if (current_group.first_line == null or current_group.last_line == null) {
             return error.InvalidLinePtr;
         }
-        var line = current_group.FirstLine.?;
-        var prev_line: ?*types.LineHdrObject = if (prev_group) |group_before| group_before.LastLine else null;
+        var line = current_group.first_line.?;
+        var prev_line: ?*types.LineHdrObject = if (prev_group) |group_before| group_before.last_line else null;
         var offset: isize = 0;
         while (true) {
-            if (line.BLink != prev_line) {
+            if (line.b_link != prev_line) {
                 return error.InvalidBlink;
             }
-            if (line.Group != current_group) {
+            if (line.group != current_group) {
                 return error.InvalidGroupPtr;
             }
-            if (line.OffsetNr != offset) {
+            if (line.offset_num != offset) {
                 return error.InvalidOffsetNr;
             }
             prev_line = line;
-            if (line == current_group.LastLine.?) {
+            if (line == current_group.last_line.?) {
                 break;
             }
-            line = line.FLink orelse return error.InvalidLinePtr;
+            line = line.f_link orelse return error.InvalidLinePtr;
             offset += 1;
         }
 
         prev_group = current_group;
-        group = current_group.FLink;
+        group = current_group.f_link;
     }
 }
 
@@ -551,12 +551,12 @@ test "line eop create returns a single sentinel line group" {
     frame.* = .{};
 
     const group = try lineEOPCreate(allocator, frame);
-    try std.testing.expect(group.Frame == frame);
-    try std.testing.expect(group.FirstLine == group.LastLine);
-    try std.testing.expectEqual(@as(isize, 1), group.FirstLineNr);
-    try std.testing.expectEqual(@as(isize, 1), group.NrLines);
-    try std.testing.expect(group.FirstLine.?.Group == group);
-    try std.testing.expect(group.FirstLine.?.FLink == null);
+    try std.testing.expect(group.frame == frame);
+    try std.testing.expect(group.first_line == group.last_line);
+    try std.testing.expectEqual(@as(isize, 1), group.first_line_num);
+    try std.testing.expectEqual(@as(isize, 1), group.num_lines);
+    try std.testing.expect(group.first_line.?.group == group);
+    try std.testing.expect(group.first_line.?.f_link == null);
 }
 
 test "lines create links first to last with nil tail" {
@@ -566,10 +566,10 @@ test "lines create links first to last with nil tail" {
 
     const range = try linesCreate(allocator, 3);
     try std.testing.expect(range.first != range.last);
-    try std.testing.expect(range.first.BLink == null);
-    try std.testing.expect(range.first.FLink != null);
-    try std.testing.expect(range.last.FLink == null);
-    try std.testing.expect(range.last.BLink != null);
+    try std.testing.expect(range.first.b_link == null);
+    try std.testing.expect(range.first.f_link != null);
+    try std.testing.expect(range.last.f_link == null);
+    try std.testing.expect(range.last.b_link != null);
 }
 
 test "line to number and from number follow group numbering" {
@@ -591,13 +591,13 @@ test "line change length quantizes and adjusts frame space" {
 
     const fixture = try createContentFrame(allocator, &[_][]const u8{""});
     const line = fixture.content_lines[0];
-    const original_space = fixture.frame.SpaceLeft;
+    const original_space = fixture.frame.space_left;
     const old_length = line.len();
 
     try lineChangeLength(allocator, line, 13);
-    try std.testing.expect(line.Str != null);
+    try std.testing.expect(line.str != null);
     try std.testing.expectEqual(@as(isize, 20), line.len());
-    try std.testing.expectEqual(original_space + old_length - 20, fixture.frame.SpaceLeft);
+    try std.testing.expectEqual(original_space + old_length - 20, fixture.frame.space_left);
 }
 
 test "content frame helper creates sentinel null line and dot mark" {
@@ -606,11 +606,11 @@ test "content frame helper creates sentinel null line and dot mark" {
     const allocator = arena.allocator();
 
     const fixture = try createContentFrame(allocator, &[_][]const u8{ "one", "two" });
-    try std.testing.expect(fixture.frame.Dot != null);
-    try std.testing.expect(fixture.frame.Dot.?.Line == fixture.content_lines[0]);
-    try std.testing.expect(fixture.sentinel_line.FLink == null);
-    try std.testing.expectEqual(@as(isize, 2), fixture.frame.LastGroup.?.NrLines);
-    try std.testing.expect(fixture.frame.LastGroup.?.LastLine == fixture.sentinel_line);
+    try std.testing.expect(fixture.frame.dot != null);
+    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[0]);
+    try std.testing.expect(fixture.sentinel_line.f_link == null);
+    try std.testing.expectEqual(@as(isize, 2), fixture.frame.last_group.?.num_lines);
+    try std.testing.expect(fixture.frame.last_group.?.last_line == fixture.sentinel_line);
 }
 
 test "sentinel display content includes frame name while logical content stays empty" {

@@ -132,8 +132,8 @@ const Highlighter = struct {
         frame: *types.FrameObject,
     ) anyerror!void {
         clearFrameHighlighting(frame);
-        var line = frame.FirstGroup.?.FirstLine.?;
-        while (line.FLink != null) : (line = line.FLink.?) {
+        var line = frame.first_group.?.first_line.?;
+        while (line.f_link != null) : (line = line.f_link.?) {
             try self.highlightLine(store_allocator, temp_allocator, line);
         }
     }
@@ -144,8 +144,8 @@ const Highlighter = struct {
         temp_allocator: std.mem.Allocator,
         line: *types.LineHdrObject,
     ) anyerror!void {
-        line.HlMatch.clearRetainingCapacity();
-        const text = if (line.Str) |str| str.slice(1, line.Used) else "";
+        line.hl_match.clearRetainingCapacity();
+        const text = if (line.str) |str| str.slice(1, line.used) else "";
 
         var entries: std.ArrayList(types.HighlightMatchEntry) = .{};
         if (self.last_region) |region| {
@@ -156,9 +156,9 @@ const Highlighter = struct {
 
         std.sort.heap(types.HighlightMatchEntry, entries.items, {}, highlightEntryLessThan);
         for (entries.items) |entry| {
-            try line.HlMatch.append(store_allocator, entry);
+            try line.hl_match.append(store_allocator, entry);
         }
-        line.HlState = if (self.last_region) |region|
+        line.hl_state = if (self.last_region) |region|
             @ptrCast(region)
         else
             null;
@@ -429,40 +429,40 @@ fn ensureRegistry(allocator: std.mem.Allocator) !*Registry {
 // clearFrameHighlighting resets highlight state on all lines, retaining the HlMatch
 // backing buffers for reuse on the next highlight pass.
 fn clearFrameHighlighting(frame: *types.FrameObject) void {
-    if (frame.FirstGroup == null) {
-        frame.Highlighter = null;
+    if (frame.first_group == null) {
+        frame.highlighter = null;
         return;
     }
-    var line = frame.FirstGroup.?.FirstLine.?;
+    var line = frame.first_group.?.first_line.?;
     while (true) {
-        line.HlMatch.clearRetainingCapacity();
-        line.HlState = null;
-        if (line.FLink == null) {
+        line.hl_match.clearRetainingCapacity();
+        line.hl_state = null;
+        if (line.f_link == null) {
             break;
         }
-        line = line.FLink.?;
+        line = line.f_link.?;
     }
-    frame.Highlighter = null;
+    frame.highlighter = null;
 }
 
 // freeFrameHighlighting releases the HlMatch backing buffers using the provided allocator.
 // Use this when highlight data will not be immediately rebuilt (shutdown, or when
 // highlighting is disabled/inapplicable for this frame).
 fn freeFrameHighlighting(allocator: std.mem.Allocator, frame: *types.FrameObject) void {
-    if (frame.FirstGroup == null) {
-        frame.Highlighter = null;
+    if (frame.first_group == null) {
+        frame.highlighter = null;
         return;
     }
-    var line = frame.FirstGroup.?.FirstLine.?;
+    var line = frame.first_group.?.first_line.?;
     while (true) {
-        line.HlMatch.clearAndFree(allocator);
-        line.HlState = null;
-        if (line.FLink == null) {
+        line.hl_match.clearAndFree(allocator);
+        line.hl_state = null;
+        if (line.f_link == null) {
             break;
         }
-        line = line.FLink.?;
+        line = line.f_link.?;
     }
-    frame.Highlighter = null;
+    frame.highlighter = null;
 }
 
 fn highlightEntryLessThan(_: void, lhs: types.HighlightMatchEntry, rhs: types.HighlightMatchEntry) bool {
@@ -537,11 +537,11 @@ fn findAllIndices(
 }
 
 fn frameFirstLine(frame: *types.FrameObject) []const u8 {
-    const line = frame.FirstGroup.?.FirstLine.?;
-    if (line.FLink == null or line.Str == null) {
+    const line = frame.first_group.?.first_line.?;
+    if (line.f_link == null or line.str == null) {
         return "";
     }
-    return line.Str.?.slice(1, line.Used);
+    return line.str.?.slice(1, line.used);
 }
 
 pub fn deinit() void {
@@ -553,39 +553,39 @@ pub fn deinit() void {
 
 pub fn deinitHighlighting(base_allocator: std.mem.Allocator, editor: *const state.Editor) void {
     var span = editor.first_span;
-    while (span) |s| : (span = s.FLink) {
-        if (s.Frame) |frame| {
+    while (span) |s| : (span = s.f_link) {
+        if (s.frame) |frame| {
             freeFrameHighlighting(base_allocator, frame);
         }
     }
 }
 
 pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
-    if (!editor.file_data.Highlighting or editor.ludwig_mode != .LudwigScreen or frame.InputFile == 0) {
+    if (!editor.file_data.highlighting or editor.ludwig_mode != .LudwigScreen or frame.input_file == 0) {
         freeFrameHighlighting(editor.base_allocator, frame);
-        frame.DirtyLine = 0;
+        frame.dirty_line = 0;
         return;
     }
-    if (frame.DirtyLine == 0) {
+    if (frame.dirty_line == 0) {
         return;
     }
 
     syntax_colors.init();
     const compiled = ensureRegistry(editor.base_allocator) catch {
         freeFrameHighlighting(editor.base_allocator, frame);
-        frame.DirtyLine = 0;
+        frame.dirty_line = 0;
         return;
     };
 
-    const input_file = editor.files[@intCast(frame.InputFile)] orelse {
+    const input_file = editor.files[@intCast(frame.input_file)] orelse {
         freeFrameHighlighting(editor.base_allocator, frame);
-        frame.DirtyLine = 0;
+        frame.dirty_line = 0;
         return;
     };
 
     const syntax_file = compiled.detect(input_file.Filename, frameFirstLine(frame)) orelse {
         freeFrameHighlighting(editor.base_allocator, frame);
-        frame.DirtyLine = 0;
+        frame.dirty_line = 0;
         return;
     };
 
@@ -595,11 +595,11 @@ pub fn applyDirty(editor: *state.Editor, frame: *types.FrameObject) void {
     var highlighter = Highlighter{ .syntax_file = syntax_file };
     highlighter.highlightFrame(editor.base_allocator, temp_arena.allocator(), frame) catch {
         freeFrameHighlighting(editor.base_allocator, frame);
-        frame.DirtyLine = 0;
+        frame.dirty_line = 0;
         return;
     };
-    frame.Highlighter = @ptrCast(syntax_file);
-    frame.DirtyLine = 0;
+    frame.highlighter = @ptrCast(syntax_file);
+    frame.dirty_line = 0;
 }
 
 test "generated syntax registry detects go files and highlights tokens" {
@@ -627,7 +627,7 @@ test "generated syntax registry detects go files and highlights tokens" {
     var highlighter = Highlighter{ .syntax_file = syntax_file };
     try highlighter.highlightFrame(fixture_arena.allocator(), arena.allocator(), fixture.frame);
 
-    try std.testing.expect(fixture.content_lines[0].HlMatch.items.len > 0);
-    try std.testing.expect(fixture.content_lines[1].HlMatch.items.len > 0);
-    try std.testing.expectEqual(@as(u16, syntax_colors.pairForGroup("preproc")), fixture.content_lines[0].HlMatch.items[0].Pair);
+    try std.testing.expect(fixture.content_lines[0].hl_match.items.len > 0);
+    try std.testing.expect(fixture.content_lines[1].hl_match.items.len > 0);
+    try std.testing.expectEqual(@as(u16, syntax_colors.pairForGroup("preproc")), fixture.content_lines[0].hl_match.items[0].Pair);
 }

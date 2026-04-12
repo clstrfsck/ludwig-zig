@@ -19,11 +19,11 @@ pub const Session = struct {
 fn configureBatchTerminal(editor: *state.Editor) void {
     editor.ludwig_mode = .LudwigBatch;
     editor.terminal_info = .{
-        .Name = "",
-        .Width = 80,
-        .Height = 4,
+        .name = "",
+        .width = 80,
+        .height = 4,
     };
-    editor.screen.MsgRow = editor.terminal_info.Height + 1;
+    editor.screen.msg_row = editor.terminal_info.height + 1;
 }
 
 fn makeSpecialFrame(
@@ -32,7 +32,7 @@ fn makeSpecialFrame(
     name: []const u8,
 ) !*types.FrameObject {
     const frame = (try frame_ops.frameEdit(editor, allocator, null, name)).?;
-    frame.Options.specialFrame = true;
+    frame.options.specialFrame = true;
     return frame;
 }
 
@@ -45,12 +45,12 @@ fn attachStartupFiles(
     if (input) |input_file| {
         editor.files[1] = input_file;
         editor.files_frames[1] = current_frame;
-        current_frame.InputFile = 1;
+        current_frame.input_file = 1;
     }
     if (output) |output_file| {
         editor.files[2] = output_file;
         editor.files_frames[2] = current_frame;
-        current_frame.OutputFile = 2;
+        current_frame.output_file = 2;
     }
 }
 
@@ -62,7 +62,7 @@ fn executeCommandFrameFile(
     file_name: []const u8,
 ) !code_ops.InterpretResult {
     const cmd_frame = special_frames.Cmd orelse return error.MissingCommandFrame;
-    const cmd_span = cmd_frame.Span orelse return error.MissingCommandSpan;
+    const cmd_span = cmd_frame.span orelse return error.MissingCommandSpan;
     if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
@@ -76,7 +76,7 @@ fn executeCommandFrameFile(
         special_frames,
         .LeadParamNone,
         1,
-        cmd_span.Code.?,
+        cmd_span.code.?,
         true,
     );
 }
@@ -126,13 +126,13 @@ fn makeBatchCommandSpan(
     var mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &mark_one);
     const last = fixture.content_lines[fixture.content_lines.len - 1];
-    try mark_ops.markCreate(allocator, last, last.Used + 1, &mark_two);
+    try mark_ops.markCreate(allocator, last, last.used + 1, &mark_two);
 
     const span = try allocator.create(types.SpanObject);
     span.* = .{
-        .Name = stdin_span_name,
-        .MarkOne = mark_one,
-        .MarkTwo = mark_two,
+        .name = stdin_span_name,
+        .mark_one = mark_one,
+        .mark_two = mark_two,
     };
     return .{
         .fixture = fixture,
@@ -146,30 +146,30 @@ pub fn startUp(
     input: ?*types.FileObject,
     output: ?*types.FileObject,
 ) !Session {
-    defaults.setRegularTabStops(editor, editor.file_data.TabWidth);
+    defaults.setRegularTabStops(editor, editor.file_data.tab_width);
     configureBatchTerminal(editor);
 
     var special_frames: types.SpecialFrames = .{};
     special_frames.Oops = try makeSpecialFrame(editor, allocator, "OOPS");
-    special_frames.Oops.?.SpaceLimit = types.MaxSpace;
-    special_frames.Oops.?.SpaceLeft = types.MaxSpace - 50;
+    special_frames.Oops.?.space_limit = types.max_space;
+    special_frames.Oops.?.space_left = types.max_space - 50;
     special_frames.Cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
     special_frames.Heap = try makeSpecialFrame(editor, allocator, "HEAP");
 
-    var current_frame = (try frame_ops.frameEdit(editor, allocator, null, types.DefaultFrameName)).?;
+    var current_frame = (try frame_ops.frameEdit(editor, allocator, null, types.default_frame_name)).?;
     attachStartupFiles(editor, current_frame, input, output);
 
-    if (current_frame.InputFile != 0 and !try file_ops.filePage(editor, allocator, current_frame)) {
+    if (current_frame.input_file != 0 and !try file_ops.filePage(editor, allocator, current_frame)) {
         return error.BatchStartupFailed;
     }
 
-    if (editor.file_data.Initial.len > 0) {
+    if (editor.file_data.initial.len > 0) {
         const init_outcome = try executeCommandFrameFile(
             editor,
             allocator,
             current_frame,
             &special_frames,
-            editor.file_data.Initial,
+            editor.file_data.initial,
         );
         current_frame = init_outcome.frame;
         if (!init_outcome.ok and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
@@ -189,7 +189,7 @@ pub fn readStdinAlloc(allocator: std.mem.Allocator) ![]u8 {
     var reader = std.fs.File.stdin().readerStreaming(&buf);
     return reader.interface.allocRemaining(
         allocator,
-        .limited(types.MaxSpace),
+        .limited(types.max_space),
     ) catch |err| switch (err) {
         // Preserve the old readToEndAlloc behavior.
         error.StreamTooLong => error.FileTooBig,
@@ -220,7 +220,7 @@ pub fn runBatchCommands(
                 &session.special_frames,
                 .LeadParamNone,
                 1,
-                command_span.span.Code.?,
+                command_span.span.code.?,
                 true,
             );
             session.current_frame = outcome.frame;
@@ -271,10 +271,10 @@ test "batch runtime can edit a file from stdin commands" {
     var session = try startUp(&editor, allocator, input, output);
     try std.testing.expect(try runBatchCommands(&editor, allocator, &session, "i/x/"));
 
-    const after = try sys_ops.readFileAlloc(allocator, file_path, types.MaxSpace);
+    const after = try sys_ops.readFileAlloc(allocator, file_path, types.max_space);
     try std.testing.expectEqualStrings("xabc\n", after);
 
     const backup = try tmpPath(allocator, &tmp_dir, "test_file~1");
-    const backup_bytes = try sys_ops.readFileAlloc(allocator, backup, types.MaxSpace);
+    const backup_bytes = try sys_ops.readFileAlloc(allocator, backup, types.max_space);
     try std.testing.expectEqualStrings("abc\n", backup_bytes);
 }

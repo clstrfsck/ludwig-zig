@@ -22,16 +22,16 @@ pub const Editor = struct {
     batch_output_enabled: bool = !builtin.is_test,
     edit_mode: types.ModeType = .ModeInsert,
     previous_mode: types.ModeType = .ModeInsert,
-    files: [types.MaxFiles + 1]?*types.FileObject = [_]?*types.FileObject{null} ** (types.MaxFiles + 1),
-    files_frames: [types.MaxFiles + 1]?*types.FrameObject = [_]?*types.FrameObject{null} ** (types.MaxFiles + 1),
+    files: [types.max_files + 1]?*types.FileObject = [_]?*types.FileObject{null} ** (types.max_files + 1),
+    files_frames: [types.max_files + 1]?*types.FrameObject = [_]?*types.FrameObject{null} ** (types.max_files + 1),
     fgi_file: isize = 0,
     fgo_file: isize = 0,
     first_span: ?*types.SpanObject = null,
     ludwig_mode: types.LudwigModeType = .LudwigBatch,
     command_introducer: isize = '\\',
-    prompt_region: [types.MaxTpCount + 1]types.PromptRegionAttrib = [_]types.PromptRegionAttrib{.{}} ** (types.MaxTpCount + 1),
+    prompt_region: [types.max_tp_count + 1]types.PromptRegionAttrib = [_]types.PromptRegionAttrib{.{}} ** (types.max_tp_count + 1),
     screen: types.ScreenState = .{},
-    compiler_code: [types.MaxCode + 1]types.CodeObject = [_]types.CodeObject{.{}} ** (types.MaxCode + 1),
+    compiler_code: [types.max_code + 1]types.CodeObject = [_]types.CodeObject{.{}} ** (types.max_code + 1),
     code_list: ?*types.CodeHeader = null,
     code_top: isize = 0,
     prefixes: std.StaticBitSet(types.command_count) = std.StaticBitSet(types.command_count).initEmpty(),
@@ -41,7 +41,7 @@ pub const Editor = struct {
     cmd_attrib: [types.command_count]types.CmdAttribRec = [_]types.CmdAttribRec{.{}} ** types.command_count,
     dflt_prompts: [defaults.prompt_count][]const u8 = [_][]const u8{""} ** defaults.prompt_count,
     exec_level: isize = 0,
-    initial_marks: types.MarkArray = [_]?*types.MarkObject{null} ** (types.MaxMarkNumber + 1),
+    initial_marks: types.MarkArray = [_]?*types.MarkObject{null} ** (types.max_mark_number + 1),
     initial_scr_height: isize = 0,
     initial_scr_width: isize = 0,
     initial_scr_offset: isize = 0,
@@ -49,11 +49,11 @@ pub const Editor = struct {
     initial_margin_right: isize = 0,
     initial_margin_top: isize = 0,
     initial_margin_bottom: isize = 0,
-    initial_tab_stops: types.TabArray = [_]bool{false} ** (types.MaxStrLenP + 1),
+    initial_tab_stops: types.TabArray = [_]bool{false} ** (types.max_str_len_p1 + 1),
     initial_options: types.FrameOptions = .{},
     blank_string: ?*str_object.StrObject = null,
-    initial_verify: types.VerifyArray = [_]bool{false} ** (types.MaxVerify + 1),
-    default_tab_stops: types.TabArray = [_]bool{false} ** (types.MaxStrLenP + 1),
+    initial_verify: types.VerifyArray = [_]bool{false} ** (types.max_verify + 1),
+    default_tab_stops: types.TabArray = [_]bool{false} ** (types.max_str_len_p1 + 1),
     file_data: types.FileDataType = .{},
     terminal_info: types.TerminalInfoType = .{},
     immediate_input: ?[]const u8 = null,
@@ -72,7 +72,7 @@ pub const Editor = struct {
         try defaults.setupInitialValues(&editor);
         try editor.initializeCompilerHeader();
         command_tables.initializeCommandAttributes(&editor);
-        command_tables.loadCommandTable(&editor, editor.file_data.OldCmds);
+        command_tables.loadCommandTable(&editor, editor.file_data.old_cmds);
         return editor;
     }
 
@@ -81,7 +81,7 @@ pub const Editor = struct {
     }
 
     pub fn loadCommandTable(self: *Editor, old_version: bool) void {
-        self.file_data.OldCmds = old_version;
+        self.file_data.old_cmds = old_version;
         command_tables.loadCommandTable(self, old_version);
     }
 
@@ -103,8 +103,8 @@ pub const Editor = struct {
             .Code = 1,
             .Len = 0,
         };
-        code_list.FLink = code_list;
-        code_list.BLink = code_list;
+        code_list.f_link = code_list;
+        code_list.b_link = code_list;
         self.code_list = code_list;
     }
 };
@@ -117,14 +117,14 @@ test "editor init ports value.go defaults and compiler state" {
     try std.testing.expectEqual(types.ModeType.ModeInsert, editor.previous_mode);
     try std.testing.expectEqual(types.LudwigModeType.LudwigBatch, editor.ludwig_mode);
     try std.testing.expectEqual(@as(isize, '\\'), editor.command_introducer);
-    try std.testing.expectEqual(types.MaxInt, editor.screen.MsgRow);
-    try std.testing.expect(editor.screen.StdinReaderInitialized);
+    try std.testing.expectEqual(types.max_int, editor.screen.msg_row);
+    try std.testing.expect(editor.screen.stdin_reader_initialized);
     try std.testing.expect(!editor.quit_requested);
     try std.testing.expect(editor.blank_string != null);
-    try std.testing.expectEqual(@as(usize, types.MaxStrLen), editor.blank_string.?.len());
+    try std.testing.expectEqual(@as(usize, types.max_str_len), editor.blank_string.?.len());
     try std.testing.expect(editor.code_list != null);
-    try std.testing.expect(editor.code_list.?.FLink == editor.code_list);
-    try std.testing.expect(editor.code_list.?.BLink == editor.code_list);
+    try std.testing.expect(editor.code_list.?.f_link == editor.code_list);
+    try std.testing.expect(editor.code_list.?.b_link == editor.code_list);
     try std.testing.expectEqual(@as(isize, 1), editor.initial_scr_height);
     try std.testing.expectEqual(@as(isize, 132), editor.initial_scr_width);
     try std.testing.expectEqual(@as(isize, 0), editor.initial_scr_offset);
@@ -132,13 +132,13 @@ test "editor init ports value.go defaults and compiler state" {
     try std.testing.expectEqual(@as(isize, 132), editor.initial_margin_right);
     try std.testing.expectEqual(@as(isize, 0), editor.initial_margin_top);
     try std.testing.expectEqual(@as(isize, 0), editor.initial_margin_bottom);
-    try std.testing.expectEqual(@as(isize, 500_000), editor.file_data.Space);
-    try std.testing.expectEqual(@as(isize, 8), editor.file_data.TabWidth);
-    try std.testing.expect(editor.file_data.OldCmds);
-    try std.testing.expect(!editor.file_data.Highlighting);
-    try std.testing.expect(!editor.file_data.Entab);
-    try std.testing.expect(!editor.file_data.Purge);
-    try std.testing.expectEqual(@as(isize, 1), editor.file_data.Versions);
+    try std.testing.expectEqual(@as(isize, 500_000), editor.file_data.space);
+    try std.testing.expectEqual(@as(isize, 8), editor.file_data.tab_width);
+    try std.testing.expect(editor.file_data.old_cmds);
+    try std.testing.expect(!editor.file_data.highlighting);
+    try std.testing.expect(!editor.file_data.entab);
+    try std.testing.expect(!editor.file_data.purge);
+    try std.testing.expectEqual(@as(isize, 1), editor.file_data.versions);
     try std.testing.expectEqualStrings("Command:", editor.dflt_prompts[@intFromEnum(types.PromptType.CmdPrompt)]);
 }
 
@@ -148,11 +148,11 @@ test "editor init recreates prefix and lookup table defaults" {
 
     try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.CmdPrefixA)));
     try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.CmdPrefixTilde)));
-    try std.testing.expectEqual(types.Commands.CmdAdvance, editor.lookup['A'].Command);
-    try std.testing.expectEqual(types.Commands.CmdCommand, editor.lookup['\\'].Command);
+    try std.testing.expectEqual(types.Commands.CmdAdvance, editor.lookup['A'].command);
+    try std.testing.expectEqual(types.Commands.CmdCommand, editor.lookup['\\'].command);
     try std.testing.expectEqual(@as(usize, 35), editor.lookup_exp_ptr[@intFromEnum(types.Commands.CmdPrefixS)]);
-    try std.testing.expectEqual(types.EqualAction.EqNil, editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].EqAction);
-    try std.testing.expectEqual(@as(isize, 2), editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].TpCount);
+    try std.testing.expectEqual(types.EqualAction.EqNil, editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].eq_action);
+    try std.testing.expectEqual(@as(isize, 2), editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].tp_count);
 }
 
 test "editor can switch to new command lookup tables" {
@@ -160,8 +160,8 @@ test "editor can switch to new command lookup tables" {
     defer editor.deinit();
 
     editor.loadCommandTable(false);
-    try std.testing.expectEqual(types.Commands.CmdPrefixA, editor.lookup['A'].Command);
-    try std.testing.expectEqual(types.Commands.CmdPrefixT, editor.lookup['T'].Command);
+    try std.testing.expectEqual(types.Commands.CmdPrefixA, editor.lookup['A'].command);
+    try std.testing.expectEqual(types.Commands.CmdPrefixT, editor.lookup['T'].command);
     try std.testing.expectEqual(types.Commands.CmdJump, editor.lookup_exp[1].Command);
     try std.testing.expectEqual(@as(usize, 80), editor.lookup_exp_ptr[@intFromEnum(types.Commands.CmdPrefixT)]);
 }

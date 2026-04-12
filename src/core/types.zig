@@ -1,80 +1,80 @@
 const std = @import("std");
 const StrObject = @import("str_object.zig").StrObject;
 
-pub const LudwigVersion = "X5.0-006";
+pub const ludwig_reader = "X5.0-006";
 
-pub const MaxInt = std.math.maxInt(isize);
-pub const OrdMaxChar = 255;
-pub const MaxFiles = 100;
-pub const MaxGroupLines = 64;
-pub const MaxGroupLineOffset = MaxGroupLines - 1;
-pub const MaxLines = MaxInt;
-pub const MaxMarkNumber = 10;
-pub const MinUserMarkNumber = 1;
-pub const MaxUserMarkNumber = 9;
-pub const MarkEquals = 0;
-pub const MarkModified = 10;
-pub const MaxSpace = 1_000_000;
-pub const MaxRecSize = 512;
-pub const MaxStrLen = 400;
-pub const MaxStrLenP = MaxStrLen + 1;
-pub const MaxScrRows = 100;
-pub const MaxScrCols = 255;
-pub const MaxCode = 4000;
-pub const MaxVerify = 256;
-pub const MaxTparRecursion = 100;
-pub const MaxTpCount = 2;
-pub const MaxExecRecursion = 100;
-pub const MaxWordSets = 2;
-pub const MaxWordSetsM1 = MaxWordSets - 1;
-pub const TpdLit: u8 = '\'';
-pub const TpdSmart: u8 = '`';
-pub const TpdExact: u8 = '"';
-pub const TpdSpan: u8 = '$';
-pub const TpdPrompt: u8 = '&';
-pub const TpdEnvironment: u8 = '?';
-pub const ExpandLim = 130;
-pub const NameLen = 31;
-pub const FileNameLen = 1024;
-pub const KeyLen = 4;
-pub const MaxSpecialKeys = 1000;
-pub const Maxnum_key_names = 1000;
-pub const MaxParseTable = 300;
-pub const MaxNFAStateRange = 200;
-pub const MaxDFAStateRange = 255;
-pub const MaxSetRange = OrdMaxChar;
-pub const PatternNull = 0;
-pub const PatternNFAStart = 1;
-pub const PatternDFAKill = 0;
-pub const PatternDFAFail = 0;
-pub const PatternDFAStart = 2;
-pub const PatternMaxDepth = 20;
-pub const PatternKStar: u8 = '*';
-pub const PatternComma: u8 = ',';
-pub const PatternRParen: u8 = ')';
-pub const PatternLParen: u8 = '(';
-pub const PatternDefineSetU: u8 = 'D';
-pub const PatternDefineSetL: u8 = 'd';
-pub const PatternMark: u8 = '@';
-pub const PatternEquals: u8 = '=';
-pub const PatternModified: u8 = '%';
-pub const PatternPlus: u8 = '+';
-pub const PatternNegate: u8 = '-';
-pub const PatternBar: u8 = '|';
-pub const PatternLRangeDelim: u8 = '[';
-pub const PatternRRangeDelim: u8 = ']';
-pub const PatternSpace: u8 = ' ';
-pub const PatternBegLine = 0;
-pub const PatternEndLine = 1;
-pub const PatternLeftMargin = 3;
-pub const PatternRightMargin = 4;
-pub const PatternDotColumn = 5;
-pub const PatternMarksStart = 19;
-pub const PatternMarksModified = 29;
-pub const PatternMarksEquals = 19;
-pub const PatternAlphaStart = 32;
-pub const BlankFrameName = "";
-pub const DefaultFrameName = "LUDWIG";
+pub const max_int = std.math.maxInt(isize);
+pub const ord_max_char = 255;
+pub const max_files = 100;
+pub const max_group_lines = 64;
+pub const max_group_line_offset = max_group_lines - 1;
+pub const max_lines = max_int;
+pub const max_mark_number = 10;
+pub const min_user_mark_number = 1;
+pub const max_user_mark_number = 9;
+pub const mark_equals = 0;
+pub const mark_modified = 10;
+pub const max_space = 1_000_000;
+pub const max_rec_size = 512;
+pub const max_str_len = 400;
+pub const max_str_len_p1 = max_str_len + 1;
+pub const max_scr_rows = 100;
+pub const max_scr_cols = 255;
+pub const max_code = 4000;
+pub const max_verify = 256;
+pub const max_tpar_recursion = 100;
+pub const max_tp_count = 2;
+pub const max_exec_recursion = 100;
+pub const max_word_sets = 2;
+pub const max_word_sets_m1 = max_word_sets - 1;
+pub const tpd_lit: u8 = '\'';
+pub const tpd_smart: u8 = '`';
+pub const tpd_exact: u8 = '"';
+pub const tpd_span: u8 = '$';
+pub const tpd_prompt: u8 = '&';
+pub const tpd_environment: u8 = '?';
+pub const expand_lim = 130;
+pub const name_len = 31;
+pub const file_name_len = 1024;
+pub const key_len = 4;
+pub const max_special_keys = 1000;
+pub const max_num_key_names = 1000;
+pub const max_parse_table = 300;
+pub const max_nfa_state_range = 200;
+pub const max_dfa_state_range = 255;
+pub const max_set_range = ord_max_char;
+pub const pattern_null = 0;
+pub const pattern_nfa_start = 1;
+pub const pattern_dfa_kill = 0;
+pub const pattern_dfa_fail = 0;
+pub const pattern_dfa_start = 2;
+pub const pattern_max_depth = 20;
+pub const pattern_k_star: u8 = '*';
+pub const pattern_comma: u8 = ',';
+pub const pattern_r_paren: u8 = ')';
+pub const pattern_l_paren: u8 = '(';
+pub const pattern_define_set_u: u8 = 'D';
+pub const pattern_define_set_l: u8 = 'd';
+pub const pattern_mark: u8 = '@';
+pub const pattern_equals: u8 = '=';
+pub const pattern_modified: u8 = '%';
+pub const pattern_plus: u8 = '+';
+pub const pattern_negate: u8 = '-';
+pub const pattern_bar: u8 = '|';
+pub const pattern_l_range_delim: u8 = '[';
+pub const pattern_r_range_delim: u8 = ']';
+pub const pattern_space: u8 = ' ';
+pub const pattern_beg_line = 0;
+pub const pattern_end_line = 1;
+pub const pattern_left_margin = 3;
+pub const pattern_right_margin = 4;
+pub const pattern_dot_column = 5;
+pub const pattern_marks_start = 19;
+pub const pattern_marks_modified = 29;
+pub const pattern_marks_equals = 19;
+pub const pattern_alpha_start = 32;
+pub const blank_frame_name = "";
+pub const default_frame_name = "LUDWIG";
 
 pub const VerifyResponse = enum(u16) {
     VerifyReplyYes,
@@ -316,14 +316,14 @@ pub const LookupExpType = struct {
 pub const TParObject = struct {
     Len: isize = 0,
     Dlm: u8 = 0,
-    Str: ?*StrObject = null,
+    str: ?*StrObject = null,
     Nxt: ?*TParObject = null,
     Con: ?*TParObject = null,
 };
 
 pub const CodeHeader = struct {
-    FLink: ?*CodeHeader = null,
-    BLink: ?*CodeHeader = null,
+    f_link: ?*CodeHeader = null,
+    b_link: ?*CodeHeader = null,
     Ref: isize = 0,
     Code: isize = 0,
     Len: isize = 0,
@@ -336,8 +336,8 @@ pub const MarkObject = struct {
 
 pub const FileObject = struct {
     Valid: bool = false,
-    FirstLine: ?*LineHdrObject = null,
-    LastLine: ?*LineHdrObject = null,
+    first_line: ?*LineHdrObject = null,
+    last_line: ?*LineHdrObject = null,
     LineCount: isize = 0,
     RewindFirstLine: ?*LineHdrObject = null,
     RewindLastLine: ?*LineHdrObject = null,
@@ -358,9 +358,9 @@ pub const FileObject = struct {
     Versions: isize = 0,
 };
 
-pub const MarkArray = [MaxMarkNumber + 1]?*MarkObject;
-pub const TabArray = [MaxStrLenP + 1]bool;
-pub const VerifyArray = [MaxVerify + 1]bool;
+pub const MarkArray = [max_mark_number + 1]?*MarkObject;
+pub const TabArray = [max_str_len_p1 + 1]bool;
+pub const VerifyArray = [max_verify + 1]bool;
 
 pub const SpecialFrames = struct {
     Cmd: ?*FrameObject = null,
@@ -377,10 +377,10 @@ pub const HighlightMatchEntry = struct {
 pub const HighlightMatchEntries = std.ArrayList(HighlightMatchEntry);
 
 pub const AcceptSet = struct {
-    bits: [MaxSetRange + 1]bool = [_]bool{false} ** (MaxSetRange + 1),
+    bits: [max_set_range + 1]bool = [_]bool{false} ** (max_set_range + 1),
 
     pub fn bit(self: *const AcceptSet, index: usize) u1 {
-        return if (index <= MaxSetRange and self.bits[index]) 1 else 0;
+        return if (index <= max_set_range and self.bits[index]) 1 else 0;
     }
 
     pub fn set(self: *AcceptSet, other: *const AcceptSet) void {
@@ -388,11 +388,11 @@ pub const AcceptSet = struct {
     }
 
     pub fn clear(self: *AcceptSet) void {
-        self.bits = [_]bool{false} ** (MaxSetRange + 1);
+        self.bits = [_]bool{false} ** (max_set_range + 1);
     }
 
     pub fn setBit(self: *AcceptSet, index: usize) void {
-        if (index <= MaxSetRange) {
+        if (index <= max_set_range) {
             self.bits[index] = true;
         }
     }
@@ -418,9 +418,9 @@ pub const StateEltObject = struct {
 };
 
 pub const NFAAttributeType = struct {
-    GeneratorSet: [MaxNFAStateRange + 1]bool = [_]bool{false} ** (MaxNFAStateRange + 1),
+    GeneratorSet: [max_nfa_state_range + 1]bool = [_]bool{false} ** (max_nfa_state_range + 1),
     EquivList: ?*StateEltObject = null,
-    EquivSet: [MaxNFAStateRange + 1]bool = [_]bool{false} ** (MaxNFAStateRange + 1),
+    EquivSet: [max_nfa_state_range + 1]bool = [_]bool{false} ** (max_nfa_state_range + 1),
 };
 
 pub const DFAStateType = struct {
@@ -440,7 +440,7 @@ pub const PatternDefType = struct {
 };
 
 pub const DFATableObject = struct {
-    DFATable: [MaxDFAStateRange + 1]DFAStateType = [_]DFAStateType{.{}} ** (MaxDFAStateRange + 1),
+    DFATable: [max_dfa_state_range + 1]DFAStateType = [_]DFAStateType{.{}} ** (max_dfa_state_range + 1),
     DFAStatesUsed: isize = 0,
     Definition: PatternDefType = .{},
 };
@@ -455,67 +455,67 @@ pub const NFATransitionType = struct {
     AcceptSet: AcceptSet = .{},
 };
 
-pub const NFATableType = [MaxNFAStateRange + 1]NFATransitionType;
+pub const NFATableType = [max_nfa_state_range + 1]NFATransitionType;
 
 pub const FrameObject = struct {
-    FirstGroup: ?*GroupObject = null,
-    LastGroup: ?*GroupObject = null,
-    Dot: ?*MarkObject = null,
-    Marks: MarkArray = [_]?*MarkObject{null} ** (MaxMarkNumber + 1),
-    ScrHeight: isize = 0,
-    ScrWidth: isize = 0,
-    ScrOffset: isize = 0,
-    ScrDotLine: isize = 0,
-    Span: ?*SpanObject = null,
-    ReturnFrame: ?*FrameObject = null,
-    InputCount: isize = 0,
-    SpaceLimit: isize = 0,
-    SpaceLeft: isize = 0,
-    TextModified: bool = false,
-    MarginLeft: isize = 0,
-    MarginRight: isize = 0,
-    MarginTop: isize = 0,
-    MarginBottom: isize = 0,
-    TabStops: TabArray = [_]bool{false} ** (MaxStrLenP + 1),
-    Options: FrameOptions = .{},
-    InputFile: isize = 0,
-    OutputFile: isize = 0,
-    GetTpar: TParObject = .{},
-    GetPatternPtr: ?*DFATableObject = null,
-    EqsTpar: TParObject = .{},
-    EqsPatternPtr: ?*DFATableObject = null,
-    Rep1Tpar: TParObject = .{},
-    RepPatternPtr: ?*DFATableObject = null,
-    Rep2Tpar: TParObject = .{},
-    VerifyTpar: TParObject = .{},
-    Highlighter: ?*PlaceholderHighlighter = null,
-    DirtyLine: isize = 0,
+    first_group: ?*GroupObject = null,
+    last_group: ?*GroupObject = null,
+    dot: ?*MarkObject = null,
+    marks: MarkArray = [_]?*MarkObject{null} ** (max_mark_number + 1),
+    scr_height: isize = 0,
+    scr_width: isize = 0,
+    scr_offset: isize = 0,
+    scr_dot_line: isize = 0,
+    span: ?*SpanObject = null,
+    return_frame: ?*FrameObject = null,
+    input_count: isize = 0,
+    space_limit: isize = 0,
+    space_left: isize = 0,
+    text_modified: bool = false,
+    margin_left: isize = 0,
+    margin_right: isize = 0,
+    margin_top: isize = 0,
+    margin_bottom: isize = 0,
+    tab_stops: TabArray = [_]bool{false} ** (max_str_len_p1 + 1),
+    options: FrameOptions = .{},
+    input_file: isize = 0,
+    output_file: isize = 0,
+    get_tpar: TParObject = .{},
+    get_pattern_ptr: ?*DFATableObject = null,
+    eqs_tpar: TParObject = .{},
+    eqs_pattern_ptr: ?*DFATableObject = null,
+    rep_1_tpar: TParObject = .{},
+    rep_pattern_ptr: ?*DFATableObject = null,
+    rep_2_tpar: TParObject = .{},
+    verify_tpar: TParObject = .{},
+    highlighter: ?*PlaceholderHighlighter = null,
+    dirty_line: isize = 0,
 };
 
 pub const GroupObject = struct {
-    FLink: ?*GroupObject = null,
-    BLink: ?*GroupObject = null,
-    Frame: *FrameObject,
-    FirstLine: ?*LineHdrObject = null,
-    LastLine: ?*LineHdrObject = null,
-    FirstLineNr: isize = 0,
-    NrLines: isize = 0,
+    f_link: ?*GroupObject = null,
+    b_link: ?*GroupObject = null,
+    frame: *FrameObject,
+    first_line: ?*LineHdrObject = null,
+    last_line: ?*LineHdrObject = null,
+    first_line_num: isize = 0,
+    num_lines: isize = 0,
 };
 
 pub const LineHdrObject = struct {
-    FLink: ?*LineHdrObject = null,
-    BLink: ?*LineHdrObject = null,
-    Group: ?*GroupObject = null,
-    OffsetNr: isize = 0,
-    Marks: std.ArrayList(*MarkObject) = .{},
-    Str: ?*StrObject = null,
-    Used: isize = 0,
-    ScrRowNr: isize = 0,
-    HlState: HighlightState = null,
-    HlMatch: HighlightMatchEntries = .{},
+    f_link: ?*LineHdrObject = null,
+    b_link: ?*LineHdrObject = null,
+    group: ?*GroupObject = null,
+    offset_num: isize = 0,
+    marks: std.ArrayList(*MarkObject) = .{},
+    str: ?*StrObject = null,
+    used: isize = 0,
+    scr_row_num: isize = 0,
+    hl_state: HighlightState = null,
+    hl_match: HighlightMatchEntries = .{},
 
     pub fn len(self: *const LineHdrObject) isize {
-        if (self.Str) |str| {
+        if (self.str) |str| {
             return @intCast(str.len());
         }
         return 0;
@@ -523,87 +523,87 @@ pub const LineHdrObject = struct {
 };
 
 pub const SpanObject = struct {
-    FLink: ?*SpanObject = null,
-    BLink: ?*SpanObject = null,
-    Frame: ?*FrameObject = null,
-    MarkOne: ?*MarkObject = null,
-    MarkTwo: ?*MarkObject = null,
-    Name: []const u8 = "",
-    Code: ?*CodeHeader = null,
+    f_link: ?*SpanObject = null,
+    b_link: ?*SpanObject = null,
+    frame: ?*FrameObject = null,
+    mark_one: ?*MarkObject = null,
+    mark_two: ?*MarkObject = null,
+    name: []const u8 = "",
+    code: ?*CodeHeader = null,
 };
 
 pub const PromptRegionAttrib = struct {
-    LineNr: isize = 0,
-    Redraw: ?*LineHdrObject = null,
+    line_num: isize = 0,
+    redraw: ?*LineHdrObject = null,
 };
 
 pub const CodeObject = struct {
-    Rep: LeadParam = .LeadParamNone,
-    Cnt: isize = 0,
-    Op: Commands = .CmdNoop,
-    Tpar: ?*TParObject = null,
-    Code: ?*CodeHeader = null,
-    Lbl: isize = 0,
+    rep: LeadParam = .LeadParamNone,
+    cnt: isize = 0,
+    op: Commands = .CmdNoop,
+    tpar: ?*TParObject = null,
+    code: ?*CodeHeader = null,
+    lbl: isize = 0,
 };
 
 pub const CommandObject = struct {
-    Command: Commands = .CmdNoop,
-    Code: ?*CodeHeader = null,
-    Tpar: ?*TParObject = null,
+    command: Commands = .CmdNoop,
+    code: ?*CodeHeader = null,
+    tpar: ?*TParObject = null,
 };
 
 pub const TerminalInfoType = struct {
-    Name: []const u8 = "",
-    Width: isize = 0,
-    Height: isize = 0,
+    name: []const u8 = "",
+    width: isize = 0,
+    height: isize = 0,
 };
 
 pub const KeyNameRecord = struct {
-    KeyName: []const u8 = "",
-    KeyCode: isize = 0,
+    key_name: []const u8 = "",
+    key_code: isize = 0,
 };
 
 pub const TParAttribute = struct {
-    PromptName: PromptType = .NoPrompt,
-    TrimReply: bool = false,
-    MlAllowed: bool = false,
+    prompt_name: PromptType = .NoPrompt,
+    trim_reply: bool = false,
+    ml_allowed: bool = false,
 };
 
 pub const CmdAttribRec = struct {
-    LpAllowed: u32 = 0,
-    EqAction: EqualAction = .EqNil,
-    TpCount: isize = 0,
-    TparInfo: [MaxTpCount + 1]TParAttribute = [_]TParAttribute{.{}} ** (MaxTpCount + 1),
+    lp_allowed: u32 = 0,
+    eq_action: EqualAction = .EqNil,
+    tp_count: isize = 0,
+    tpar_info: [max_tp_count + 1]TParAttribute = [_]TParAttribute{.{}} ** (max_tp_count + 1),
 };
 
 pub const HelpRecord = struct {
-    Key: []const u8 = "",
-    Txt: []const u8 = "",
+    key: []const u8 = "",
+    txt: []const u8 = "",
 };
 
 pub const FileDataType = struct {
-    OldCmds: bool = true,
-    Highlighting: bool = false,
-    Entab: bool = false,
-    Space: isize = 0,
-    Initial: []const u8 = "",
-    Purge: bool = false,
-    Versions: isize = 0,
-    TabWidth: isize = 8,
+    old_cmds: bool = true,
+    highlighting: bool = false,
+    entab: bool = false,
+    space: isize = 0,
+    initial: []const u8 = "",
+    purge: bool = false,
+    versions: isize = 0,
+    tab_width: isize = 8,
 };
 
 pub const ScreenState = struct {
-    Frame: ?*FrameObject = null,
-    TopLine: ?*LineHdrObject = null,
-    BotLine: ?*LineHdrObject = null,
-    MsgRow: isize = 0,
-    NeedsFix: bool = false,
-    StdinReaderInitialized: bool = false,
+    frame: ?*FrameObject = null,
+    top_line: ?*LineHdrObject = null,
+    bot_line: ?*LineHdrObject = null,
+    msg_row: isize = 0,
+    needs_fix: bool = false,
+    stdin_reader_initialized: bool = false,
 };
 
 pub const command_count = @as(usize, @intFromEnum(Commands.CmdNoSuch)) + 1;
-pub const lookup_count = OrdMaxChar + MaxSpecialKeys + 1;
-pub const lookup_exp_count = ExpandLim + 1;
+pub const lookup_count = ord_max_char + max_special_keys + 1;
+pub const lookup_exp_count = expand_lim + 1;
 
 pub const terminal_key_codes = struct {
     const base: isize = lookup_count - 15;

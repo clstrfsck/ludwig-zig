@@ -25,70 +25,70 @@ pub fn validateCommand(
     var prev_span: ?*types.SpanObject = null;
     var span = editor.first_span;
     while (span) |this_span| {
-        if (this_span.BLink != prev_span) {
+        if (this_span.b_link != prev_span) {
             return false;
         }
-        if (this_span.MarkOne == null or this_span.MarkTwo == null) {
+        if (this_span.mark_one == null or this_span.mark_two == null) {
             return false;
         }
-        if (this_span.Code != null and this_span.Code.?.Ref == 0) {
+        if (this_span.code != null and this_span.code.?.Ref == 0) {
             return false;
         }
 
-        if (this_span.Frame) |this_frame| {
+        if (this_span.frame) |this_frame| {
             if (this_frame == special_frames.Cmd.?) saw_cmd = true;
             if (this_frame == special_frames.Oops.?) saw_oops = true;
             if (this_frame == special_frames.Heap.?) saw_heap = true;
 
             line_ops.validateFrameShape(this_frame) catch return false;
-            if (this_frame.Dot == null) {
+            if (this_frame.dot == null) {
                 return false;
             }
-            if (this_frame.Dot.?.Line.Group == null or this_frame.Dot.?.Line.Group.?.Frame != this_frame) {
+            if (this_frame.dot.?.Line.group == null or this_frame.dot.?.Line.group.?.frame != this_frame) {
                 return false;
             }
-            for (this_frame.Marks) |maybe_mark| {
+            for (this_frame.marks) |maybe_mark| {
                 if (maybe_mark) |mark| {
-                    if (mark.Line.Group == null or mark.Line.Group.?.Frame != this_frame) {
+                    if (mark.Line.group == null or mark.Line.group.?.frame != this_frame) {
                         return false;
                     }
                 }
             }
-            if (this_frame.ScrHeight <= 0) {
+            if (this_frame.scr_height <= 0) {
                 return false;
             }
-            if (editor.terminal_info.Height > 0 and this_frame.ScrHeight > editor.terminal_info.Height) {
+            if (editor.terminal_info.height > 0 and this_frame.scr_height > editor.terminal_info.height) {
                 return false;
             }
-            if (this_frame.ScrWidth <= 0) {
+            if (this_frame.scr_width <= 0) {
                 return false;
             }
-            if (editor.terminal_info.Width > 0 and this_frame.ScrWidth > editor.terminal_info.Width) {
+            if (editor.terminal_info.width > 0 and this_frame.scr_width > editor.terminal_info.width) {
                 return false;
             }
-            if (this_frame.Span != this_span) {
+            if (this_frame.span != this_span) {
                 return false;
             }
-            if (this_frame.MarginLeft >= this_frame.MarginRight) {
+            if (this_frame.margin_left >= this_frame.margin_right) {
                 return false;
             }
-            if (this_span.MarkOne.?.Line.Group == null or this_span.MarkTwo.?.Line.Group == null) {
+            if (this_span.mark_one.?.Line.group == null or this_span.mark_two.?.Line.group == null) {
                 return false;
             }
-            if (this_span.MarkOne.?.Line.Group.?.Frame != this_frame or this_span.MarkTwo.?.Line.Group.?.Frame != this_frame) {
+            if (this_span.mark_one.?.Line.group.?.frame != this_frame or this_span.mark_two.?.Line.group.?.frame != this_frame) {
                 return false;
             }
         } else {
-            if (this_span.MarkOne.?.Line.Group == null or this_span.MarkTwo.?.Line.Group == null) {
+            if (this_span.mark_one.?.Line.group == null or this_span.mark_two.?.Line.group == null) {
                 return false;
             }
-            if (this_span.MarkOne.?.Line.Group.?.Frame != this_span.MarkTwo.?.Line.Group.?.Frame) {
+            if (this_span.mark_one.?.Line.group.?.frame != this_span.mark_two.?.Line.group.?.frame) {
                 return false;
             }
         }
 
         prev_span = this_span;
-        span = this_span.FLink;
+        span = this_span.f_link;
     }
 
     return saw_cmd and saw_oops and saw_heap;
@@ -101,14 +101,14 @@ fn makeSpecialFrame(
     name: []const u8,
 ) !*types.FrameObject {
     const frame = (try frame_ops.frameEdit(editor, allocator, current, name)).?;
-    frame.Options.specialFrame = true;
+    frame.options.specialFrame = true;
     return frame;
 }
 
 test "validate command accepts healthy special frames and spans" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.terminal_info = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .width = 160, .height = 48 };
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -124,8 +124,8 @@ test "validate command accepts healthy special frames and spans" {
 
     var span_mark_one: ?*types.MarkObject = null;
     var span_mark_two: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
-    try mark_ops.markCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
+    try mark_ops.markCreate(allocator, current.first_group.?.first_line.?, 1, &span_mark_one);
+    try mark_ops.markCreate(allocator, current.last_group.?.last_line.?, 1, &span_mark_two);
     try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
 
     try std.testing.expect(validateCommand(&editor, current, &special_frames));
@@ -134,7 +134,7 @@ test "validate command accepts healthy special frames and spans" {
 test "validate command rejects missing special frames" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.terminal_info = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .width = 160, .height = 48 };
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -146,7 +146,7 @@ test "validate command rejects missing special frames" {
 test "validate command rejects spans with marks in different frames" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
-    editor.terminal_info = .{ .Width = 160, .Height = 48 };
+    editor.terminal_info = .{ .width = 160, .height = 48 };
     const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -164,16 +164,16 @@ test "validate command rejects spans with marks in different frames" {
     const span = try allocator.create(types.SpanObject);
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &mark_one);
-    try mark_ops.markCreate(allocator, other.FirstGroup.?.FirstLine.?, 1, &mark_two);
+    try mark_ops.markCreate(allocator, current.first_group.?.first_line.?, 1, &mark_one);
+    try mark_ops.markCreate(allocator, other.first_group.?.first_line.?, 1, &mark_two);
     span.* = .{
-        .Name = "BROKEN",
-        .MarkOne = mark_one,
-        .MarkTwo = mark_two,
-        .BLink = editor.first_span,
+        .name = "BROKEN",
+        .mark_one = mark_one,
+        .mark_two = mark_two,
+        .b_link = editor.first_span,
     };
     if (editor.first_span) |first| {
-        first.FLink = span;
+        first.f_link = span;
     } else {
         editor.first_span = span;
     }

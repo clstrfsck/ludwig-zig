@@ -126,7 +126,7 @@ fn normalizeTopic(allocator: std.mem.Allocator, selection: []const u8) ![]u8 {
 
 fn promptUpperLine(allocator: std.mem.Allocator, prompt: []const u8) ![]u8 {
     const reply = try interactive_io.readPromptLineWithOptions(allocator, prompt, .{
-        .max_len = types.KeyLen,
+        .max_len = types.key_len,
         .terminate_on_space = true,
     });
     for (reply) |*ch| {
@@ -151,7 +151,7 @@ fn promptNextTopic(allocator: std.mem.Allocator) ![]u8 {
 }
 
 fn selectedIndexData(editor: *const state.Editor) []const u8 {
-    return if (editor.file_data.OldCmds)
+    return if (editor.file_data.old_cmds)
         help_assets.old_help_index
     else
         help_assets.new_help_index;
@@ -179,9 +179,9 @@ fn refreshFrameSpanMarks(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    if (frame.Span) |span| {
-        try mark_ops.markCreate(allocator, frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-        try mark_ops.markCreate(allocator, frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    if (frame.span) |span| {
+        try mark_ops.markCreate(allocator, frame.first_group.?.first_line.?, 1, &span.mark_one);
+        try mark_ops.markCreate(allocator, frame.last_group.?.last_line.?, 1, &span.mark_two);
     }
 }
 
@@ -189,33 +189,33 @@ fn clearFrameText(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    const sentinel = frame.LastGroup.?.LastLine.?;
-    const last_content = sentinel.BLink;
+    const sentinel = frame.last_group.?.last_line.?;
+    const last_content = sentinel.b_link;
     if (last_content == null) {
-        try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
+        try mark_ops.markCreate(allocator, sentinel, 1, &frame.dot);
         try refreshFrameSpanMarks(allocator, frame);
         return;
     }
 
-    const first_content = frame.FirstGroup.?.FirstLine.?;
+    const first_content = frame.first_group.?.first_line.?;
     try mark_ops.marksSqueeze(allocator, first_content, 1, sentinel, 1);
-    first_content.BLink = null;
-    last_content.?.FLink = null;
-    sentinel.BLink = null;
-    sentinel.OffsetNr = 0;
+    first_content.b_link = null;
+    last_content.?.f_link = null;
+    sentinel.b_link = null;
+    sentinel.offset_num = 0;
 
-    const empty_group = sentinel.Group.?;
-    frame.FirstGroup = empty_group;
-    frame.LastGroup = empty_group;
-    empty_group.BLink = null;
-    empty_group.FLink = null;
-    empty_group.FirstLine = sentinel;
-    empty_group.LastLine = sentinel;
-    empty_group.FirstLineNr = 1;
-    empty_group.NrLines = 0;
+    const empty_group = sentinel.group.?;
+    frame.first_group = empty_group;
+    frame.last_group = empty_group;
+    empty_group.b_link = null;
+    empty_group.f_link = null;
+    empty_group.first_line = sentinel;
+    empty_group.last_line = sentinel;
+    empty_group.first_line_num = 1;
+    empty_group.num_lines = 0;
 
     try line_ops.lineChangeLength(allocator, sentinel, 0);
-    try mark_ops.markCreate(allocator, sentinel, 1, &frame.Dot);
+    try mark_ops.markCreate(allocator, sentinel, 1, &frame.dot);
     try refreshFrameSpanMarks(allocator, frame);
 }
 
@@ -225,7 +225,7 @@ fn replaceReportFrame(
     lines: []const []const u8,
 ) !bool {
     try clearFrameText(allocator, frame);
-    const sentinel = frame.LastGroup.?.LastLine.?;
+    const sentinel = frame.last_group.?.last_line.?;
     if (lines.len > 0) {
         const range = try line_ops.linesCreate(allocator, lines.len);
         try line_ops.linesInject(allocator, range.first, range.last, sentinel);
@@ -236,20 +236,20 @@ fn replaceReportFrame(
                 try line_ops.lineChangeLength(allocator, line, @intCast(content.len));
                 try line_ops.setLineContent(line, content);
             } else {
-                line.Used = 0;
+                line.used = 0;
             }
             if (index + 1 < lines.len) {
-                line = line.FLink.?;
+                line = line.f_link.?;
             }
         }
     }
 
     try refreshFrameSpanMarks(allocator, frame);
-    const first_line = frame.FirstGroup.?.FirstLine.?;
-    try mark_ops.markCreate(allocator, first_line, 1, &frame.Dot);
-    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkEquals]);
-    mark_ops.markDestroy(allocator, &frame.Marks[types.MarkModified]);
-    frame.TextModified = false;
+    const first_line = frame.first_group.?.first_line.?;
+    try mark_ops.markCreate(allocator, first_line, 1, &frame.dot);
+    mark_ops.markDestroy(allocator, &frame.marks[types.mark_equals]);
+    mark_ops.markDestroy(allocator, &frame.marks[types.mark_modified]);
+    frame.text_modified = false;
     return true;
 }
 
@@ -352,22 +352,22 @@ fn makeReportFrame(allocator: std.mem.Allocator, name: []const u8) !line_ops.Fra
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{""});
     const span = try allocator.create(types.SpanObject);
     span.* = .{
-        .Name = name,
-        .Frame = fixture.frame,
+        .name = name,
+        .frame = fixture.frame,
     };
-    fixture.frame.Span = span;
-    try mark_ops.markCreate(allocator, fixture.frame.FirstGroup.?.FirstLine.?, 1, &span.MarkOne);
-    try mark_ops.markCreate(allocator, fixture.frame.LastGroup.?.LastLine.?, 1, &span.MarkTwo);
+    fixture.frame.span = span;
+    try mark_ops.markCreate(allocator, fixture.frame.first_group.?.first_line.?, 1, &span.mark_one);
+    try mark_ops.markCreate(allocator, fixture.frame.last_group.?.last_line.?, 1, &span.mark_two);
     return fixture;
 }
 
 fn expectFrameLines(frame: *types.FrameObject, expected: []const []const u8) !void {
-    const sentinel = frame.LastGroup.?.LastLine.?;
-    var line = frame.FirstGroup.?.FirstLine.?;
+    const sentinel = frame.last_group.?.last_line.?;
+    var line = frame.first_group.?.first_line.?;
     for (expected) |content| {
         try std.testing.expect(line != sentinel);
         try std.testing.expectEqualStrings(content, line_ops.getLineContent(line));
-        line = line.FLink.?;
+        line = line.f_link.?;
     }
     try std.testing.expect(line == sentinel);
 }

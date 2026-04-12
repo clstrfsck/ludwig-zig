@@ -13,10 +13,10 @@ pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
 
         var source = start;
         while (source < start + size) : (source += 1) {
-            if (editor.compiler_code[@intCast(source)].Code != null) {
-                codeDiscard(editor, &editor.compiler_code[@intCast(source)].Code);
+            if (editor.compiler_code[@intCast(source)].code != null) {
+                codeDiscard(editor, &editor.compiler_code[@intCast(source)].code);
             }
-            editor.compiler_code[@intCast(source)].Tpar = null;
+            editor.compiler_code[@intCast(source)].tpar = null;
         }
 
         source = start + size;
@@ -25,14 +25,14 @@ pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
         }
         editor.code_top -= size;
 
-        var link = code_head.*.?.BLink;
+        var link = code_head.*.?.b_link;
         while (link != editor.code_list) {
             link.?.Code -= size;
-            link = link.?.BLink;
+            link = link.?.b_link;
         }
 
-        code_head.*.?.FLink.?.BLink = code_head.*.?.BLink;
-        code_head.*.?.BLink.?.FLink = code_head.*.?.FLink;
+        code_head.*.?.f_link.?.b_link = code_head.*.?.b_link;
+        code_head.*.?.b_link.?.f_link = code_head.*.?.f_link;
         code_head.* = null;
     }
 }
