@@ -1422,10 +1422,10 @@ fn execute(
             );
         },
         .CmdDeleteChar => {
-            cmd_success = try executeDeleteChar(allocator, current_frame, special_frames.Oops, rept, count, the_mark, from_span);
+            cmd_success = try executeDeleteChar(allocator, current_frame, special_frames.oops, rept, count, the_mark, from_span);
         },
         .CmdDeleteLine => {
-            cmd_success = try executeDeleteLine(allocator, current_frame, special_frames.Oops, rept, count, the_mark);
+            cmd_success = try executeDeleteLine(allocator, current_frame, special_frames.oops, rept, count, the_mark);
         },
         .CmdDump => {
             cmd_success = false;
@@ -1506,7 +1506,7 @@ fn execute(
             }
         },
         .CmdDoLastCommand, .CmdExecuteString => {
-            const cmd_frame = special_frames.Cmd orelse return false;
+            const cmd_frame = special_frames.cmd orelse return false;
             const cmd_span = cmd_frame.span orelse return false;
             if (current_frame == cmd_frame) {
                 return false;
@@ -1543,7 +1543,7 @@ fn execute(
             cmd_success = outcome.ok;
         },
         .CmdFileExecute => {
-            const cmd_frame = special_frames.Cmd orelse return false;
+            const cmd_frame = special_frames.cmd orelse return false;
             const cmd_span = cmd_frame.span orelse return false;
             if (current_frame == cmd_frame) {
                 return false;
@@ -1626,7 +1626,7 @@ fn execute(
                 if (editor.ludwig_mode == .LudwigScreen) {
                     cmd_success = try help_ops.helpInteractive(editor, allocator, topic);
                 } else {
-                    const oops = special_frames.Oops orelse return false;
+                    const oops = special_frames.oops orelse return false;
                     cmd_success = try help_ops.helpCommand(editor, allocator, oops, topic);
                 }
             }
@@ -1764,7 +1764,7 @@ fn execute(
             }
         },
         .CmdSpanIndex => {
-            const oops = special_frames.Oops orelse return false;
+            const oops = special_frames.oops orelse return false;
             cmd_success = try span_ops.spanIndex(editor, allocator, oops);
         },
         .CmdSpanCompile,
@@ -1785,9 +1785,9 @@ fn execute(
                 if (request1.Len == 0) {
                     return false;
                 }
-                const oops_frame = special_frames.Oops orelse return false;
+                const oops_frame = special_frames.oops orelse return false;
                 const oops_span = oops_frame.span orelse return false;
-                const heap_frame = special_frames.Heap orelse return false;
+                const heap_frame = special_frames.heap orelse return false;
                 const heap_span = heap_frame.span orelse return false;
                 const span_name = request1.str.?.slice(1, request1.Len);
 
@@ -2017,7 +2017,7 @@ fn execute(
                     return false;
                 }
                 const key_code = user_ops.resolveUserKeyCode(editor, &request) orelse return false;
-                const heap_frame = special_frames.Heap orelse return false;
+                const heap_frame = special_frames.heap orelse return false;
                 const heap_span = heap_frame.span orelse return false;
                 try mark_ops.markCreate(allocator, heap_frame.last_group.?.last_line.?, 1, &heap_span.mark_two);
                 if (!try createNamedSpan(editor, allocator, types.blank_frame_name, heap_span.mark_two.?, heap_span.mark_two.?)) {
@@ -2049,7 +2049,7 @@ fn execute(
                 try newword.newwordAdvanceWord(allocator, current_frame, rept, count);
         },
         .CmdWordDelete => {
-            const oops = special_frames.Oops orelse return false;
+            const oops = special_frames.oops orelse return false;
             cmd_success = if (editor.file_data.old_cmds)
                 try word.wordDeleteWord(allocator, current_frame, oops, rept, count)
             else
@@ -2059,7 +2059,7 @@ fn execute(
             cmd_success = try newword.newwordAdvanceParagraph(allocator, current_frame, rept, count);
         },
         .CmdDeleteParagraph => {
-            const oops = special_frames.Oops orelse return false;
+            const oops = special_frames.oops orelse return false;
             cmd_success = try newword.newwordDeleteParagraph(allocator, current_frame, oops, rept, count);
         },
         .CmdCommand => {
@@ -2137,7 +2137,7 @@ fn execute(
             }
         },
         .CmdFileTable => {
-            const oops = special_frames.Oops orelse return false;
+            const oops = special_frames.oops orelse return false;
             cmd_success = try file_ops.fileTable(editor, allocator, oops);
         },
         .CmdValidate => {
@@ -2611,7 +2611,7 @@ test "code interpreter can delete a marked character range into oops" {
 
     const oops = try makeSpecialFrame(allocator, "OOPS", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
-        .Oops = oops.frame,
+        .oops = oops.frame,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"@1D"});
@@ -2636,7 +2636,7 @@ test "code interpreter can delete a line into oops" {
 
     const oops = try makeSpecialFrame(allocator, "OOPS", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
-        .Oops = oops.frame,
+        .oops = oops.frame,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"K"});
@@ -2715,7 +2715,7 @@ test "code interpreter can report help topics into oops frame" {
     const current = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const oops = try makeSpecialFrame(allocator, "OOPS", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
-        .Oops = oops.frame,
+        .oops = oops.frame,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"H/Q/"});
@@ -2860,8 +2860,8 @@ test "code interpreter executes span assign with heap and oops special frames" {
     const oops = try makeSpecialFrame(allocator, "OOPS", &[_][]const u8{""});
     const heap = try makeSpecialFrame(allocator, "HEAP", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
-        .Oops = oops.frame,
-        .Heap = heap.frame,
+        .oops = oops.frame,
+        .heap = heap.frame,
     };
 
     const source = try line_ops.createContentFrame(allocator, &[_][]const u8{"stale"});
@@ -2930,7 +2930,7 @@ test "code interpreter executes command strings and replays last command" {
     });
     const cmd_frame = try makeSpecialFrame(allocator, "COMMAND", &[_][]const u8{""});
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd_frame.frame,
+        .cmd = cmd_frame.frame,
     };
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.dot);
 
@@ -3021,9 +3021,9 @@ test "code interpreter can validate linked frame/span state" {
     oops.options.specialFrame = true;
     heap.options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd,
-        .Oops = oops,
-        .Heap = heap,
+        .cmd = cmd,
+        .oops = oops,
+        .heap = heap,
     };
 
     var span_mark_one: ?*types.MarkObject = null;
@@ -3067,7 +3067,7 @@ test "code interpreter can bind simple user key commands" {
     const heap = (try frame_ops.frameEdit(&editor, allocator, target.frame, "HEAP")).?;
     heap.options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
-        .Heap = heap,
+        .heap = heap,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"UK/A/A/"});
@@ -3089,7 +3089,7 @@ test "code interpreter can bind extended user key commands" {
     const heap = (try frame_ops.frameEdit(&editor, allocator, target.frame, "HEAP")).?;
     heap.options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
-        .Heap = heap,
+        .heap = heap,
     };
 
     const command = try makeCommandSpan(allocator, &[_][]const u8{"UK/B/A A/"});
@@ -3309,7 +3309,7 @@ test "code interpreter can execute a buffered file into the command frame" {
 
     const cmd_frame = try makeSpecialFrame(allocator, "COMMAND", &[_][]const u8{"old"});
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd_frame.frame,
+        .cmd = cmd_frame.frame,
     };
 
     const source_file = try makeBufferedFile(allocator, &[_][]const u8{"A"}, false);
@@ -3475,7 +3475,7 @@ test "code interpreter can execute a disk file into the command frame" {
 
     const cmd_frame = try makeSpecialFrame(allocator, "COMMAND", &[_][]const u8{"old"});
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd_frame.frame,
+        .cmd = cmd_frame.frame,
     };
 
     const command_text = try commandWithPath(allocator, "FX", path, "");
@@ -3560,7 +3560,7 @@ test "code interpreter can table files into oops frame" {
     const oops = (try frame_ops.frameEdit(&editor, allocator, current, "OOPS")).?;
     oops.options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
-        .Oops = oops,
+        .oops = oops,
     };
 
     const input = try allocator.create(types.FileObject);
@@ -3601,7 +3601,7 @@ test "code interpreter can index spans into oops frame" {
     const oops = (try frame_ops.frameEdit(&editor, allocator, target.frame, "OOPS")).?;
     oops.options.specialFrame = true;
     var special_frames: types.SpecialFrames = .{
-        .Oops = oops,
+        .oops = oops,
     };
 
     const index_command = try makeCommandSpan(allocator, &[_][]const u8{"SI"});
@@ -3658,7 +3658,7 @@ test "code interpreter can compile command frame for do last command" {
     });
     const cmd_frame = try makeSpecialFrame(allocator, "COMMAND", &[_][]const u8{"A"});
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd_frame.frame,
+        .cmd = cmd_frame.frame,
     };
     cmd_frame.frame.span.?.code = null;
     try mark_ops.markCreate(allocator, target.content_lines[0], 1, &target.frame.dot);

@@ -39,8 +39,8 @@ fn prepareLiteralTarget(
 }
 
 pub fn eqsgetrepSamePatternDef(pattern1: *const types.PatternDefType, pattern2: *const types.PatternDefType) bool {
-    if (pattern1.Length != 0 and pattern2.Length != 0 and pattern1.Length == pattern2.Length) {
-        return pattern1.Strng.?.equalAt(pattern2.Strng.?, pattern1.Length, 1, 1);
+    if (pattern1.length != 0 and pattern2.length != 0 and pattern1.length == pattern2.length) {
+        return pattern1.strng.?.equalAt(pattern2.strng.?, pattern1.length, 1, 1);
     }
     return false;
 }
@@ -74,7 +74,7 @@ pub fn eqsgetrepPatternBuild(
     }
 
     const already_built = if (pattern_ptr.*) |existing|
-        eqsgetrepSamePatternDef(&pattern_definition, &existing.Definition)
+        eqsgetrepSamePatternDef(&pattern_definition, &existing.definition)
     else
         false;
 

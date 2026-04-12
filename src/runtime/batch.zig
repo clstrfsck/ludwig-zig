@@ -61,7 +61,7 @@ fn executeCommandFrameFile(
     special_frames: *types.SpecialFrames,
     file_name: []const u8,
 ) !code_ops.InterpretResult {
-    const cmd_frame = special_frames.Cmd orelse return error.MissingCommandFrame;
+    const cmd_frame = special_frames.cmd orelse return error.MissingCommandFrame;
     const cmd_span = cmd_frame.span orelse return error.MissingCommandSpan;
     if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
@@ -150,11 +150,11 @@ pub fn startUp(
     configureBatchTerminal(editor);
 
     var special_frames: types.SpecialFrames = .{};
-    special_frames.Oops = try makeSpecialFrame(editor, allocator, "OOPS");
-    special_frames.Oops.?.space_limit = types.max_space;
-    special_frames.Oops.?.space_left = types.max_space - 50;
-    special_frames.Cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
-    special_frames.Heap = try makeSpecialFrame(editor, allocator, "HEAP");
+    special_frames.oops = try makeSpecialFrame(editor, allocator, "OOPS");
+    special_frames.oops.?.space_limit = types.max_space;
+    special_frames.oops.?.space_left = types.max_space - 50;
+    special_frames.cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
+    special_frames.heap = try makeSpecialFrame(editor, allocator, "HEAP");
 
     var current_frame = (try frame_ops.frameEdit(editor, allocator, null, types.default_frame_name)).?;
     attachStartupFiles(editor, current_frame, input, output);

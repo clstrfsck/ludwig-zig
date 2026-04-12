@@ -466,7 +466,7 @@ fn freeFrameHighlighting(allocator: std.mem.Allocator, frame: *types.FrameObject
 }
 
 fn highlightEntryLessThan(_: void, lhs: types.HighlightMatchEntry, rhs: types.HighlightMatchEntry) bool {
-    return lhs.Position < rhs.Position;
+    return lhs.position < rhs.position;
 }
 
 fn setHighlight(
@@ -476,12 +476,12 @@ fn setHighlight(
     pair: u16,
 ) !void {
     for (entries.items) |*entry| {
-        if (entry.Position == position) {
-            entry.Pair = pair;
+        if (entry.position == position) {
+            entry.pair = pair;
             return;
         }
     }
-    try entries.append(allocator, .{ .Position = position, .Pair = pair });
+    try entries.append(allocator, .{ .position = position, .pair = pair });
 }
 
 fn sliceStart(subject: []const u8, index: usize) []const u8 {
@@ -629,5 +629,5 @@ test "generated syntax registry detects go files and highlights tokens" {
 
     try std.testing.expect(fixture.content_lines[0].hl_match.items.len > 0);
     try std.testing.expect(fixture.content_lines[1].hl_match.items.len > 0);
-    try std.testing.expectEqual(@as(u16, syntax_colors.pairForGroup("preproc")), fixture.content_lines[0].hl_match.items[0].Pair);
+    try std.testing.expectEqual(@as(u16, syntax_colors.pairForGroup("preproc")), fixture.content_lines[0].hl_match.items[0].pair);
 }

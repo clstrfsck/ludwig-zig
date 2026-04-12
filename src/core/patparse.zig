@@ -181,10 +181,10 @@ fn emitAcceptState(
     indefinite: bool,
 ) bool {
     if (current_state.* > types.max_nfa_state_range) return false;
-    nfa_table[@intCast(current_state.*)].EpsilonOut = false;
-    nfa_table[@intCast(current_state.*)].AcceptSet = accept_set;
-    nfa_table[@intCast(current_state.*)].Indefinite = indefinite;
-    nfa_table[@intCast(current_state.*)].NextState = current_state.* + 1;
+    nfa_table[@intCast(current_state.*)].epsilon_out = false;
+    nfa_table[@intCast(current_state.*)].accept_set = accept_set;
+    nfa_table[@intCast(current_state.*)].indefinite = indefinite;
+    nfa_table[@intCast(current_state.*)].next_state = current_state.* + 1;
     current_state.* += 1;
     return current_state.* <= types.max_nfa_state_range + 1;
 }
@@ -471,8 +471,8 @@ pub fn patternParser(
     if (pattern.str == null or pattern.Len == 0) return false;
 
     pattern_definition.* = .{
-        .Strng = pattern.str,
-        .Length = pattern.Len,
+        .strng = pattern.str,
+        .length = pattern.Len,
     };
 
     first_pattern_start.* = types.pattern_nfa_start;
@@ -553,7 +553,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
 
     try std.testing.expect(patternParser(null, @constCast(&tpar), &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     try std.testing.expect(states_used > types.pattern_nfa_start);
-    try std.testing.expectEqual(@as(u1, 1), nfa_table[types.pattern_nfa_start].AcceptSet.bit(' '));
+    try std.testing.expectEqual(@as(u1, 1), nfa_table[types.pattern_nfa_start].accept_set.bit(' '));
 
     const email_like = "+a'@'+a'.'+a";
     var literal = types.TParObject{

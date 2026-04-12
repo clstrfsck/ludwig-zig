@@ -363,16 +363,16 @@ pub const TabArray = [max_str_len_p1 + 1]bool;
 pub const VerifyArray = [max_verify + 1]bool;
 
 pub const SpecialFrames = struct {
-    Cmd: ?*FrameObject = null,
-    Heap: ?*FrameObject = null,
-    Oops: ?*FrameObject = null,
+    cmd: ?*FrameObject = null,
+    heap: ?*FrameObject = null,
+    oops: ?*FrameObject = null,
 };
 
 pub const PlaceholderHighlighter = opaque {};
 pub const HighlightState = ?*const anyopaque;
 pub const HighlightMatchEntry = struct {
-    Position: usize = 0,
-    Pair: u16 = 0,
+    position: usize = 0,
+    pair: u16 = 0,
 };
 pub const HighlightMatchEntries = std.ArrayList(HighlightMatchEntry);
 
@@ -406,53 +406,53 @@ pub const AcceptSet = struct {
 };
 
 pub const TransitionObject = struct {
-    TransitionAcceptSet: AcceptSet = .{},
-    AcceptNextState: isize = 0,
-    NextTransition: ?*TransitionObject = null,
-    StartFlag: bool = false,
+    transition_accept_set: AcceptSet = .{},
+    sccept_next_state: isize = 0,
+    next_transition: ?*TransitionObject = null,
+    start_flag: bool = false,
 };
 
 pub const StateEltObject = struct {
-    StateElt: isize = 0,
-    NextElt: ?*StateEltObject = null,
+    state_elt: isize = 0,
+    next_elt: ?*StateEltObject = null,
 };
 
 pub const NFAAttributeType = struct {
-    GeneratorSet: [max_nfa_state_range + 1]bool = [_]bool{false} ** (max_nfa_state_range + 1),
-    EquivList: ?*StateEltObject = null,
-    EquivSet: [max_nfa_state_range + 1]bool = [_]bool{false} ** (max_nfa_state_range + 1),
+    generator_set: [max_nfa_state_range + 1]bool = [_]bool{false} ** (max_nfa_state_range + 1),
+    equiv_list: ?*StateEltObject = null,
+    equiv_set: [max_nfa_state_range + 1]bool = [_]bool{false} ** (max_nfa_state_range + 1),
 };
 
 pub const DFAStateType = struct {
-    Transitions: ?*TransitionObject = null,
-    Marked: bool = false,
-    NFAAttributes: NFAAttributeType = .{},
-    PatternStart: bool = false,
-    FinalAccept: bool = false,
-    LeftTransition: bool = false,
-    RightTransition: bool = false,
-    LeftContextCheck: bool = false,
+    transitions: ?*TransitionObject = null,
+    martked: bool = false,
+    nfa_attributes: NFAAttributeType = .{},
+    pattern_start: bool = false,
+    final_accept: bool = false,
+    left_transition: bool = false,
+    right_transition: bool = false,
+    left_context_check: bool = false,
 };
 
 pub const PatternDefType = struct {
-    Strng: ?*StrObject = null,
-    Length: isize = 0,
+    strng: ?*StrObject = null,
+    length: isize = 0,
 };
 
 pub const DFATableObject = struct {
-    DFATable: [max_dfa_state_range + 1]DFAStateType = [_]DFAStateType{.{}} ** (max_dfa_state_range + 1),
-    DFAStatesUsed: isize = 0,
-    Definition: PatternDefType = .{},
+    dfa_table: [max_dfa_state_range + 1]DFAStateType = [_]DFAStateType{.{}} ** (max_dfa_state_range + 1),
+    dfa_states_used: isize = 0,
+    definition: PatternDefType = .{},
 };
 
 pub const NFATransitionType = struct {
-    Indefinite: bool = false,
-    Fail: bool = false,
-    EpsilonOut: bool = false,
-    FirstOut: isize = 0,
-    SecondOut: isize = 0,
-    NextState: isize = 0,
-    AcceptSet: AcceptSet = .{},
+    indefinite: bool = false,
+    fail: bool = false,
+    epsilon_out: bool = false,
+    first_out: isize = 0,
+    second_out: isize = 0,
+    next_state: isize = 0,
+    accept_set: AcceptSet = .{},
 };
 
 pub const NFATableType = [max_nfa_state_range + 1]NFATransitionType;

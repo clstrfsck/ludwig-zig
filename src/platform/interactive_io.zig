@@ -530,14 +530,14 @@ fn drawHighlightedLine(
     const visible_end = visible_start + visible_text.len;
 
     for (entries) |entry| {
-        if (entry.Position <= visible_start) {
-            current_pair = entry.Pair;
+        if (entry.position <= visible_start) {
+            current_pair = entry.pair;
             continue;
         }
-        if (entry.Position >= visible_end) {
+        if (entry.position >= visible_end) {
             break;
         }
-        const segment_end = entry.Position - visible_start;
+        const segment_end = entry.position - visible_start;
         if (segment_end > current_offset) {
             segments[segment_count] = .{
                 .text = visible_text[current_offset..segment_end],
@@ -545,7 +545,7 @@ fn drawHighlightedLine(
             };
             segment_count += 1;
         }
-        current_pair = entry.Pair;
+        current_pair = entry.pair;
         current_offset = segment_end;
     }
 
@@ -974,7 +974,7 @@ test "interactive io frame line styles keep eof dimmed" {
     const allocator = arena.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
-    try fixture.content_lines[0].hl_match.append(std.testing.allocator, .{ .Position = 0, .Pair = 1 });
+    try fixture.content_lines[0].hl_match.append(std.testing.allocator, .{ .position = 0, .pair = 1 });
     defer fixture.content_lines[0].hl_match.deinit(std.testing.allocator);
 
     try std.testing.expectEqual(LineStyle.normal, frameLineStyle(fixture.content_lines[0]));

@@ -12,7 +12,7 @@ pub fn validateCommand(
     special_frames: *types.SpecialFrames,
 ) bool {
     _ = current_frame;
-    if (special_frames.Oops == null or special_frames.Cmd == null or special_frames.Heap == null) {
+    if (special_frames.oops == null or special_frames.cmd == null or special_frames.heap == null) {
         return false;
     }
     if (editor.first_span == null) {
@@ -36,9 +36,9 @@ pub fn validateCommand(
         }
 
         if (this_span.frame) |this_frame| {
-            if (this_frame == special_frames.Cmd.?) saw_cmd = true;
-            if (this_frame == special_frames.Oops.?) saw_oops = true;
-            if (this_frame == special_frames.Heap.?) saw_heap = true;
+            if (this_frame == special_frames.cmd.?) saw_cmd = true;
+            if (this_frame == special_frames.oops.?) saw_oops = true;
+            if (this_frame == special_frames.heap.?) saw_heap = true;
 
             line_ops.validateFrameShape(this_frame) catch return false;
             if (this_frame.dot == null) {
@@ -117,9 +117,9 @@ test "validate command accepts healthy special frames and spans" {
     const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
     const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd,
-        .Oops = oops,
-        .Heap = heap,
+        .cmd = cmd,
+        .oops = oops,
+        .heap = heap,
     };
 
     var span_mark_one: ?*types.MarkObject = null;
@@ -156,9 +156,9 @@ test "validate command rejects spans with marks in different frames" {
     const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
     const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd,
-        .Oops = oops,
-        .Heap = heap,
+        .cmd = cmd,
+        .oops = oops,
+        .heap = heap,
     };
 
     const span = try allocator.create(types.SpanObject);
