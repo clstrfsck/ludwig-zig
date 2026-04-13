@@ -452,7 +452,7 @@ pub fn tparAnalyse(
                 else
                     tran.str.?.slice(1, tran.len);
 
-                if (cmd == .CmdVerify) {
+                if (cmd == .cmd_verify) {
                     const reply = if (frame) |verify_frame|
                         (try interactive_io.readVerifyReply(editor, verify_frame, prompt)) orelse return false
                     else
@@ -628,7 +628,7 @@ test "tpar span substitution enquiries and analysis work in batch mode" {
         .dlm = types.tpd_span,
     };
     try substitute.str.?.assign("TEST");
-    try std.testing.expect(try tparSubstitute(&editor, allocator, &substitute, .CmdReplace, 2));
+    try std.testing.expect(try tparSubstitute(&editor, allocator, &substitute, .cmd_replace, 2));
     try std.testing.expectEqualStrings("World", substitute.str.?.slice(1, 5));
     try std.testing.expect(substitute.con != null);
     try std.testing.expectEqualStrings("Line2", substitute.con.?.str.?.slice(1, 5));
@@ -650,7 +650,7 @@ test "tpar span substitution enquiries and analysis work in batch mode" {
         .dlm = types.tpd_environment,
     };
     try analysed.str.?.assign(frame_enquiry);
-    try std.testing.expect(try tparAnalyse(allocator, &editor, fixture.frame, .CmdGet, &analysed, 1, 1));
+    try std.testing.expect(try tparAnalyse(allocator, &editor, fixture.frame, .cmd_get, &analysed, 1, 1));
     try std.testing.expectEqualStrings("N", analysed.str.?.slice(1, analysed.len));
 }
 
@@ -686,7 +686,7 @@ test "tpar substitution and enquiry queue interactive failure messages" {
         .str = try str_object.newStrObjectFrom(allocator, "MISSING"),
         .len = "MISSING".len,
     };
-    try std.testing.expect(!(try tparSubstitute(&editor, allocator, &substitute, .CmdReplace, 1)));
+    try std.testing.expect(!(try tparSubstitute(&editor, allocator, &substitute, .cmd_replace, 1)));
     try std.testing.expectEqualStrings("No such span.", interactive_io.takeStatusMessage().?);
 
     var enquiry = types.TParObject{
@@ -713,7 +713,7 @@ test "tpar get helpers duplicate analyse and trim replies" {
         .dlm = 0,
     };
     var out1: types.TParObject = .{};
-    try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &source1, .CmdEqualColumn, &out1));
+    try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &source1, .cmd_equal_column, &out1));
     try std.testing.expectEqualStrings("42", out1.str.?.slice(1, out1.len));
 
     var source2 = types.TParObject{
@@ -724,7 +724,7 @@ test "tpar get helpers duplicate analyse and trim replies" {
     source1.nxt = &source2;
     var trn1: types.TParObject = .{};
     var trn2: types.TParObject = .{};
-    try std.testing.expect(try tparGet2(allocator, &editor, fixture.frame, &source1, .CmdReplace, &trn1, &trn2));
+    try std.testing.expect(try tparGet2(allocator, &editor, fixture.frame, &source1, .cmd_replace, &trn1, &trn2));
     try std.testing.expectEqualStrings("  42", trn1.str.?.slice(1, trn1.len));
     try std.testing.expectEqualStrings("N", trn2.str.?.slice(1, trn2.len));
 }
@@ -748,7 +748,7 @@ test "tpar verify prompt retries invalid replies in screen mode" {
     defer interactive_io.testing.clearInput();
     interactive_io.resetTestBeepCount();
 
-    try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &prompt, .CmdVerify, &reply));
+    try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &prompt, .cmd_verify, &reply));
     try std.testing.expectEqualStrings("Q", reply.str.?.slice(1, reply.len));
     try std.testing.expectEqual(@as(usize, 1), interactive_io.getTestBeepCount());
 }

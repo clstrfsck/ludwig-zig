@@ -988,7 +988,7 @@ pub fn frameParameter(
     tpar: ?*types.TParObject,
 ) !bool {
     var request: types.TParObject = .{};
-    if (!try tpar_ops.tparGet1(allocator, editor, frame, tpar, .CmdFrameParameters, &request)) {
+    if (!try tpar_ops.tparGet1(allocator, editor, frame, tpar, .cmd_frame_parameters, &request)) {
         return false;
     }
     if (request.len > 0) {

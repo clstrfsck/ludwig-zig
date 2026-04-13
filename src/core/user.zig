@@ -15,10 +15,10 @@ const curses = terminal.c;
 
 fn specialCommand(cmd: types.Commands) bool {
     return switch (cmd) {
-        .CmdVerify,
-        .Cmdexit_abort,
-        .CmdExitFail,
-        .CmdExitSuccess,
+        .cmd_verify,
+        .cmd_exit_abort,
+        .cmd_exit_fail,
+        .cmd_exit_success,
         => true,
         else => false,
     };
@@ -245,23 +245,23 @@ pub fn userKeyInitialize(editor: *state.Editor, allocator: std.mem.Allocator) !v
         command: types.Commands,
         prompt: bool = false,
     }{
-        .{ .name = "UP-ARROW", .code = types.terminal_key_codes.up_arrow, .command = .CmdUp },
-        .{ .name = "DOWN-ARROW", .code = types.terminal_key_codes.down_arrow, .command = .CmdDown },
-        .{ .name = "LEFT-ARROW", .code = types.terminal_key_codes.left_arrow, .command = .CmdLeft },
-        .{ .name = "RIGHT-ARROW", .code = types.terminal_key_codes.right_arrow, .command = .CmdRight },
-        .{ .name = "HOME", .code = types.terminal_key_codes.home, .command = .CmdHome },
-        .{ .name = "BACK-TAB", .code = types.terminal_key_codes.back_tab, .command = .CmdBacktab },
-        .{ .name = "INSERT-LINE", .code = types.terminal_key_codes.insert_line, .command = .CmdInsertLine },
-        .{ .name = "DELETE-LINE", .code = types.terminal_key_codes.delete_line, .command = .CmdDeleteLine },
-        .{ .name = "INSERT-CHAR", .code = types.terminal_key_codes.insert_char, .command = .CmdInsertChar },
-        .{ .name = "DELETE-CHAR", .code = types.terminal_key_codes.delete_char, .command = .CmdDeleteChar },
-        .{ .name = "PAGE-UP", .code = types.terminal_key_codes.page_up, .command = .CmdWindowBackward },
-        .{ .name = "PREV-SCREEN", .code = types.terminal_key_codes.page_up, .command = .CmdWindowBackward },
-        .{ .name = "PAGE-DOWN", .code = types.terminal_key_codes.page_down, .command = .CmdWindowForward },
-        .{ .name = "NEXT-SCREEN", .code = types.terminal_key_codes.page_down, .command = .CmdWindowForward },
-        .{ .name = "FIND", .code = types.terminal_key_codes.find, .command = .CmdGet, .prompt = true },
-        .{ .name = "HELP", .code = types.terminal_key_codes.help, .command = .CmdHelp, .prompt = true },
-        .{ .name = "WINDOW-RESIZE-EVENT", .code = types.terminal_key_codes.window_resize, .command = .CmdResizeWindow },
+        .{ .name = "UP-ARROW", .code = types.terminal_key_codes.up_arrow, .command = .cmd_up },
+        .{ .name = "DOWN-ARROW", .code = types.terminal_key_codes.down_arrow, .command = .cmd_down },
+        .{ .name = "LEFT-ARROW", .code = types.terminal_key_codes.left_arrow, .command = .cmd_left },
+        .{ .name = "RIGHT-ARROW", .code = types.terminal_key_codes.right_arrow, .command = .cmd_right },
+        .{ .name = "HOME", .code = types.terminal_key_codes.home, .command = .cmd_home },
+        .{ .name = "BACK-TAB", .code = types.terminal_key_codes.back_tab, .command = .cmd_backtab },
+        .{ .name = "INSERT-LINE", .code = types.terminal_key_codes.insert_line, .command = .cmd_insert_line },
+        .{ .name = "DELETE-LINE", .code = types.terminal_key_codes.delete_line, .command = .cmd_delete_line },
+        .{ .name = "INSERT-CHAR", .code = types.terminal_key_codes.insert_char, .command = .cmd_insert_char },
+        .{ .name = "DELETE-CHAR", .code = types.terminal_key_codes.delete_char, .command = .cmd_delete_char },
+        .{ .name = "PAGE-UP", .code = types.terminal_key_codes.page_up, .command = .cmd_window_backward },
+        .{ .name = "PREV-SCREEN", .code = types.terminal_key_codes.page_up, .command = .cmd_window_backward },
+        .{ .name = "PAGE-DOWN", .code = types.terminal_key_codes.page_down, .command = .cmd_window_forward },
+        .{ .name = "NEXT-SCREEN", .code = types.terminal_key_codes.page_down, .command = .cmd_window_forward },
+        .{ .name = "FIND", .code = types.terminal_key_codes.find, .command = .cmd_get, .prompt = true },
+        .{ .name = "HELP", .code = types.terminal_key_codes.help, .command = .cmd_help, .prompt = true },
+        .{ .name = "WINDOW-RESIZE-EVENT", .code = types.terminal_key_codes.window_resize, .command = .cmd_resize_window },
     };
 
     try registerControlKeyNames(editor, allocator);
@@ -328,7 +328,7 @@ pub fn bindCompiledKey(
         binding.tpar = first.tpar;
         first.tpar = null;
     } else {
-        binding.command = .CmdExtended;
+        binding.command = .cmd_extended;
         binding.code = code;
         key_span.code = null;
     }
@@ -411,19 +411,19 @@ test "user key initialize binds terminal navigation keys" {
 
     try userKeyInitialize(&editor, editor.allocator());
 
-    try std.testing.expectEqual(types.Commands.CmdUp, editor.lookup[@intCast(types.terminal_key_codes.up_arrow)].command);
-    try std.testing.expectEqual(types.Commands.CmdDown, editor.lookup[@intCast(types.terminal_key_codes.down_arrow)].command);
-    try std.testing.expectEqual(types.Commands.CmdLeft, editor.lookup[@intCast(types.terminal_key_codes.left_arrow)].command);
-    try std.testing.expectEqual(types.Commands.CmdRight, editor.lookup[@intCast(types.terminal_key_codes.right_arrow)].command);
-    try std.testing.expectEqual(types.Commands.CmdHome, editor.lookup[@intCast(types.terminal_key_codes.home)].command);
-    try std.testing.expectEqual(types.Commands.CmdBacktab, editor.lookup[@intCast(types.terminal_key_codes.back_tab)].command);
-    try std.testing.expectEqual(types.Commands.CmdInsertLine, editor.lookup[@intCast(types.terminal_key_codes.insert_line)].command);
-    try std.testing.expectEqual(types.Commands.CmdDeleteLine, editor.lookup[@intCast(types.terminal_key_codes.delete_line)].command);
-    try std.testing.expectEqual(types.Commands.CmdWindowBackward, editor.lookup[@intCast(types.terminal_key_codes.page_up)].command);
-    try std.testing.expectEqual(types.Commands.CmdWindowForward, editor.lookup[@intCast(types.terminal_key_codes.page_down)].command);
-    try std.testing.expectEqual(types.Commands.CmdGet, editor.lookup[@intCast(types.terminal_key_codes.find)].command);
-    try std.testing.expectEqual(types.Commands.CmdHelp, editor.lookup[@intCast(types.terminal_key_codes.help)].command);
-    try std.testing.expectEqual(types.Commands.CmdResizeWindow, editor.lookup[@intCast(types.terminal_key_codes.window_resize)].command);
+    try std.testing.expectEqual(types.Commands.cmd_up, editor.lookup[@intCast(types.terminal_key_codes.up_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_down, editor.lookup[@intCast(types.terminal_key_codes.down_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_left, editor.lookup[@intCast(types.terminal_key_codes.left_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_right, editor.lookup[@intCast(types.terminal_key_codes.right_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_home, editor.lookup[@intCast(types.terminal_key_codes.home)].command);
+    try std.testing.expectEqual(types.Commands.cmd_backtab, editor.lookup[@intCast(types.terminal_key_codes.back_tab)].command);
+    try std.testing.expectEqual(types.Commands.cmd_insert_line, editor.lookup[@intCast(types.terminal_key_codes.insert_line)].command);
+    try std.testing.expectEqual(types.Commands.cmd_delete_line, editor.lookup[@intCast(types.terminal_key_codes.delete_line)].command);
+    try std.testing.expectEqual(types.Commands.cmd_window_backward, editor.lookup[@intCast(types.terminal_key_codes.page_up)].command);
+    try std.testing.expectEqual(types.Commands.cmd_window_forward, editor.lookup[@intCast(types.terminal_key_codes.page_down)].command);
+    try std.testing.expectEqual(types.Commands.cmd_get, editor.lookup[@intCast(types.terminal_key_codes.find)].command);
+    try std.testing.expectEqual(types.Commands.cmd_help, editor.lookup[@intCast(types.terminal_key_codes.help)].command);
+    try std.testing.expectEqual(types.Commands.cmd_resize_window, editor.lookup[@intCast(types.terminal_key_codes.window_resize)].command);
     try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.up_arrow), userKeyNameToCode(&editor, "UP-ARROW"));
     try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.page_up), userKeyNameToCode(&editor, "PREV-SCREEN"));
     try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.page_down), userKeyNameToCode(&editor, "NEXT-SCREEN"));

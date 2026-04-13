@@ -1107,7 +1107,7 @@ pub fn fileOpenCommand(
     file_name: []const u8,
 ) !bool {
     return switch (command) {
-        .CmdFileInput => blk: {
+        .cmd_file_input => blk: {
             if (frame.input_file != 0) {
                 break :blk false;
             }
@@ -1118,7 +1118,7 @@ pub fn fileOpenCommand(
             frame.input_file = slot;
             break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
         },
-        .CmdFileGlobalInput => blk: {
+        .cmd_file_global_input => blk: {
             if (editor.fgi_file != 0) {
                 break :blk false;
             }
@@ -1128,7 +1128,7 @@ pub fn fileOpenCommand(
             editor.fgi_file = slot;
             break :blk true;
         },
-        .CmdFileOutput => blk: {
+        .cmd_file_output => blk: {
             if (frame.output_file != 0) {
                 break :blk false;
             }
@@ -1143,7 +1143,7 @@ pub fn fileOpenCommand(
             frame.output_file = slot;
             break :blk true;
         },
-        .CmdFileGlobalOutput => blk: {
+        .cmd_file_global_output => blk: {
             if (editor.fgo_file != 0) {
                 break :blk false;
             }
@@ -1153,7 +1153,7 @@ pub fn fileOpenCommand(
             editor.fgo_file = slot;
             break :blk true;
         },
-        .CmdFileEdit => blk: {
+        .cmd_file_edit => blk: {
             if (frame.input_file != 0 or frame.output_file != 0) {
                 break :blk false;
             }
@@ -1339,11 +1339,11 @@ pub fn fileCloseCommand(
     command: types.Commands,
 ) !bool {
     return switch (command) {
-        .CmdFileInput => blk: {
+        .cmd_file_input => blk: {
             _ = requireFileSlot(editor, frame.input_file, false) orelse break :blk false;
             break :blk try detachFileSlot(editor, allocator, frame.input_file);
         },
-        .CmdFileOutput => blk: {
+        .cmd_file_output => blk: {
             const output_file = requireFileSlot(editor, frame.output_file, true) orelse break :blk false;
             const had_modifications = frame.text_modified;
             if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
@@ -1354,7 +1354,7 @@ pub fn fileCloseCommand(
             }
             break :blk try detachFileSlot(editor, allocator, frame.output_file);
         },
-        .CmdFileEdit => blk: {
+        .cmd_file_edit => blk: {
             _ = requireFileSlot(editor, frame.input_file, false) orelse break :blk false;
             _ = requireFileSlot(editor, frame.output_file, true) orelse break :blk false;
             if (frame.text_modified and !try fileSaveCommand(editor, allocator, frame)) {
@@ -1365,11 +1365,11 @@ pub fn fileCloseCommand(
             }
             break :blk try detachFileSlot(editor, allocator, frame.input_file);
         },
-        .CmdFileGlobalInput => blk: {
+        .cmd_file_global_input => blk: {
             _ = requireFileSlot(editor, editor.fgi_file, false) orelse break :blk false;
             break :blk try detachFileSlot(editor, allocator, editor.fgi_file);
         },
-        .CmdFileGlobalOutput => blk: {
+        .cmd_file_global_output => blk: {
             const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse break :blk false;
             if (!try persistDiskBackedOutputFile(editor, allocator, output_file)) {
                 break :blk false;
@@ -1720,7 +1720,7 @@ test "file close detaches current input file and marks eof" {
     editor.files_frames[1] = fixture.frame;
     fixture.frame.input_file = 1;
 
-    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileInput));
+    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .cmd_file_input));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.input_file);
     try std.testing.expect(editor.files[1] == null);
     try std.testing.expectEqualStrings("<End of File>", line_ops.getDisplayLineContent(fixture.frame.last_group.?.last_line.?));
@@ -1736,7 +1736,7 @@ test "file close detaches global output file" {
     editor.fgo_file = 1;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .CmdFileGlobalOutput));
+    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .cmd_file_global_output));
     try std.testing.expectEqual(@as(isize, 0), editor.fgo_file);
     try std.testing.expect(editor.files[1] == null);
 }

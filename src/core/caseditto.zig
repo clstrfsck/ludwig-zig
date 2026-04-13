@@ -22,18 +22,18 @@ pub fn caseDittoCommand(
     edit_mode: types.ModeType,
     previous_mode: types.ModeType,
 ) !bool {
-    const insert = (command == .CmdDittoUp or command == .CmdDittoDown) and
+    const insert = (command == .cmd_ditto_up or command == .cmd_ditto_down) and
         (edit_mode == .mode_insert or (edit_mode == .mode_command and previous_mode == .mode_insert));
 
     const old_dot_col = frame.dot.?.col;
     var other_line: ?*types.LineHdrObject = switch (command) {
-        .CmdCaseUp, .CmdCaseLow, .CmdCaseEdit => frame.dot.?.line,
-        .CmdDittoUp => frame.dot.?.line.b_link,
-        .CmdDittoDown => frame.dot.?.line.f_link,
+        .cmd_case_up, .cmd_case_low, .cmd_case_edit => frame.dot.?.line,
+        .cmd_ditto_up => frame.dot.?.line.b_link,
+        .cmd_ditto_down => frame.dot.?.line.f_link,
         else => null,
     };
 
-    if ((command == .CmdDittoUp or command == .CmdDittoDown) and insert and
+    if ((command == .cmd_ditto_up or command == .cmd_ditto_down) and insert and
         (rept == .lead_param_minus or rept == .lead_param_n_int or rept == .lead_param_n_indef))
     {
         return false;
@@ -87,9 +87,9 @@ pub fn caseDittoCommand(
         defer new_str.destroy();
 
         switch (command) {
-            .CmdCaseUp => new_str.applyN(chars.chToUpper, count_mut, 1),
-            .CmdCaseLow => new_str.applyN(chars.chToLower, count_mut, 1),
-            .CmdCaseEdit => {
+            .cmd_case_up => new_str.applyN(chars.chToUpper, count_mut, 1),
+            .cmd_case_low => new_str.applyN(chars.chToLower, count_mut, 1),
+            .cmd_case_edit => {
                 var ch: u8 = if (1 < first_col and first_col <= other_line.?.used)
                     other_line.?.str.?.get(first_col - 1)
                 else
@@ -104,7 +104,7 @@ pub fn caseDittoCommand(
                     new_str.set(j, ch);
                 }
             },
-            .CmdDittoUp, .CmdDittoDown => {},
+            .cmd_ditto_up, .cmd_ditto_down => {},
             else => cmd_valid = false,
         }
 
@@ -156,7 +156,7 @@ test "case ditto rejects negative ditto params in insert contexts" {
     try std.testing.expect(!(try caseDittoCommand(
         allocator,
         fixture.frame,
-        .CmdDittoUp,
+        .cmd_ditto_up,
         .lead_param_minus,
         -1,
         true,
@@ -166,7 +166,7 @@ test "case ditto rejects negative ditto params in insert contexts" {
     try std.testing.expect(!(try caseDittoCommand(
         allocator,
         fixture.frame,
-        .CmdDittoDown,
+        .cmd_ditto_down,
         .lead_param_n_int,
         -1,
         true,
@@ -184,7 +184,7 @@ test "case commands rewrite the current line in place" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         up_fixture.frame,
-        .CmdCaseUp,
+        .cmd_case_up,
         .lead_param_none,
         5,
         true,
@@ -197,7 +197,7 @@ test "case commands rewrite the current line in place" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         low_fixture.frame,
-        .CmdCaseLow,
+        .cmd_case_low,
         .lead_param_none,
         5,
         true,
@@ -210,7 +210,7 @@ test "case commands rewrite the current line in place" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         edit_fixture.frame,
-        .CmdCaseEdit,
+        .cmd_case_edit,
         .lead_param_none,
         5,
         true,
@@ -230,7 +230,7 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         plus_fixture.frame,
-        .CmdDittoUp,
+        .cmd_ditto_up,
         .lead_param_plus,
         4,
         true,
@@ -244,7 +244,7 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         pindef_fixture.frame,
-        .CmdDittoUp,
+        .cmd_ditto_up,
         .lead_param_p_indef,
         0,
         true,
@@ -264,7 +264,7 @@ test "ditto commands honor backward copy parameters" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         minus_fixture.frame,
-        .CmdDittoUp,
+        .cmd_ditto_up,
         .lead_param_minus,
         -3,
         true,
@@ -279,7 +279,7 @@ test "ditto commands honor backward copy parameters" {
     try std.testing.expect(try caseDittoCommand(
         allocator,
         nindef_fixture.frame,
-        .CmdDittoUp,
+        .cmd_ditto_up,
         .lead_param_n_indef,
         0,
         true,

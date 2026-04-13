@@ -46,8 +46,8 @@ pub fn setupInitialValues(editor: *state.Editor) !void {
     editor.initial_options = .{};
 
     editor.prefixes = std.StaticBitSet(types.command_count).initEmpty();
-    var cmd = @as(usize, @intFromEnum(types.Commands.CmdPrefixAst));
-    while (cmd <= @as(usize, @intFromEnum(types.Commands.CmdPrefixTilde))) : (cmd += 1) {
+    var cmd = @as(usize, @intFromEnum(types.Commands.cmd_prefix_ast));
+    while (cmd <= @as(usize, @intFromEnum(types.Commands.cmd_prefix_tilde))) : (cmd += 1) {
         editor.prefixes.set(cmd);
     }
 

@@ -146,13 +146,13 @@ test "editor init recreates prefix and lookup table defaults" {
     var editor = try Editor.init(std.testing.allocator);
     defer editor.deinit();
 
-    try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.CmdPrefixA)));
-    try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.CmdPrefixTilde)));
-    try std.testing.expectEqual(types.Commands.CmdAdvance, editor.lookup['A'].command);
-    try std.testing.expectEqual(types.Commands.CmdCommand, editor.lookup['\\'].command);
-    try std.testing.expectEqual(@as(usize, 35), editor.lookup_exp_ptr[@intFromEnum(types.Commands.CmdPrefixS)]);
-    try std.testing.expectEqual(types.EqualAction.eq_nil, editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].eq_action);
-    try std.testing.expectEqual(@as(isize, 2), editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].tp_count);
+    try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.cmd_prefix_a)));
+    try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.cmd_prefix_tilde)));
+    try std.testing.expectEqual(types.Commands.cmd_advance, editor.lookup['A'].command);
+    try std.testing.expectEqual(types.Commands.cmd_command, editor.lookup['\\'].command);
+    try std.testing.expectEqual(@as(usize, 35), editor.lookup_exp_ptr[@intFromEnum(types.Commands.cmd_prefix_s)]);
+    try std.testing.expectEqual(types.EqualAction.eq_nil, editor.cmd_attrib[@intFromEnum(types.Commands.cmd_replace)].eq_action);
+    try std.testing.expectEqual(@as(isize, 2), editor.cmd_attrib[@intFromEnum(types.Commands.cmd_replace)].tp_count);
 }
 
 test "editor can switch to new command lookup tables" {
@@ -160,8 +160,8 @@ test "editor can switch to new command lookup tables" {
     defer editor.deinit();
 
     editor.loadCommandTable(false);
-    try std.testing.expectEqual(types.Commands.CmdPrefixA, editor.lookup['A'].command);
-    try std.testing.expectEqual(types.Commands.CmdPrefixT, editor.lookup['T'].command);
-    try std.testing.expectEqual(types.Commands.CmdJump, editor.lookup_exp[1].command);
-    try std.testing.expectEqual(@as(usize, 80), editor.lookup_exp_ptr[@intFromEnum(types.Commands.CmdPrefixT)]);
+    try std.testing.expectEqual(types.Commands.cmd_prefix_a, editor.lookup['A'].command);
+    try std.testing.expectEqual(types.Commands.cmd_prefix_t, editor.lookup['T'].command);
+    try std.testing.expectEqual(types.Commands.cmd_jump, editor.lookup_exp[1].command);
+    try std.testing.expectEqual(@as(usize, 80), editor.lookup_exp_ptr[@intFromEnum(types.Commands.cmd_prefix_t)]);
 }

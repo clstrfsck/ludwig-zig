@@ -6,14 +6,14 @@ const line_ops = @import("line.zig");
 
 fn isArrowCommand(command: types.Commands) bool {
     return switch (command) {
-        .CmdReturn,
-        .CmdHome,
-        .CmdTab,
-        .CmdBacktab,
-        .CmdLeft,
-        .CmdRight,
-        .CmdDown,
-        .CmdUp,
+        .cmd_return,
+        .cmd_home,
+        .cmd_tab,
+        .cmd_backtab,
+        .cmd_left,
+        .cmd_right,
+        .cmd_down,
+        .cmd_up,
         => true,
         else => false,
     };
@@ -179,9 +179,9 @@ pub fn doCmdReturn(
 }
 
 test "isArrowCommand identifies supported movement commands" {
-    try std.testing.expect(isArrowCommand(.CmdReturn));
-    try std.testing.expect(isArrowCommand(.CmdLeft));
-    try std.testing.expect(!isArrowCommand(.CmdDeleteLine));
+    try std.testing.expect(isArrowCommand(.cmd_return));
+    try std.testing.expect(isArrowCommand(.cmd_left));
+    try std.testing.expect(!isArrowCommand(.cmd_delete_line));
 }
 
 test "left and right commands obey bounds and margins" {

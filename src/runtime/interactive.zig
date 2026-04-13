@@ -579,10 +579,10 @@ fn executeLookupKey(
         return false;
     }
     const binding = editor.lookup[@intCast(key)];
-    if (binding.command == .CmdNoop) {
+    if (binding.command == .cmd_noop) {
         return false;
     }
-    if (binding.command == .CmdExtended) {
+    if (binding.command == .cmd_extended) {
         const code = binding.code orelse return false;
         const outcome = try code_ops.codeInterpretFrame(
             editor,

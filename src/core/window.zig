@@ -321,7 +321,7 @@ pub fn windowCommand(
     }
 
     return switch (command) {
-        .CmdWindowBackward => blk: {
+        .cmd_window_backward => blk: {
             if (frame.dot == null or count < 0) break :blk false;
             const step = frame.scr_height * count;
             const current_nr = line_ops.lineToNumber(frame.dot.?.line);
@@ -329,8 +329,8 @@ pub fn windowCommand(
             const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.first_group.?.first_line.?;
             break :blk try moveDotTo(allocator, frame, target_line);
         },
-        .CmdWindowEnd => try moveDotTo(allocator, frame, frame.last_group.?.last_line.?),
-        .CmdWindowForward => blk: {
+        .cmd_window_end => try moveDotTo(allocator, frame, frame.last_group.?.last_line.?),
+        .cmd_window_forward => blk: {
             if (frame.dot == null or count < 0) break :blk false;
             const step = frame.scr_height * count;
             const current_nr = line_ops.lineToNumber(frame.dot.?.line);
@@ -339,7 +339,7 @@ pub fn windowCommand(
             const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.last_group.?.last_line.?;
             break :blk try moveDotTo(allocator, frame, target_line);
         },
-        .CmdWindowLeft => blk: {
+        .cmd_window_left => blk: {
             if (frame.dot == null) break :blk false;
             if (editor.screen.frame != frame) break :blk true;
             var delta = if (rept == .lead_param_none) @divTrunc(frame.scr_width, 2) else count;
@@ -353,7 +353,7 @@ pub fn windowCommand(
             }
             break :blk true;
         },
-        .CmdWindowMiddle => blk: {
+        .cmd_window_middle => blk: {
             if (editor.screen.frame == frame) {
                 frame.scr_dot_line = @divTrunc(displayHeight(editor, frame) + 1, 2);
                 loadViewport(editor, frame);
@@ -361,7 +361,7 @@ pub fn windowCommand(
             }
             break :blk true;
         },
-        .CmdWindowNew => blk: {
+        .cmd_window_new => blk: {
             if (editor.screen.frame == frame) {
                 const top_number = if (editor.screen.top_line) |top_line| line_ops.lineToNumber(top_line) else line_ops.lineToNumber(frame.dot.?.line);
                 invalidateViewport(editor);
@@ -371,7 +371,7 @@ pub fn windowCommand(
             }
             break :blk true;
         },
-        .CmdWindowScroll => blk: {
+        .cmd_window_scroll => blk: {
             if (editor.screen.frame == frame) {
                 syncViewport(editor, frame);
                 redrawScreenNow(editor, frame);
@@ -417,18 +417,18 @@ pub fn windowCommand(
             }
             break :blk true;
         },
-        .CmdWindowUpdate => blk: {
+        .cmd_window_update => blk: {
             if (editor.ludwig_mode == .ludwig_screen) {
                 syncViewport(editor, frame);
                 redrawScreenNow(editor, frame);
             }
             break :blk true;
         },
-        .CmdResizeWindow => blk: {
+        .cmd_resize_window => blk: {
             resizeWindow(editor);
             break :blk true;
         },
-        .CmdWindowRight => blk: {
+        .cmd_window_right => blk: {
             if (frame.dot == null) break :blk false;
             if (editor.screen.frame != frame) break :blk true;
             var delta = if (rept == .lead_param_none) @divTrunc(frame.scr_width, 2) else count;
@@ -446,11 +446,11 @@ pub fn windowCommand(
             }
             break :blk true;
         },
-        .CmdWindowSetHeight => blk: {
+        .cmd_window_set_height => blk: {
             const target_height = if (rept == .lead_param_none) editor.terminal_info.height else count;
             break :blk frame_ops.frameSetHeight(editor, frame, target_height, false);
         },
-        .CmdWindowTop => try moveDotTo(allocator, frame, frame.first_group.?.first_line.?),
+        .cmd_window_top => try moveDotTo(allocator, frame, frame.first_group.?.first_line.?),
         else => false,
     };
 }
@@ -470,16 +470,16 @@ test "window command moves dot by screen height and clamps" {
     fixture.frame.scr_height = 2;
     try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.dot);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowForward, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_forward, .lead_param_none, 1, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[4]);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowBackward, .lead_param_p_int, 2, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_backward, .lead_param_p_int, 2, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowEnd, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_end, .lead_param_none, 1, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.sentinel_line);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowTop, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_top, .lead_param_none, 1, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
 }
 
@@ -494,12 +494,12 @@ test "window command adjusts horizontal offset on active screen frame" {
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.dot);
     editor.screen.frame = fixture.frame;
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowLeft, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_left, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.scr_offset);
     try std.testing.expectEqual(@as(isize, 10), fixture.frame.dot.?.col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.dot);
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowRight, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_right, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 5), fixture.frame.scr_offset);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.dot.?.col);
 }
@@ -511,7 +511,7 @@ test "window set height uses terminal height by default" {
     const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowSetHeight, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_set_height, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 24), fixture.frame.scr_height);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.margin_top);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.margin_bottom);
@@ -549,7 +549,7 @@ test "window resize updates terminal dimensions and frame sizing" {
     interactive_io.testing.setDimensionsOverride(100, 40);
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdResizeWindow, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_resize_window, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 100), editor.terminal_info.width);
     try std.testing.expectEqual(@as(isize, 40), editor.terminal_info.height);
     try std.testing.expectEqual(@as(isize, 100), fixture.frame.scr_width);
@@ -575,7 +575,7 @@ test "window middle recenters the dot on the active screen" {
     fixture.frame.scr_height = 10;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowMiddle, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_middle, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.dot.?.line.scr_row_num);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.scr_dot_line);
 }
@@ -597,7 +597,7 @@ test "window scroll supports stay-behind up and takeback" {
     interactive_io.testing.installInput("\x1b[AQ");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .CmdWindowScroll, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_scroll, .lead_param_none, 1, false));
     try std.testing.expectEqualStrings("2", editor.screen.top_line.?.str.?.slice(1, 1));
     try std.testing.expectEqual(@as(isize, 2), fixture.frame.dot.?.line.scr_row_num);
     try std.testing.expectEqual(@as(?isize, 'Q'), interactive_io.testing.readInputKey());
