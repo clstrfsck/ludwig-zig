@@ -119,7 +119,7 @@ pub fn frameKill(
     }
 
     const target_frame = span_ptr.?.frame.?;
-    if (target_frame == current_frame or target_frame == editor.screen.frame or target_frame.options.specialFrame) {
+    if (target_frame == current_frame or target_frame == editor.screen.frame or target_frame.options.special_frame) {
         return false;
     }
     if (target_frame.input_file != 0 or target_frame.output_file != 0) {
@@ -625,9 +625,9 @@ fn setOpt(frame: *types.FrameObject, ch: u8, set_on: bool, options: *types.Frame
     _ = frame;
     switch (ch) {
         'S' => return true,
-        'I' => options.autoIndent = set_on,
-        'W' => options.autoWrap = set_on,
-        'N' => options.newLine = set_on,
+        'I' => options.auto_indent = set_on,
+        'W' => options.auto_wrap = set_on,
+        'N' => options.new_line = set_on,
         else => return false,
     }
     return true;
@@ -661,15 +661,15 @@ fn renderOptionsSummary(allocator: std.mem.Allocator, options: types.FrameOption
     try buffer.append(allocator, ' ');
     var count: usize = 1;
     var first = true;
-    if (options.autoIndent) {
+    if (options.auto_indent) {
         try appendDisplayOption(allocator, &buffer, 'I', &first);
         count += 2;
     }
-    if (options.autoWrap) {
+    if (options.auto_wrap) {
         try appendDisplayOption(allocator, &buffer, 'W', &first);
         count += 2;
     }
-    if (options.newLine) {
+    if (options.new_line) {
         try appendDisplayOption(allocator, &buffer, 'N', &first);
         count += 2;
     }
@@ -1053,7 +1053,7 @@ test "frame kill rejects current and special frames" {
     try std.testing.expect(!try frameKill(&editor, allocator, current_named, "CURRENT"));
 
     const special = (try frameEdit(&editor, allocator, origin, "SPECIAL")).?;
-    special.options.specialFrame = true;
+    special.options.special_frame = true;
     try std.testing.expect(!try frameKill(&editor, allocator, origin, "SPECIAL"));
 }
 
@@ -1083,8 +1083,8 @@ test "frame parameter updates batch-safe state values" {
     };
     try std.testing.expect(try frameParameter(&editor, allocator, frame, &tpar));
     try std.testing.expectEqual(types.ModeType.mode_overtype, editor.edit_mode);
-    try std.testing.expect(frame.options.autoIndent);
-    try std.testing.expect(!frame.options.newLine);
+    try std.testing.expect(frame.options.auto_indent);
+    try std.testing.expect(!frame.options.new_line);
     try std.testing.expectEqual(@as(isize, 2200), frame.space_limit);
     try std.testing.expectEqual(@as(isize, 24), frame.scr_height);
     try std.testing.expectEqual(@as(isize, 120), frame.scr_width);

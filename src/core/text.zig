@@ -18,7 +18,7 @@ fn newBlankString(allocator: std.mem.Allocator) !*str_object.StrObject {
 pub fn textReturnCol(cur_line: *types.LineHdrObject, cur_col: isize, splitting: bool) isize {
     var new_col: isize = if (cur_col >= cur_line.group.?.frame.margin_left) cur_line.group.?.frame.margin_left else 1;
 
-    if (cur_line.group.?.frame.options.autoIndent and cur_line.f_link != null) {
+    if (cur_line.group.?.frame.options.auto_indent and cur_line.f_link != null) {
         var str1 = cur_line.str.?;
         const used1 = cur_line.used;
         var str2 = cur_line.str.?;
@@ -760,7 +760,7 @@ test "text return column honors margin and auto-indent" {
     try std.testing.expectEqual(@as(isize, 1), textReturnCol(fixture.content_lines[0], 3, false));
     try std.testing.expectEqual(@as(isize, 5), textReturnCol(fixture.content_lines[0], 10, false));
 
-    fixture.frame.options.autoIndent = true;
+    fixture.frame.options.auto_indent = true;
     try line_ops.setLineContent(fixture.content_lines[0], "    A");
     try std.testing.expectEqual(@as(isize, 5), textReturnCol(fixture.content_lines[0], 10, false));
 }

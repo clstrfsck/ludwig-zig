@@ -93,10 +93,10 @@ pub const ParseType = enum(u16) {
 };
 
 pub const FrameOptions = packed struct {
-    autoIndent: bool = false,
-    autoWrap: bool = false,
-    newLine: bool = false,
-    specialFrame: bool = false,
+    auto_indent: bool = false,
+    auto_wrap: bool = false,
+    new_line: bool = false,
+    special_frame: bool = false,
 };
 
 pub const Commands = enum(u16) {

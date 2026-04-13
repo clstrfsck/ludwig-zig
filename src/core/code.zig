@@ -826,7 +826,7 @@ fn executeArrowCommand(
     var new_eql = frame.dot.?.*;
     const used_split_line = command == .CmdReturn and
         editor.edit_mode == .mode_insert and
-        frame.options.newLine and
+        frame.options.new_line and
         frame.dot.?.line.f_link != null;
 
     const cmd_success = switch (command) {
@@ -845,7 +845,7 @@ fn executeArrowCommand(
             line_ops.lineToNumber(frame.last_group.?.last_line.?),
         ),
         .CmdReturn => blk: {
-            if (editor.edit_mode == .mode_insert and frame.options.newLine) {
+            if (editor.edit_mode == .mode_insert and frame.options.new_line) {
                 if (frame.dot.?.line.f_link == null) {
                     try text.textRealizeNull(allocator, frame.dot.?.line);
                     var eop_line_nr = line_ops.lineToNumber(frame.last_group.?.last_line.?);
@@ -973,7 +973,7 @@ fn markSortOrder(left: *types.MarkObject, right: *types.MarkObject) std.math.Ord
 }
 
 fn joinLines(allocator: std.mem.Allocator, frame: *types.FrameObject) !bool {
-    if (!frame.options.newLine) {
+    if (!frame.options.new_line) {
         return false;
     }
     const previous = frame.dot.?.line.b_link orelse return false;
@@ -3002,8 +3002,8 @@ test "code interpreter can apply frame parameters" {
     try std.testing.expectEqual(types.ModeType.mode_overtype, editor.edit_mode);
     try std.testing.expectEqual(@as(isize, 24), target.frame.scr_height);
     try std.testing.expectEqual(@as(isize, 100), target.frame.scr_width);
-    try std.testing.expect(target.frame.options.autoIndent);
-    try std.testing.expect(!target.frame.options.newLine);
+    try std.testing.expect(target.frame.options.auto_indent);
+    try std.testing.expect(!target.frame.options.new_line);
 }
 
 test "code interpreter can validate linked frame/span state" {
@@ -3017,9 +3017,9 @@ test "code interpreter can validate linked frame/span state" {
     const cmd = (try frame_ops.frameEdit(&editor, allocator, current, "COMMAND")).?;
     const oops = (try frame_ops.frameEdit(&editor, allocator, current, "OOPS")).?;
     const heap = (try frame_ops.frameEdit(&editor, allocator, current, "HEAP")).?;
-    cmd.options.specialFrame = true;
-    oops.options.specialFrame = true;
-    heap.options.specialFrame = true;
+    cmd.options.special_frame = true;
+    oops.options.special_frame = true;
+    heap.options.special_frame = true;
     var special_frames: types.SpecialFrames = .{
         .cmd = cmd,
         .oops = oops,
@@ -3065,7 +3065,7 @@ test "code interpreter can bind simple user key commands" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const heap = (try frame_ops.frameEdit(&editor, allocator, target.frame, "HEAP")).?;
-    heap.options.specialFrame = true;
+    heap.options.special_frame = true;
     var special_frames: types.SpecialFrames = .{
         .heap = heap,
     };
@@ -3087,7 +3087,7 @@ test "code interpreter can bind extended user key commands" {
 
     const target = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const heap = (try frame_ops.frameEdit(&editor, allocator, target.frame, "HEAP")).?;
-    heap.options.specialFrame = true;
+    heap.options.special_frame = true;
     var special_frames: types.SpecialFrames = .{
         .heap = heap,
     };
@@ -3558,7 +3558,7 @@ test "code interpreter can table files into oops frame" {
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const current = (try frame_ops.frameEdit(&editor, allocator, root.frame, "WORK")).?;
     const oops = (try frame_ops.frameEdit(&editor, allocator, current, "OOPS")).?;
-    oops.options.specialFrame = true;
+    oops.options.special_frame = true;
     var special_frames: types.SpecialFrames = .{
         .oops = oops,
     };
@@ -3599,7 +3599,7 @@ test "code interpreter can index spans into oops frame" {
     try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "NAME", mark_one.?, mark_two.?));
 
     const oops = (try frame_ops.frameEdit(&editor, allocator, target.frame, "OOPS")).?;
-    oops.options.specialFrame = true;
+    oops.options.special_frame = true;
     var special_frames: types.SpecialFrames = .{
         .oops = oops,
     };

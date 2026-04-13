@@ -101,7 +101,7 @@ fn makeSpecialFrame(
     name: []const u8,
 ) !*types.FrameObject {
     const frame = (try frame_ops.frameEdit(editor, allocator, current, name)).?;
-    frame.options.specialFrame = true;
+    frame.options.special_frame = true;
     return frame;
 }
 
