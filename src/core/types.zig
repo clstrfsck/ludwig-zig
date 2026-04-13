@@ -77,19 +77,19 @@ pub const blank_frame_name = "";
 pub const default_frame_name = "LUDWIG";
 
 pub const VerifyResponse = enum(u16) {
-    VerifyReplyYes,
-    VerifyReplyNo,
-    VerifyReplyAlways,
-    VerifyReplyQuit,
+    verify_yes,
+    verify_no,
+    verify_always,
+    verify_quit,
 };
 
 pub const ParseType = enum(u16) {
-    ParseCommand,
-    ParseInput,
-    ParseOutput,
-    ParseEdit,
-    ParseStdin,
-    ParseExecute,
+    parse_command,
+    parse_input,
+    parse_output,
+    parse_edit,
+    parse_stdin,
+    parse_execute,
 };
 
 pub const FrameOptions = packed struct {
@@ -252,42 +252,42 @@ pub const Commands = enum(u16) {
 };
 
 pub const LeadParam = enum(u16) {
-    LeadParamNone,
-    LeadParamPlus,
-    LeadParamMinus,
-    LeadParamPInt,
-    LeadParamNInt,
-    LeadParamPIndef,
-    LeadParamNIndef,
-    LeadParamMarker,
+    lead_param_none,
+    lead_param_plus,
+    lead_param_minus,
+    lead_param_p_int,
+    lead_param_n_int,
+    lead_param_p_indef,
+    lead_param_n_indef,
+    lead_param_marker,
 };
 
 pub const EqualAction = enum(u16) {
-    EqNil,
-    EqDel,
-    EqOld,
+    eq_nil,
+    eq_del,
+    eq_old,
 };
 
 pub const PromptType = enum(u16) {
-    NoPrompt,
-    CharPrompt,
-    GetPrompt,
-    EqualPrompt,
-    KeyPrompt,
-    CmdPrompt,
-    SpanPrompt,
-    TextPrompt,
-    FramePrompt,
-    FilePrompt,
-    ColumnPrompt,
-    MarkPrompt,
-    ParamPrompt,
-    TopicPrompt,
-    ReplacePrompt,
-    ByPrompt,
-    VerifyPrompt,
-    PatternPrompt,
-    PatternSetPrompt,
+    no_prompt,
+    char_prompt,
+    get_prompt,
+    equal_prompt,
+    key_prompt,
+    cmd_prompt,
+    span_prompt,
+    text_prompt,
+    frame_prompt,
+    file_prompt,
+    column_prompt,
+    mark_prompt,
+    param_prompt,
+    topic_prompt,
+    replace_prompt,
+    by_prompt,
+    verify_prompt,
+    pattern_prompt,
+    pattern_set_prompt,
 };
 
 pub const ParameterType = enum(u16) {
@@ -538,7 +538,7 @@ pub const PromptRegionAttrib = struct {
 };
 
 pub const CodeObject = struct {
-    rep: LeadParam = .LeadParamNone,
+    rep: LeadParam = .lead_param_none,
     cnt: isize = 0,
     op: Commands = .CmdNoop,
     tpar: ?*TParObject = null,
@@ -564,14 +564,14 @@ pub const KeyNameRecord = struct {
 };
 
 pub const TParAttribute = struct {
-    prompt_name: PromptType = .NoPrompt,
+    prompt_name: PromptType = .no_prompt,
     trim_reply: bool = false,
     ml_allowed: bool = false,
 };
 
 pub const CmdAttribRec = struct {
     lp_allowed: u32 = 0,
-    eq_action: EqualAction = .EqNil,
+    eq_action: EqualAction = .eq_nil,
     tp_count: isize = 0,
     tpar_info: [max_tp_count + 1]TParAttribute = [_]TParAttribute{.{}} ** (max_tp_count + 1),
 };

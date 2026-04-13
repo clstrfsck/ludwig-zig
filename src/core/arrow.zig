@@ -22,13 +22,13 @@ fn isArrowCommand(command: types.Commands) bool {
 pub fn doCmdLeft(frame: *types.FrameObject, rept: types.LeadParam, count: isize, new_eql: *types.MarkObject) bool {
     new_eql.* = frame.dot.?.*;
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (frame.dot.?.col - count >= 1) {
                 frame.dot.?.col -= count;
                 return true;
             }
         },
-        .LeadParamPIndef => {
+        .lead_param_p_indef => {
             if (frame.dot.?.col >= frame.margin_left) {
                 frame.dot.?.col = frame.margin_left;
                 return true;
@@ -42,13 +42,13 @@ pub fn doCmdLeft(frame: *types.FrameObject, rept: types.LeadParam, count: isize,
 pub fn doCmdRight(frame: *types.FrameObject, rept: types.LeadParam, count: isize, new_eql: *types.MarkObject) bool {
     new_eql.* = frame.dot.?.*;
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (frame.dot.?.col + count <= types.max_str_len_p1) {
                 frame.dot.?.col += count;
                 return true;
             }
         },
-        .LeadParamPIndef => {
+        .lead_param_p_indef => {
             if (frame.dot.?.col <= frame.margin_right) {
                 frame.dot.?.col = frame.margin_right;
                 return true;
@@ -98,7 +98,7 @@ pub fn doCmdUp(
     var dot_line = frame.dot.?.line;
     const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (line_nr - count > 0) {
                 if (count < types.max_group_lines / 2) {
                     var counter: isize = 1;
@@ -112,7 +112,7 @@ pub fn doCmdUp(
                 return false;
             }
         },
-        .LeadParamPIndef => dot_line = frame.first_group.?.first_line.?,
+        .lead_param_p_indef => dot_line = frame.first_group.?.first_line.?,
         else => {},
     }
     new_eql.* = frame.dot.?.*;
@@ -131,7 +131,7 @@ pub fn doCmdDown(
     var dot_line = frame.dot.?.line;
     const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (line_nr + count <= eop_line_nr) {
                 if (count < types.max_group_lines / 2) {
                     var counter: isize = 1;
@@ -143,7 +143,7 @@ pub fn doCmdDown(
                 }
             }
         },
-        .LeadParamPIndef => dot_line = frame.last_group.?.last_line.?,
+        .lead_param_p_indef => dot_line = frame.last_group.?.last_line.?,
         else => {},
     }
     new_eql.* = frame.dot.?.*;
@@ -195,9 +195,9 @@ test "left and right commands obey bounds and margins" {
     frame.dot = &dot;
 
     var eql = types.MarkObject{ .line = &dot_line, .col = 0 };
-    try std.testing.expect(doCmdLeft(&frame, .LeadParamNone, 1, &eql));
+    try std.testing.expect(doCmdLeft(&frame, .lead_param_none, 1, &eql));
     try std.testing.expectEqual(@as(isize, 9), frame.dot.?.col);
-    try std.testing.expect(doCmdRight(&frame, .LeadParamPIndef, 0, &eql));
+    try std.testing.expect(doCmdRight(&frame, .lead_param_p_indef, 0, &eql));
     try std.testing.expectEqual(@as(isize, 80), frame.dot.?.col);
 }
 

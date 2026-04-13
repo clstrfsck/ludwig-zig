@@ -139,7 +139,7 @@ test "editor init ports value.go defaults and compiler state" {
     try std.testing.expect(!editor.file_data.entab);
     try std.testing.expect(!editor.file_data.purge);
     try std.testing.expectEqual(@as(isize, 1), editor.file_data.versions);
-    try std.testing.expectEqualStrings("Command:", editor.dflt_prompts[@intFromEnum(types.PromptType.CmdPrompt)]);
+    try std.testing.expectEqualStrings("Command:", editor.dflt_prompts[@intFromEnum(types.PromptType.cmd_prompt)]);
 }
 
 test "editor init recreates prefix and lookup table defaults" {
@@ -151,7 +151,7 @@ test "editor init recreates prefix and lookup table defaults" {
     try std.testing.expectEqual(types.Commands.CmdAdvance, editor.lookup['A'].command);
     try std.testing.expectEqual(types.Commands.CmdCommand, editor.lookup['\\'].command);
     try std.testing.expectEqual(@as(usize, 35), editor.lookup_exp_ptr[@intFromEnum(types.Commands.CmdPrefixS)]);
-    try std.testing.expectEqual(types.EqualAction.EqNil, editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].eq_action);
+    try std.testing.expectEqual(types.EqualAction.eq_nil, editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].eq_action);
     try std.testing.expectEqual(@as(isize, 2), editor.cmd_attrib[@intFromEnum(types.Commands.CmdReplace)].tp_count);
 }
 

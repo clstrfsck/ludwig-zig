@@ -323,7 +323,7 @@ pub fn bindCompiledKey(
 
     const code = key_span.code orelse return false;
     const first = &editor.compiler_code[@intCast(code.code)];
-    if (code.len == 2 and first.rep == .LeadParamNone and !specialCommand(first.op)) {
+    if (code.len == 2 and first.rep == .lead_param_none and !specialCommand(first.op)) {
         binding.command = first.op;
         binding.tpar = first.tpar;
         first.tpar = null;

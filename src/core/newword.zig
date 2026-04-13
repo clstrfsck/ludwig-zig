@@ -123,24 +123,24 @@ pub fn newwordAdvanceWord(
     var rept_mut = rept;
     var count_mut = count;
 
-    if (rept_mut == .LeadParamMarker) {
+    if (rept_mut == .lead_param_marker) {
         const index: usize = @intCast(count_mut);
         try moveMarkInPlace(allocator, new_dot.?, frame.marks[index].?.line, frame.marks[index].?.col);
-        rept_mut = .LeadParamNInt;
+        rept_mut = .lead_param_n_int;
         count_mut = 0;
     }
-    if (rept_mut == .LeadParamPInt and count_mut == 0) {
-        rept_mut = .LeadParamNInt;
+    if (rept_mut == .lead_param_p_int and count_mut == 0) {
+        rept_mut = .lead_param_n_int;
     }
 
     switch (rept_mut) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             while (count_mut > 0) : (count_mut -= 1) {
                 if (!try nextWord(allocator, new_dot.?)) return false;
             }
             try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
-        .LeadParamMinus, .LeadParamNInt => {
+        .lead_param_minus, .lead_param_n_int => {
             count_mut = -count_mut;
             if (!try currentWord(allocator, new_dot.?)) return false;
             while (count_mut > 0) : (count_mut -= 1) {
@@ -148,7 +148,7 @@ pub fn newwordAdvanceWord(
             }
             try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
-        .LeadParamPIndef => {
+        .lead_param_p_indef => {
             if (new_dot.?.line.used == 0) return false;
             if (new_dot.?.col > new_dot.?.line.used + 2) {
                 if (new_dot.?.line.f_link == null or new_dot.?.line.f_link.?.used == 0) return false;
@@ -163,7 +163,7 @@ pub fn newwordAdvanceWord(
                 try moveDot(allocator, frame, new_dot.?.line, new_dot.?.line.used + 2);
             }
         },
-        .LeadParamNIndef => {
+        .lead_param_n_indef => {
             if (!try currentWord(allocator, new_dot.?)) return false;
             try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
             while (try previousWord(allocator, new_dot.?)) {
@@ -190,7 +190,7 @@ pub fn newwordDeleteWord(
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
-    if (!try newwordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) return false;
+    if (!try newwordAdvanceWord(allocator, frame, .lead_param_p_int, 0)) return false;
     try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &here);
     if (!try newwordAdvanceWord(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.line, old_pos.?.col);
@@ -305,24 +305,24 @@ pub fn newwordAdvanceParagraph(
 
     var rept_mut = rept;
     var count_mut = count;
-    if (rept_mut == .LeadParamMarker) {
+    if (rept_mut == .lead_param_marker) {
         const index: usize = @intCast(count_mut);
         try moveMarkInPlace(allocator, new_dot.?, frame.marks[index].?.line, frame.marks[index].?.col);
-        rept_mut = .LeadParamNInt;
+        rept_mut = .lead_param_n_int;
         count_mut = 0;
     }
-    if (rept_mut == .LeadParamPInt and count_mut == 0) {
-        rept_mut = .LeadParamNInt;
+    if (rept_mut == .lead_param_p_int and count_mut == 0) {
+        rept_mut = .lead_param_n_int;
     }
 
     switch (rept_mut) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             while (count_mut > 0) : (count_mut -= 1) {
                 if (!try nextParagraph(allocator, new_dot.?)) return false;
             }
             try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
-        .LeadParamMinus, .LeadParamNInt => {
+        .lead_param_minus, .lead_param_n_int => {
             count_mut = -count_mut;
             if (!try currentParagraph(allocator, new_dot.?)) return false;
             while (count_mut > 0) : (count_mut -= 1) {
@@ -332,8 +332,8 @@ pub fn newwordAdvanceParagraph(
             }
             try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
-        .LeadParamPIndef => try moveDot(allocator, frame, frame.last_group.?.last_line.?, frame.margin_left),
-        .LeadParamNIndef => {
+        .lead_param_p_indef => try moveDot(allocator, frame, frame.last_group.?.last_line.?, frame.margin_left),
+        .lead_param_n_indef => {
             var new_line = new_dot.?.line;
             while (new_line.b_link != null and new_line.used == 0) {
                 new_line = new_line.b_link.?;
@@ -369,7 +369,7 @@ pub fn newwordDeleteParagraph(
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
-    if (!try newwordAdvanceParagraph(allocator, frame, .LeadParamPInt, 0)) return false;
+    if (!try newwordAdvanceParagraph(allocator, frame, .lead_param_p_int, 0)) return false;
     try mark_ops.markCreate(allocator, frame.dot.?.line, 1, &here);
     if (!try newwordAdvanceParagraph(allocator, frame, rept, count)) {
         try moveDot(allocator, frame, old_pos.?.line, old_pos.?.col);
@@ -421,15 +421,15 @@ test "newword advance word supports forward backward and marker movement" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world foo"});
-    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .lead_param_none, 1));
     try std.testing.expectEqual(@as(isize, 7), fixture.frame.dot.?.col);
 
     try moveDot(allocator, fixture.frame, fixture.content_lines[0], 9);
-    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamNInt, -1));
+    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .lead_param_n_int, -1));
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 14, &fixture.frame.marks[1]);
-    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamMarker, 1));
+    try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .lead_param_marker, 1));
     try std.testing.expectEqual(@as(isize, 13), fixture.frame.dot.?.col);
 }
 
@@ -440,14 +440,14 @@ test "newword advance paragraph finds current next and first paragraphs" {
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello world", "", "foo bar" });
     try moveDot(allocator, fixture.frame, fixture.content_lines[0], 5);
-    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamPInt, 0));
+    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .lead_param_p_int, 0));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
     try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.col);
 
-    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .lead_param_none, 1));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[2]);
 
-    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNIndef, 0));
+    try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .lead_param_n_indef, 0));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
 }
 
@@ -458,10 +458,10 @@ test "newword delete word and paragraph remove text ranges" {
 
     const word_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
     try moveDot(allocator, word_fixture.frame, word_fixture.content_lines[0], 1);
-    try std.testing.expect(try newwordDeleteWord(allocator, word_fixture.frame, word_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordDeleteWord(allocator, word_fixture.frame, word_fixture.frame, .lead_param_none, 1));
     try std.testing.expectEqualStrings("world", line_ops.getLineContent(word_fixture.content_lines[0]));
 
     const para_fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello world", "", "foo bar" });
     try moveDot(allocator, para_fixture.frame, para_fixture.content_lines[0], 1);
-    try std.testing.expect(try newwordDeleteParagraph(allocator, para_fixture.frame, para_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try newwordDeleteParagraph(allocator, para_fixture.frame, para_fixture.frame, .lead_param_none, 1));
 }

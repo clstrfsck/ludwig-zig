@@ -34,7 +34,7 @@ pub fn caseDittoCommand(
     };
 
     if ((command == .CmdDittoUp or command == .CmdDittoDown) and insert and
-        (rept == .LeadParamMinus or rept == .LeadParamNInt or rept == .LeadParamNIndef))
+        (rept == .lead_param_minus or rept == .lead_param_n_int or rept == .lead_param_n_indef))
     {
         return false;
     }
@@ -46,20 +46,20 @@ pub fn caseDittoCommand(
 
     if (cmd_valid) {
         switch (rept) {
-            .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+            .lead_param_none, .lead_param_plus, .lead_param_p_int => {
                 if (count_mut != 0 and frame.dot.?.col + count_mut > other_line.?.used + 1) {
                     cmd_valid = false;
                 }
                 first_col = frame.dot.?.col;
                 new_col = frame.dot.?.col + count_mut;
             },
-            .LeadParamPIndef => {
+            .lead_param_p_indef => {
                 count_mut = other_line.?.used + 1 - frame.dot.?.col;
                 if (count_mut < 0) cmd_valid = false;
                 first_col = frame.dot.?.col;
                 new_col = other_line.?.used + 1;
             },
-            .LeadParamMinus, .LeadParamNInt => {
+            .lead_param_minus, .lead_param_n_int => {
                 count_mut = -count_mut;
                 if (count_mut >= frame.dot.?.col) {
                     cmd_valid = false;
@@ -68,7 +68,7 @@ pub fn caseDittoCommand(
                 }
                 new_col = first_col;
             },
-            .LeadParamNIndef => {
+            .lead_param_n_indef => {
                 count_mut = frame.dot.?.col - 1;
                 first_col = 1;
                 new_col = 1;
@@ -157,7 +157,7 @@ test "case ditto rejects negative ditto params in insert contexts" {
         allocator,
         fixture.frame,
         .CmdDittoUp,
-        .LeadParamMinus,
+        .lead_param_minus,
         -1,
         true,
         .mode_insert,
@@ -167,7 +167,7 @@ test "case ditto rejects negative ditto params in insert contexts" {
         allocator,
         fixture.frame,
         .CmdDittoDown,
-        .LeadParamNInt,
+        .lead_param_n_int,
         -1,
         true,
         .mode_command,
@@ -185,7 +185,7 @@ test "case commands rewrite the current line in place" {
         allocator,
         up_fixture.frame,
         .CmdCaseUp,
-        .LeadParamNone,
+        .lead_param_none,
         5,
         true,
         .mode_command,
@@ -198,7 +198,7 @@ test "case commands rewrite the current line in place" {
         allocator,
         low_fixture.frame,
         .CmdCaseLow,
-        .LeadParamNone,
+        .lead_param_none,
         5,
         true,
         .mode_command,
@@ -211,7 +211,7 @@ test "case commands rewrite the current line in place" {
         allocator,
         edit_fixture.frame,
         .CmdCaseEdit,
-        .LeadParamNone,
+        .lead_param_none,
         5,
         true,
         .mode_command,
@@ -231,7 +231,7 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
         allocator,
         plus_fixture.frame,
         .CmdDittoUp,
-        .LeadParamPlus,
+        .lead_param_plus,
         4,
         true,
         .mode_command,
@@ -245,7 +245,7 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
         allocator,
         pindef_fixture.frame,
         .CmdDittoUp,
-        .LeadParamPIndef,
+        .lead_param_p_indef,
         0,
         true,
         .mode_command,
@@ -265,7 +265,7 @@ test "ditto commands honor backward copy parameters" {
         allocator,
         minus_fixture.frame,
         .CmdDittoUp,
-        .LeadParamMinus,
+        .lead_param_minus,
         -3,
         true,
         .mode_command,
@@ -280,7 +280,7 @@ test "ditto commands honor backward copy parameters" {
         allocator,
         nindef_fixture.frame,
         .CmdDittoUp,
-        .LeadParamNIndef,
+        .lead_param_n_indef,
         0,
         true,
         .mode_command,

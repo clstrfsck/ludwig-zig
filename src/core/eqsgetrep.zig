@@ -127,13 +127,13 @@ pub fn eqsGetRepEqs(
         );
 
         success = switch (rept) {
-            .LeadParamNone, .LeadParamPlus => frame.dot.?.col == start_col and found,
-            .LeadParamMinus => !((frame.dot.?.col == start_col) and found),
-            .LeadParamPIndef => end_pos <= frame.dot.?.line.used and found,
-            .LeadParamNIndef => end_pos >= frame.dot.?.line.used and found,
+            .lead_param_none, .lead_param_plus => frame.dot.?.col == start_col and found,
+            .lead_param_minus => !((frame.dot.?.col == start_col) and found),
+            .lead_param_p_indef => end_pos <= frame.dot.?.line.used and found,
+            .lead_param_n_indef => end_pos >= frame.dot.?.line.used and found,
             else => false,
         };
-        if (success and rept != .LeadParamMinus) {
+        if (success and rept != .lead_param_minus) {
             try mark_ops.markCreate(allocator, frame.dot.?.line, end_pos, &frame.marks[types.mark_equals]);
         }
         return success;
@@ -163,13 +163,13 @@ pub fn eqsGetRepEqs(
         &nch_ident,
     );
     success = switch (rept) {
-        .LeadParamNone, .LeadParamPlus => result == 0,
-        .LeadParamMinus => result != 0,
-        .LeadParamPIndef => result <= 0,
-        .LeadParamNIndef => result >= 0,
+        .lead_param_none, .lead_param_plus => result == 0,
+        .lead_param_minus => result != 0,
+        .lead_param_p_indef => result <= 0,
+        .lead_param_n_indef => result >= 0,
         else => false,
     };
-    if (success and rept != .LeadParamMinus) {
+    if (success and rept != .lead_param_minus) {
         try mark_ops.markCreate(
             allocator,
             frame.dot.?.line,
@@ -447,12 +447,12 @@ pub fn eqsGetRepRep(
     }
 
     const getcount: isize = switch (rept) {
-        .LeadParamMinus, .LeadParamNIndef, .LeadParamNInt => -1,
+        .lead_param_minus, .lead_param_n_indef, .lead_param_n_int => -1,
         else => 1,
     };
 
     var remaining = count;
-    if (rept == .LeadParamPIndef or rept == .LeadParamNIndef) {
+    if (rept == .lead_param_p_indef or rept == .lead_param_n_indef) {
         remaining = types.max_int;
     } else if (remaining < 0) {
         remaining = -remaining;
@@ -516,7 +516,7 @@ pub fn eqsGetRepRep(
     } else {
         mark_ops.markDestroy(allocator, &frame.marks[types.mark_equals]);
     }
-    result = remaining == 0 or rept == .LeadParamPIndef or rept == .LeadParamNIndef;
+    result = remaining == 0 or rept == .lead_param_p_indef or rept == .lead_param_n_indef;
     return result;
 }
 
@@ -533,7 +533,7 @@ test "eqs get rep eqs supports smart patterns and literal comparisons" {
         .len = 7,
         .dlm = types.tpd_smart,
     };
-    try std.testing.expect(try eqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &smart));
+    try std.testing.expect(try eqsGetRepEqs(allocator, fixture.frame, .lead_param_none, &smart));
     try std.testing.expectEqual(@as(isize, 12), fixture.frame.marks[types.mark_equals].?.col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.dot);
@@ -542,7 +542,7 @@ test "eqs get rep eqs supports smart patterns and literal comparisons" {
         .len = 5,
         .dlm = types.tpd_lit,
     };
-    try std.testing.expect(try eqsGetRepEqs(allocator, fixture.frame, .LeadParamNone, &literal));
+    try std.testing.expect(try eqsGetRepEqs(allocator, fixture.frame, .lead_param_none, &literal));
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.marks[types.mark_equals].?.col);
 }
 
@@ -637,7 +637,7 @@ test "eqs get rep replace updates content and preserves forward and backward cur
         .len = 5,
         .dlm = types.tpd_lit,
     };
-    try std.testing.expect(try eqsGetRepRep(allocator, forward_fixture.frame, .LeadParamPlus, 1, &target, &replacement, true));
+    try std.testing.expect(try eqsGetRepRep(allocator, forward_fixture.frame, .lead_param_plus, 1, &target, &replacement, true));
     try std.testing.expectEqualStrings("hello earth test", forward_fixture.content_lines[0].str.?.slice(1, 16));
     try std.testing.expectEqual(@as(isize, 12), forward_fixture.frame.dot.?.col);
     try std.testing.expectEqual(@as(isize, 7), forward_fixture.frame.marks[types.mark_equals].?.col);
@@ -646,7 +646,7 @@ test "eqs get rep replace updates content and preserves forward and backward cur
 
     const backward_fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"hello world test"});
     try mark_ops.markCreate(allocator, backward_fixture.content_lines[0], 12, &backward_fixture.frame.dot);
-    try std.testing.expect(try eqsGetRepRep(allocator, backward_fixture.frame, .LeadParamMinus, -1, &target, &replacement, true));
+    try std.testing.expect(try eqsGetRepRep(allocator, backward_fixture.frame, .lead_param_minus, -1, &target, &replacement, true));
     try std.testing.expectEqualStrings("hello earth test", backward_fixture.content_lines[0].str.?.slice(1, 16));
     try std.testing.expectEqual(@as(isize, 7), backward_fixture.frame.dot.?.col);
     try std.testing.expectEqual(@as(isize, 12), backward_fixture.frame.marks[types.mark_equals].?.col);
@@ -675,7 +675,7 @@ test "eqs get rep replace supports multiline replacement chains" {
         .con = &repl2,
     };
 
-    try std.testing.expect(try eqsGetRepRep(allocator, fixture.frame, .LeadParamPlus, 1, &target, &repl1, true));
+    try std.testing.expect(try eqsGetRepRep(allocator, fixture.frame, .lead_param_plus, 1, &target, &repl1, true));
     try std.testing.expectEqualStrings("Hello Line1", fixture.content_lines[0].str.?.slice(1, 11));
     try std.testing.expect(fixture.content_lines[0].f_link != null);
     try std.testing.expectEqualStrings("Line2", fixture.content_lines[0].f_link.?.str.?.slice(1, 5));

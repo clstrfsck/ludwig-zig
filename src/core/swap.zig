@@ -23,23 +23,23 @@ pub fn swapLine(
 
     var dest_line: *types.LineHdrObject = undefined;
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             dest_line = next_line;
             var i: isize = 1;
             while (i <= count) : (i += 1) {
                 dest_line = dest_line.f_link orelse return false;
             }
         },
-        .LeadParamMinus, .LeadParamNInt => {
+        .lead_param_minus, .lead_param_n_int => {
             dest_line = this_line;
             var i: isize = -1;
             while (i >= count) : (i -= 1) {
                 dest_line = dest_line.b_link orelse return false;
             }
         },
-        .LeadParamPIndef => dest_line = frame.last_group.?.last_line.?,
-        .LeadParamNIndef => dest_line = frame.first_group.?.first_line.?,
-        .LeadParamMarker => {
+        .lead_param_p_indef => dest_line = frame.last_group.?.last_line.?,
+        .lead_param_n_indef => dest_line = frame.first_group.?.first_line.?,
+        .lead_param_marker => {
             const slot: usize = @intCast(count);
             dest_line = frame.marks[slot].?.line;
         },
@@ -84,7 +84,7 @@ test "swap line handles forward backward and indefinite moves" {
     try line_ops.setLineContent(forward_fixture.content_lines[4], "fifth");
     forward_fixture.frame.dot = try allocator.create(types.MarkObject);
     forward_fixture.frame.dot.?.* = .{ .line = forward_fixture.content_lines[0], .col = 1 };
-    try std.testing.expect(try swapLine(allocator, forward_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try swapLine(allocator, forward_fixture.frame, .lead_param_none, 1));
     var contents = try collectLineContents(allocator, forward_fixture.frame.first_group.?.first_line.?);
     try std.testing.expectEqualStrings("second", contents[0]);
     try std.testing.expectEqualStrings("first", contents[1]);
@@ -97,7 +97,7 @@ test "swap line handles forward backward and indefinite moves" {
     try line_ops.setLineContent(backward_fixture.content_lines[4], "fifth");
     backward_fixture.frame.dot = try allocator.create(types.MarkObject);
     backward_fixture.frame.dot.?.* = .{ .line = backward_fixture.content_lines[3], .col = 1 };
-    try std.testing.expect(try swapLine(allocator, backward_fixture.frame, .LeadParamNInt, -1));
+    try std.testing.expect(try swapLine(allocator, backward_fixture.frame, .lead_param_n_int, -1));
     contents = try collectLineContents(allocator, backward_fixture.frame.first_group.?.first_line.?);
     try std.testing.expectEqualStrings("fourth", contents[2]);
     try std.testing.expect(backward_fixture.frame.text_modified);
@@ -110,7 +110,7 @@ test "swap line handles forward backward and indefinite moves" {
     try line_ops.setLineContent(pindef_fixture.content_lines[4], "fifth");
     pindef_fixture.frame.dot = try allocator.create(types.MarkObject);
     pindef_fixture.frame.dot.?.* = .{ .line = pindef_fixture.content_lines[0], .col = 1 };
-    try std.testing.expect(try swapLine(allocator, pindef_fixture.frame, .LeadParamPIndef, 0));
+    try std.testing.expect(try swapLine(allocator, pindef_fixture.frame, .lead_param_p_indef, 0));
     contents = try collectLineContents(allocator, pindef_fixture.frame.first_group.?.first_line.?);
     try std.testing.expectEqualStrings("first", contents[contents.len - 1]);
 }
@@ -130,7 +130,7 @@ test "swap line supports marker destination and preserves dot column" {
     fixture.frame.dot.?.* = .{ .line = fixture.content_lines[0], .col = 7 };
     try mark_ops.markCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.marks[types.mark_equals]);
 
-    try std.testing.expect(try swapLine(allocator, fixture.frame, .LeadParamMarker, types.mark_equals));
+    try std.testing.expect(try swapLine(allocator, fixture.frame, .lead_param_marker, types.mark_equals));
     try std.testing.expectEqual(@as(isize, 7), fixture.frame.dot.?.col);
     try std.testing.expect(fixture.frame.marks[types.mark_modified] != null);
 }

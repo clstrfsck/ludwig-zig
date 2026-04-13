@@ -4,7 +4,7 @@ const state = @import("state.zig");
 const types = @import("types.zig");
 const str_object = @import("str_object.zig");
 
-pub const prompt_count = @as(usize, @intFromEnum(types.PromptType.PatternSetPrompt)) + 1;
+pub const prompt_count = @as(usize, @intFromEnum(types.PromptType.pattern_set_prompt)) + 1;
 
 pub fn setRegularTabStops(editor: *state.Editor, width: isize) void {
     const clamped_width = @max(@as(isize, 2), @min(@as(isize, 8), width));
@@ -51,25 +51,25 @@ pub fn setupInitialValues(editor: *state.Editor) !void {
         editor.prefixes.set(cmd);
     }
 
-    editor.dflt_prompts[@intFromEnum(types.PromptType.NoPrompt)] = "        ";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.CharPrompt)] = "Charset:";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.GetPrompt)] = "Get    :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.EqualPrompt)] = "Equal  :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.KeyPrompt)] = "Key    :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.CmdPrompt)] = "Command:";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.SpanPrompt)] = "Span   :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.TextPrompt)] = "Text   :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.FramePrompt)] = "Frame  :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.FilePrompt)] = "File   :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.ColumnPrompt)] = "Column :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.MarkPrompt)] = "Mark   :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.ParamPrompt)] = "Param  :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.TopicPrompt)] = "Topic  :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.ReplacePrompt)] = "Replace:";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.ByPrompt)] = "By     :";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.VerifyPrompt)] = "Verify ?";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.PatternPrompt)] = "Pattern:";
-    editor.dflt_prompts[@intFromEnum(types.PromptType.PatternSetPrompt)] = "Pat Set:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.no_prompt)] = "        ";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.char_prompt)] = "Charset:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.get_prompt)] = "Get    :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.equal_prompt)] = "Equal  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.key_prompt)] = "Key    :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.cmd_prompt)] = "Command:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.span_prompt)] = "Span   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.text_prompt)] = "Text   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.frame_prompt)] = "Frame  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.file_prompt)] = "File   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.column_prompt)] = "Column :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.mark_prompt)] = "Mark   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.param_prompt)] = "Param  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.topic_prompt)] = "Topic  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.replace_prompt)] = "Replace:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.by_prompt)] = "By     :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.verify_prompt)] = "Verify ?";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.pattern_prompt)] = "Pattern:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.pattern_set_prompt)] = "Pat Set:";
 
     editor.file_data = .{
         .old_cmds = true,

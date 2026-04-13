@@ -10,12 +10,12 @@ fn blankString(allocator: std.mem.Allocator) !*str_object.StrObject {
 }
 
 fn normalizeLineCommandRepeat(rept: *types.LeadParam, count: *isize) void {
-    if (rept.* == .LeadParamPIndef) {
+    if (rept.* == .lead_param_p_indef) {
         count.* = types.max_int;
     }
-    if (rept.* == .LeadParamNone or rept.* == .LeadParamPlus) {
+    if (rept.* == .lead_param_none or rept.* == .lead_param_plus) {
         count.* = 1;
-        rept.* = .LeadParamPInt;
+        rept.* = .lead_param_p_int;
     }
 }
 
@@ -55,14 +55,14 @@ pub fn wordFill(
     var leave_dot_alone = false;
     var rept_mut = rept;
     var count_mut = count;
-    if (rept_mut == .LeadParamPIndef) {
+    if (rept_mut == .lead_param_p_indef) {
         count_mut = types.max_int;
     }
-    if (rept_mut == .LeadParamNone) {
+    if (rept_mut == .lead_param_none) {
         count_mut = 1;
-        rept_mut = .LeadParamPInt;
+        rept_mut = .lead_param_p_int;
     }
-    if (rept_mut == .LeadParamPInt and !validateNonBlankLineCount(frame, count_mut)) {
+    if (rept_mut == .lead_param_p_int and !validateNonBlankLineCount(frame, count_mut)) {
         return false;
     }
 
@@ -130,7 +130,7 @@ pub fn wordFill(
             }
             mark_ops.markDestroy(allocator, &here);
             mark_ops.markDestroy(allocator, &there);
-            if (rept_mut != .LeadParamPIndef) {
+            if (rept_mut != .lead_param_p_indef) {
                 count_mut += 1;
             }
         } else {
@@ -226,7 +226,7 @@ pub fn wordFill(
         frame.text_modified = true;
         try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
-    return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
+    return (count_mut <= 0) or (rept_mut == .lead_param_p_indef);
 }
 
 pub fn wordCentre(
@@ -246,7 +246,7 @@ pub fn wordCentre(
     var rept_mut = rept;
     var count_mut = count;
     normalizeLineCommandRepeat(&rept_mut, &count_mut);
-    if (rept_mut == .LeadParamPInt and !validateNonBlankLineCount(frame, count_mut)) {
+    if (rept_mut == .lead_param_p_int and !validateNonBlankLineCount(frame, count_mut)) {
         return false;
     }
 
@@ -275,7 +275,7 @@ pub fn wordCentre(
         frame.text_modified = true;
         try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
-    return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
+    return (count_mut <= 0) or (rept_mut == .lead_param_p_indef);
 }
 
 pub fn wordJustify(
@@ -293,7 +293,7 @@ pub fn wordJustify(
     var rept_mut = rept;
     var count_mut = count;
     normalizeLineCommandRepeat(&rept_mut, &count_mut);
-    if (rept_mut == .LeadParamPInt and !validateNonBlankLineCount(frame, count_mut)) {
+    if (rept_mut == .lead_param_p_int and !validateNonBlankLineCount(frame, count_mut)) {
         return false;
     }
 
@@ -352,7 +352,7 @@ pub fn wordJustify(
         frame.text_modified = true;
         try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
-    return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
+    return (count_mut <= 0) or (rept_mut == .lead_param_p_indef);
 }
 
 pub fn wordSqueeze(
@@ -369,7 +369,7 @@ pub fn wordSqueeze(
     var rept_mut = rept;
     var count_mut = count;
     normalizeLineCommandRepeat(&rept_mut, &count_mut);
-    if (rept_mut == .LeadParamPInt and !validateNonBlankLineCount(frame, count_mut)) {
+    if (rept_mut == .lead_param_p_int and !validateNonBlankLineCount(frame, count_mut)) {
         return false;
     }
 
@@ -405,7 +405,7 @@ pub fn wordSqueeze(
         frame.text_modified = true;
         try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
-    return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
+    return (count_mut <= 0) or (rept_mut == .lead_param_p_indef);
 }
 
 pub fn wordRight(
@@ -425,7 +425,7 @@ pub fn wordRight(
     var rept_mut = rept;
     var count_mut = count;
     normalizeLineCommandRepeat(&rept_mut, &count_mut);
-    if (rept_mut == .LeadParamPInt and !validateNonBlankLineCount(frame, count_mut)) {
+    if (rept_mut == .lead_param_p_int and !validateNonBlankLineCount(frame, count_mut)) {
         return false;
     }
 
@@ -454,7 +454,7 @@ pub fn wordRight(
         frame.text_modified = true;
         try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
-    return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
+    return (count_mut <= 0) or (rept_mut == .lead_param_p_indef);
 }
 
 pub fn wordLeft(
@@ -474,7 +474,7 @@ pub fn wordLeft(
     var rept_mut = rept;
     var count_mut = count;
     normalizeLineCommandRepeat(&rept_mut, &count_mut);
-    if (rept_mut == .LeadParamPInt and !validateNonBlankLineCount(frame, count_mut)) {
+    if (rept_mut == .lead_param_p_int and !validateNonBlankLineCount(frame, count_mut)) {
         return false;
     }
 
@@ -502,7 +502,7 @@ pub fn wordLeft(
         frame.text_modified = true;
         try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
-    return (count_mut <= 0) or (rept_mut == .LeadParamPIndef);
+    return (count_mut <= 0) or (rept_mut == .lead_param_p_indef);
 }
 
 pub fn wordAdvanceWord(
@@ -515,12 +515,12 @@ pub fn wordAdvanceWord(
     var pos = frame.dot.?.col;
     var count_mut = count;
 
-    if (rept == .LeadParamMarker) {
+    if (rept == .lead_param_marker) {
         return false;
     }
 
-    if (rept == .LeadParamNone or rept == .LeadParamPlus or rept == .LeadParamPIndef or (rept == .LeadParamPInt and count_mut != 0)) {
-        if (rept == .LeadParamPIndef) {
+    if (rept == .lead_param_none or rept == .lead_param_plus or rept == .lead_param_p_indef or (rept == .lead_param_p_int and count_mut != 0)) {
+        if (rept == .lead_param_p_indef) {
             while (this_line.used != 0 and this_line.f_link != null) {
                 this_line = this_line.f_link.?;
             }
@@ -545,7 +545,7 @@ pub fn wordAdvanceWord(
                 pos = 1;
                 while (true) {
                     if (this_line.f_link == null) {
-                        if (rept == .LeadParamPIndef) break :outer;
+                        if (rept == .lead_param_p_indef) break :outer;
                         return false;
                     }
                     this_line = this_line.f_link.?;
@@ -558,7 +558,7 @@ pub fn wordAdvanceWord(
             count_mut -= 1;
         }
         try moveDot(allocator, frame, this_line, pos);
-    } else if (rept == .LeadParamNIndef) {
+    } else if (rept == .lead_param_n_indef) {
         while (this_line.used == 0 and this_line.b_link != null) {
             this_line = this_line.b_link.?;
         }
@@ -629,12 +629,12 @@ pub fn wordDeleteWord(
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
-    if (rept == .LeadParamMarker) {
+    if (rept == .lead_param_marker) {
         return false;
     }
 
     try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &old_pos);
-    if (!try wordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) {
+    if (!try wordAdvanceWord(allocator, frame, .lead_param_p_int, 0)) {
         return false;
     }
     try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &here);
@@ -687,7 +687,7 @@ test "word left aligns lines to the left margin" {
     fixture.frame.margin_left = 3;
     fixture.frame.margin_right = 20;
 
-    try std.testing.expect(try wordLeft(allocator, fixture.frame, .LeadParamPInt, 2));
+    try std.testing.expect(try wordLeft(allocator, fixture.frame, .lead_param_p_int, 2));
     try expectLineContent(fixture.content_lines[0], "  hello");
     try expectLineContent(fixture.content_lines[1], "  world");
     try std.testing.expect(fixture.frame.dot.?.line == fixture.sentinel_line);
@@ -701,7 +701,7 @@ test "word right aligns content to the right margin" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"  hello"});
     fixture.frame.margin_left = 3;
     fixture.frame.margin_right = 10;
-    try std.testing.expect(try wordRight(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordRight(allocator, fixture.frame, .lead_param_none, 1));
     try expectLineContent(fixture.content_lines[0], "     hello");
 }
 
@@ -713,7 +713,7 @@ test "word centre shifts content toward the middle of margins" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"      hello"});
     fixture.frame.margin_left = 3;
     fixture.frame.margin_right = 11;
-    try std.testing.expect(try wordCentre(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordCentre(allocator, fixture.frame, .lead_param_none, 1));
     try expectLineContent(fixture.content_lines[0], "    hello");
 }
 
@@ -725,7 +725,7 @@ test "word justify expands interior holes when next line is nonblank" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "  hello world", "next line" });
     fixture.frame.margin_left = 3;
     fixture.frame.margin_right = 20;
-    try std.testing.expect(try wordJustify(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordJustify(allocator, fixture.frame, .lead_param_none, 1));
     try std.testing.expectEqual(@as(isize, 20), fixture.content_lines[0].used);
 }
 
@@ -735,7 +735,7 @@ test "word squeeze collapses repeated spaces" {
     const allocator = arena.allocator();
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"a   b   c"});
-    try std.testing.expect(try wordSqueeze(allocator, fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordSqueeze(allocator, fixture.frame, .lead_param_none, 1));
     try expectLineContent(fixture.content_lines[0], "a b c");
 }
 
@@ -746,13 +746,13 @@ test "word fill can split long lines and pull from the next line" {
 
     const split_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
     split_fixture.frame.margin_right = 10;
-    try std.testing.expect(try wordFill(allocator, split_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordFill(allocator, split_fixture.frame, .lead_param_none, 1));
     try expectLineContent(split_fixture.content_lines[0], "hello");
     try expectLineContent(split_fixture.content_lines[0].f_link, "world");
 
     const pull_fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello", "hi" });
     pull_fixture.frame.margin_right = 10;
-    try std.testing.expect(try wordFill(allocator, pull_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordFill(allocator, pull_fixture.frame, .lead_param_none, 1));
     try expectLineContent(pull_fixture.content_lines[0], "hello hi");
 }
 
@@ -763,17 +763,17 @@ test "word advance word moves across whitespace and lines" {
 
     const same_line = try buildWordFrame(allocator, &[_][]const u8{"hello world foo"});
     try moveDot(allocator, same_line.frame, same_line.content_lines[0], 1);
-    try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .LeadParamPInt, 2));
+    try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .lead_param_p_int, 2));
     try std.testing.expectEqual(@as(isize, 13), same_line.frame.dot.?.col);
 
     const across_lines = try buildWordFrame(allocator, &[_][]const u8{ "hello", "world" });
     try moveDot(allocator, across_lines.frame, across_lines.content_lines[0], 1);
-    try std.testing.expect(try wordAdvanceWord(allocator, across_lines.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordAdvanceWord(allocator, across_lines.frame, .lead_param_none, 1));
     try std.testing.expect(across_lines.frame.dot.?.line == across_lines.content_lines[1]);
     try std.testing.expectEqual(@as(isize, 1), across_lines.frame.dot.?.col);
 
     try moveDot(allocator, same_line.frame, same_line.content_lines[0], 8);
-    try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .LeadParamNInt, -1));
+    try std.testing.expect(try wordAdvanceWord(allocator, same_line.frame, .lead_param_n_int, -1));
     try std.testing.expectEqual(@as(isize, 1), same_line.frame.dot.?.col);
 }
 
@@ -784,11 +784,11 @@ test "word delete word removes the next word and restores dot on failure" {
 
     const delete_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world"});
     try moveDot(allocator, delete_fixture.frame, delete_fixture.content_lines[0], 1);
-    try std.testing.expect(try wordDeleteWord(allocator, delete_fixture.frame, delete_fixture.frame, .LeadParamNone, 1));
+    try std.testing.expect(try wordDeleteWord(allocator, delete_fixture.frame, delete_fixture.frame, .lead_param_none, 1));
     try expectLineContent(delete_fixture.content_lines[0], "world");
 
     const fail_fixture = try buildWordFrame(allocator, &[_][]const u8{"hello"});
     try moveDot(allocator, fail_fixture.frame, fail_fixture.content_lines[0], 3);
-    try std.testing.expect(!(try wordDeleteWord(allocator, fail_fixture.frame, fail_fixture.frame, .LeadParamNone, 1)));
+    try std.testing.expect(!(try wordDeleteWord(allocator, fail_fixture.frame, fail_fixture.frame, .lead_param_none, 1)));
     try std.testing.expectEqual(@as(isize, 3), fail_fixture.frame.dot.?.col);
 }

@@ -827,7 +827,7 @@ fn computeLineRange(
     var last_line: ?*types.LineHdrObject = dot.line;
 
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (count == 0) {
                 first_line = null;
             } else if (count <= 20) {
@@ -846,7 +846,7 @@ fn computeLineRange(
                 }
             }
         },
-        .LeadParamMinus, .LeadParamNInt => {
+        .lead_param_minus, .lead_param_n_int => {
             const abs_count = -count;
             last_line = dot.line.b_link orelse return null;
             if (abs_count <= 20) {
@@ -863,14 +863,14 @@ fn computeLineRange(
                 first_line = line_ops.lineFromNumber(frame, line_nr);
             }
         },
-        .LeadParamPIndef => {
+        .lead_param_p_indef => {
             if (dot.line.f_link == null) {
                 first_line = null;
             } else {
                 last_line = frame.last_group.?.last_line.?.b_link;
             }
         },
-        .LeadParamNIndef => {
+        .lead_param_n_indef => {
             last_line = dot.line.b_link;
             if (last_line == null) {
                 first_line = null;
@@ -878,7 +878,7 @@ fn computeLineRange(
                 first_line = frame.first_group.?.first_line;
             }
         },
-        .LeadParamMarker => {
+        .lead_param_marker => {
             const mark_line = mark orelse return null;
             if (mark_line.line == first_line.?) {
                 first_line = null;
@@ -917,8 +917,8 @@ pub fn fileReadCommand(
         return false;
     }
     const input_file = editor.files[@intCast(editor.fgi_file)] orelse return false;
-    const lines_to_read = if (rept == .LeadParamPIndef) types.max_int else count;
-    const read_result = fileReadBuffered(input_file, lines_to_read, rept == .LeadParamPIndef) orelse return false;
+    const lines_to_read = if (rept == .lead_param_p_indef) types.max_int else count;
+    const read_result = fileReadBuffered(input_file, lines_to_read, rept == .lead_param_p_indef) orelse return false;
     if (read_result.first) |first| {
         const last = read_result.last.?;
         try line_ops.linesInject(allocator, first, last, frame.dot.?.line);
@@ -955,7 +955,7 @@ pub fn filePage(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    const page_out = computeLineRange(frame, .LeadParamNIndef, 0, null) orelse return false;
+    const page_out = computeLineRange(frame, .lead_param_n_indef, 0, null) orelse return false;
     if (page_out.first) |first| {
         const last = page_out.last.?;
         if (frame.output_file != 0) {
