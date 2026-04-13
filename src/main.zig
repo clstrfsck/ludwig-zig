@@ -37,6 +37,7 @@ pub fn main() !void {
             else
                 std.fs.File.stderr().writer(&buf).interface;
             try writer.print("{s}\n", .{parse.message});
+            try writer.flush();
         }
         if (parse.show_usage) {
             return;
