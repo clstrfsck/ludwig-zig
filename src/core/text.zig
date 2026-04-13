@@ -48,7 +48,7 @@ pub fn textRealizeNull(allocator: std.mem.Allocator, old_null: *types.LineHdrObj
     const frame = range.first.group.?.frame;
     frame.text_modified = true;
     if (frame.dot) |dot| {
-        try mark_ops.markCreate(allocator, dot.Line, dot.Col, &frame.marks[types.mark_modified]);
+        try mark_ops.markCreate(allocator, dot.line, dot.col, &frame.marks[types.mark_modified]);
     }
 }
 
@@ -66,8 +66,8 @@ pub fn textInsert(
         return true;
     }
 
-    var dst_line = dst.Line;
-    const dst_col = dst.Col;
+    var dst_line = dst.line;
+    const dst_col = dst.col;
 
     var final_len = dst_col - 1 + insert_len;
     var tail_len = dst_line.used + 1 - dst_col;
@@ -126,13 +126,13 @@ pub fn textOvertype(
         return true;
     }
 
-    var dst_line = dst.Line;
-    const final_len = dst.Col + overtype_len - 1;
+    var dst_line = dst.line;
+    const final_len = dst.col + overtype_len - 1;
     if (final_len > types.max_str_len) {
         return false;
     }
     if (dst_line.f_link == null) {
-        try textRealizeNull(allocator, dst.Line);
+        try textRealizeNull(allocator, dst.line);
         dst_line = dst_line.b_link.?;
     }
 
@@ -140,7 +140,7 @@ pub fn textOvertype(
         try line_ops.lineChangeLength(allocator, dst_line, final_len);
     }
 
-    var new_col = dst.Col;
+    var new_col = dst.col;
     var repetitions: isize = 0;
     while (repetitions < count) : (repetitions += 1) {
         dst_line.str.?.copy(buf, 1, buf_len, new_col);
@@ -151,7 +151,7 @@ pub fn textOvertype(
         dst_line.used = dst_line.str.?.trimmedLen(' ', @intCast(dst_line.len()));
     }
     markLineDirty(dst_line.group.?.frame, dst_line);
-    dst.Col += overtype_len;
+    dst.col += overtype_len;
     return true;
 }
 
@@ -161,25 +161,25 @@ pub fn textInsertTpar(
     before_mark: *types.MarkObject,
     equals_mark: *?*types.MarkObject,
 ) !bool {
-    if (tp.Con == null) {
-        if (!try textInsert(allocator, true, 1, tp.str.?, tp.Len, before_mark)) {
+    if (tp.con == null) {
+        if (!try textInsert(allocator, true, 1, tp.str.?, tp.len, before_mark)) {
             return false;
         }
-        try mark_ops.markCreate(allocator, before_mark.Line, before_mark.Col - tp.Len, equals_mark);
+        try mark_ops.markCreate(allocator, before_mark.line, before_mark.col - tp.len, equals_mark);
         return true;
     }
 
-    if (before_mark.Col + tp.Len > types.max_str_len) {
+    if (before_mark.col + tp.len > types.max_str_len) {
         return false;
     }
 
     var line_count: isize = 0;
-    var tmp_tp = tp.Con.?;
-    while (tmp_tp.Con != null) {
+    var tmp_tp = tp.con.?;
+    while (tmp_tp.con != null) {
         line_count += 1;
-        tmp_tp = tmp_tp.Con.?;
+        tmp_tp = tmp_tp.con.?;
     }
-    if (tmp_tp.Len + (before_mark.Line.used - before_mark.Col) > types.max_str_len) {
+    if (tmp_tp.len + (before_mark.line.used - before_mark.col) > types.max_str_len) {
         return false;
     }
 
@@ -191,32 +191,32 @@ pub fn textInsertTpar(
         last_line = range.last;
     }
 
-    if (before_mark.Line.f_link == null) {
-        try textRealizeNull(allocator, before_mark.Line);
+    if (before_mark.line.f_link == null) {
+        try textRealizeNull(allocator, before_mark.line);
     }
     if (!try textSplitLine(allocator, before_mark, 1, equals_mark)) {
         return false;
     }
-    if (!try textInsert(allocator, true, 1, tp.str.?, tp.Len, equals_mark.*.?)) {
+    if (!try textInsert(allocator, true, 1, tp.str.?, tp.len, equals_mark.*.?)) {
         return false;
     }
-    equals_mark.*.?.Col -= tp.Len;
+    equals_mark.*.?.col -= tp.len;
 
-    tmp_tp = tp.Con.?;
+    tmp_tp = tp.con.?;
     var tmp_line = first_line;
     var lines_written: isize = 0;
     while (lines_written < line_count) : (lines_written += 1) {
-        try line_ops.lineChangeLength(allocator, tmp_line.?, tmp_tp.Len);
-        tmp_line.?.str.?.copy(tmp_tp.str.?, 1, tmp_tp.Len, 1);
-        tmp_line.?.used = if (tmp_tp.Len == 0) 0 else tmp_line.?.str.?.trimmedLen(' ', tmp_tp.Len);
-        tmp_tp = tmp_tp.Con.?;
+        try line_ops.lineChangeLength(allocator, tmp_line.?, tmp_tp.len);
+        tmp_line.?.str.?.copy(tmp_tp.str.?, 1, tmp_tp.len, 1);
+        tmp_line.?.used = if (tmp_tp.len == 0) 0 else tmp_line.?.str.?.trimmedLen(' ', tmp_tp.len);
+        tmp_tp = tmp_tp.con.?;
         tmp_line = tmp_line.?.f_link;
     }
 
     if (line_count > 0) {
-        try line_ops.linesInject(allocator, first_line.?, last_line.?, before_mark.Line);
+        try line_ops.linesInject(allocator, first_line.?, last_line.?, before_mark.line);
     }
-    if (!try textInsert(allocator, true, 1, tmp_tp.str.?, tmp_tp.Len, before_mark)) {
+    if (!try textInsert(allocator, true, 1, tmp_tp.str.?, tmp_tp.len, before_mark)) {
         return false;
     }
     return true;
@@ -227,8 +227,8 @@ fn textIntraRemove(
     mark_one: *types.MarkObject,
     size: isize,
 ) !void {
-    const line = mark_one.Line;
-    const col_one = mark_one.Col;
+    const line = mark_one.line;
+    const col_one = mark_one.col;
     const col_two = col_one + size;
     try mark_ops.marksSqueeze(allocator, line, col_one, line, col_two);
     try mark_ops.marksShift(allocator, line, col_two, types.max_str_len_p1 + 1 - col_two, line, col_one);
@@ -265,14 +265,14 @@ fn textInterRemove(
     mark_one: *types.MarkObject,
     mark_two: *types.MarkObject,
 ) !bool {
-    if (mark_two.Line.f_link == null and mark_one.Col != 1) {
-        const line_one = mark_one.Line;
-        const col_one = mark_one.Col;
+    if (mark_two.line.f_link == null and mark_one.col != 1) {
+        const line_one = mark_one.line;
+        const col_one = mark_one.col;
         const extr_one = line_one.f_link.?;
-        const extr_two = mark_two.Line;
-        try textIntraRemove(allocator, mark_one, types.max_str_len_p1 - mark_one.Col);
-        try mark_ops.marksSqueeze(allocator, line_one, col_one, mark_two.Line, mark_two.Col);
-        try mark_ops.marksShift(allocator, mark_two.Line, mark_two.Col, types.max_str_len_p1 + 1 - mark_two.Col, line_one, col_one);
+        const extr_two = mark_two.line;
+        try textIntraRemove(allocator, mark_one, types.max_str_len_p1 - mark_one.col);
+        try mark_ops.marksSqueeze(allocator, line_one, col_one, mark_two.line, mark_two.col);
+        try mark_ops.marksShift(allocator, mark_two.line, mark_two.col, types.max_str_len_p1 + 1 - mark_two.col, line_one, col_one);
         if (extr_one != extr_two) {
             line_ops.linesExtract(extr_one, extr_two.b_link.?);
         }
@@ -282,45 +282,45 @@ fn textInterRemove(
     var mark_start: ?*types.MarkObject = null;
     defer mark_ops.markDestroy(allocator, &mark_start);
 
-    var text_len = mark_one.Line.used;
-    if (mark_one.Col <= text_len) {
-        text_len = mark_one.Col - 1;
+    var text_len = mark_one.line.used;
+    if (mark_one.col <= text_len) {
+        text_len = mark_one.col - 1;
     }
 
     const strng = try newBlankString(allocator);
     defer strng.destroy();
-    if (mark_one.Col > 1) {
-        strng.fillCopy(mark_one.Line.str.?, 1, text_len, 1, mark_one.Col - 1, ' ');
+    if (mark_one.col > 1) {
+        strng.fillCopy(mark_one.line.str.?, 1, text_len, 1, mark_one.col - 1, ' ');
     }
 
-    text_len = mark_one.Col - 1;
-    const delta = mark_one.Col - mark_two.Col;
+    text_len = mark_one.col - 1;
+    const delta = mark_one.col - mark_two.col;
     if (delta < 0) {
-        try mark_ops.markCreate(allocator, mark_two.Line, mark_one.Col, &mark_start);
-        try textIntraRemove(allocator, mark_start.?, mark_two.Col - mark_start.?.Col);
+        try mark_ops.markCreate(allocator, mark_two.line, mark_one.col, &mark_start);
+        try textIntraRemove(allocator, mark_start.?, mark_two.col - mark_start.?.col);
     } else if (delta > 0) {
         const strng_tail = try newBlankString(allocator);
         defer strng_tail.destroy();
-        strng_tail.copy(strng, mark_two.Col, delta, 1);
+        strng_tail.copy(strng, mark_two.col, delta, 1);
         if (!try textInsert(allocator, true, 1, strng_tail, delta, mark_two)) {
             return false;
         }
         text_len -= delta;
     }
 
-    try mark_ops.markCreate(allocator, mark_two.Line, 1, &mark_start);
+    try mark_ops.markCreate(allocator, mark_two.line, 1, &mark_start);
     if (text_len > 0) {
         if (!try textOvertype(allocator, true, 1, strng, text_len, mark_start.?)) {
             return false;
         }
     }
 
-    const col_one = mark_one.Col;
-    const extr_one = mark_one.Line;
-    const extr_two = mark_two.Line.b_link.?;
-    try mark_ops.marksSqueeze(allocator, extr_one, col_one, mark_two.Line, mark_two.Col);
+    const col_one = mark_one.col;
+    const extr_one = mark_one.line;
+    const extr_two = mark_two.line.b_link.?;
+    try mark_ops.marksSqueeze(allocator, extr_one, col_one, mark_two.line, mark_two.col);
     if (col_one > 1) {
-        try mark_ops.marksShift(allocator, extr_one, 1, col_one - 1, mark_two.Line, 1);
+        try mark_ops.marksShift(allocator, extr_one, 1, col_one - 1, mark_two.line, 1);
     }
     line_ops.linesExtract(extr_one, extr_two);
     return true;
@@ -331,8 +331,8 @@ pub fn textRemove(
     mark_one: *types.MarkObject,
     mark_two: *types.MarkObject,
 ) !bool {
-    if (mark_one.Line == mark_two.Line) {
-        try textIntraRemove(allocator, mark_one, mark_two.Col - mark_one.Col);
+    if (mark_one.line == mark_two.line) {
+        try textIntraRemove(allocator, mark_one, mark_two.col - mark_one.col);
         return true;
     }
     return textInterRemove(allocator, mark_one, mark_two);
@@ -348,8 +348,8 @@ fn textIntraMove(
     new_start: *?*types.MarkObject,
     new_end: *?*types.MarkObject,
 ) !bool {
-    const col_one = mark_one.Col;
-    const col_two = mark_two.Col;
+    const col_one = mark_one.col;
+    const col_two = mark_two.col;
     var full_len = col_two - col_one;
 
     const text_str = try newBlankString(allocator);
@@ -360,12 +360,12 @@ fn textIntraMove(
             return false;
         }
         var text_len = full_len;
-        if (col_one > mark_one.Line.used) {
+        if (col_one > mark_one.line.used) {
             text_len = 0;
-        } else if (col_two > mark_one.Line.used) {
-            text_len = mark_one.Line.used + 1 - col_one;
+        } else if (col_two > mark_one.line.used) {
+            text_len = mark_one.line.used + 1 - col_one;
         }
-        text_str.fillCopy(mark_one.Line.str.?, col_one, text_len, 1, full_len, ' ');
+        text_str.fillCopy(mark_one.line.str.?, col_one, text_len, 1, full_len, ' ');
         text_len = full_len;
 
         var i: isize = 1;
@@ -376,9 +376,9 @@ fn textIntraMove(
     }
 
     if (!copy_text) {
-        var dst_col = dst.Col;
-        var dst_used = dst.Line.used;
-        if (mark_one.Line == dst.Line) {
+        var dst_col = dst.col;
+        var dst_used = dst.line.used;
+        if (mark_one.line == dst.line) {
             if (dst_col > col_two) {
                 dst_col -= col_two - col_one;
             } else if (dst_col > col_one) {
@@ -399,16 +399,16 @@ fn textIntraMove(
             return false;
         }
         if (full_len != 0) {
-            try textIntraRemove(allocator, mark_one, mark_two.Col - mark_one.Col);
+            try textIntraRemove(allocator, mark_one, mark_two.col - mark_one.col);
         }
     }
 
     if (full_len != 0 and !try textInsert(allocator, true, 1, text_str, full_len, dst)) {
         return false;
     }
-    const dst_col = dst.Col;
-    try mark_ops.markCreate(allocator, dst.Line, dst_col - full_len, new_start);
-    try mark_ops.markCreate(allocator, dst.Line, dst_col, new_end);
+    const dst_col = dst.col;
+    try mark_ops.markCreate(allocator, dst.line, dst_col - full_len, new_start);
+    try mark_ops.markCreate(allocator, dst.line, dst_col, new_end);
     return true;
 }
 
@@ -438,17 +438,17 @@ fn textInterMove(
     const text_str = try newBlankString(allocator);
     defer text_str.destroy();
 
-    const line_one = mark_one.Line;
-    const col_one = mark_one.Col;
-    const line_two = mark_two.Line;
-    const col_two = mark_two.Col;
+    const line_one = mark_one.line;
+    const col_one = mark_one.col;
+    const line_two = mark_two.line;
+    const col_two = mark_two.col;
     const line_one_nr = line_ops.lineToNumber(line_one);
     const line_two_nr = line_ops.lineToNumber(line_two);
 
-    var dst_col = dst.Col;
-    var dst_used = dst.Line.used;
-    if (!copy_text and dst.Line.group.?.frame == line_one.group.?.frame) {
-        const line_dst_nr = line_ops.lineToNumber(dst.Line);
+    var dst_col = dst.col;
+    var dst_used = dst.line.used;
+    if (!copy_text and dst.line.group.?.frame == line_one.group.?.frame) {
+        const line_dst_nr = line_ops.lineToNumber(dst.line);
         if (line_one_nr <= line_dst_nr and line_dst_nr <= line_two_nr) {
             if (line_two_nr == line_dst_nr and dst_col >= col_two) {
                 dst_col = col_one + dst_col - col_two;
@@ -544,8 +544,8 @@ fn textInterMove(
         return false;
     }
 
-    var dst_line = dst.Line;
-    dst_col = dst.Col;
+    var dst_line = dst.line;
+    dst_col = dst.col;
 
     const last_line_length = last_line.used;
     const tail_len = dst_line.used + 1 - dst_col;
@@ -614,7 +614,7 @@ pub fn textMove(
     new_end: *?*types.MarkObject,
 ) !bool {
     if (count > 0) {
-        const cmd_success = if (mark_one.Line == mark_two.Line)
+        const cmd_success = if (mark_one.line == mark_two.line)
             try textIntraMove(allocator, copy_text, count, mark_one, mark_two, dst, new_start, new_end)
         else
             try textInterMove(allocator, copy_text, count, mark_one, mark_two, dst, new_start, new_end);
@@ -623,11 +623,11 @@ pub fn textMove(
             return false;
         }
         if (!copy_text) {
-            mark_two.Line.group.?.frame.text_modified = true;
-            try mark_ops.markCreate(allocator, mark_two.Line, mark_two.Col, &mark_two.Line.group.?.frame.marks[types.mark_modified]);
+            mark_two.line.group.?.frame.text_modified = true;
+            try mark_ops.markCreate(allocator, mark_two.line, mark_two.col, &mark_two.line.group.?.frame.marks[types.mark_modified]);
         }
-        new_end.*.?.Line.group.?.frame.text_modified = true;
-        try mark_ops.markCreate(allocator, new_end.*.?.Line, new_end.*.?.Col, &new_end.*.?.Line.group.?.frame.marks[types.mark_modified]);
+        new_end.*.?.line.group.?.frame.text_modified = true;
+        try mark_ops.markCreate(allocator, new_end.*.?.line, new_end.*.?.col, &new_end.*.?.line.group.?.frame.marks[types.mark_modified]);
     }
     return true;
 }
@@ -638,16 +638,16 @@ pub fn textSplitLine(
     requested_new_col: isize,
     equals_mark: *?*types.MarkObject,
 ) !bool {
-    if (before_mark.Line.f_link == null) {
+    if (before_mark.line.f_link == null) {
         return false;
     }
 
     var new_col = requested_new_col;
     if (new_col == 0) {
-        new_col = textReturnCol(before_mark.Line, before_mark.Col, true);
+        new_col = textReturnCol(before_mark.line, before_mark.col, true);
     }
 
-    var length = before_mark.Line.used + 1 - before_mark.Col;
+    var length = before_mark.line.used + 1 - before_mark.col;
     if (length <= 0) {
         length = 0;
     } else if (new_col + length > types.max_str_len_p1) {
@@ -657,71 +657,71 @@ pub fn textSplitLine(
     const range = try line_ops.linesCreate(allocator, 1);
     const new_line = range.first;
 
-    var shift = new_col - before_mark.Col;
+    var shift = new_col - before_mark.col;
     var cost: isize = types.max_int;
-    if (before_mark.Col <= before_mark.Line.used and before_mark.Line.scr_row_num != 0) {
+    if (before_mark.col <= before_mark.line.used and before_mark.line.scr_row_num != 0) {
         if (shift == 0) {
-            cost = before_mark.Col + before_mark.Col;
+            cost = before_mark.col + before_mark.col;
         } else if (shift > 0) {
-            cost = before_mark.Col + before_mark.Col + 3 * shift;
+            cost = before_mark.col + before_mark.col + 3 * shift;
         } else {
-            cost = before_mark.Col + before_mark.Col - 3 * shift;
+            cost = before_mark.col + before_mark.col - 3 * shift;
         }
     }
 
     var equals_col: isize = undefined;
     var equals_line: *types.LineHdrObject = undefined;
     if (2 * length < cost) {
-        equals_col = before_mark.Col;
-        equals_line = before_mark.Line;
+        equals_col = before_mark.col;
+        equals_line = before_mark.line;
         if (length > 0) {
             try line_ops.lineChangeLength(allocator, new_line, new_col + length - 1);
             new_line.str.?.fillN(' ', new_col - 1, 1);
-            new_line.str.?.copy(before_mark.Line.str.?, before_mark.Col, length, new_col);
-            before_mark.Line.str.?.fill(' ', before_mark.Col, before_mark.Col + length - 1);
-            before_mark.Line.used = before_mark.Line.str.?.trimmedLen(' ', before_mark.Line.used);
-            markLineDirty(before_mark.Line.group.?.frame, before_mark.Line);
+            new_line.str.?.copy(before_mark.line.str.?, before_mark.col, length, new_col);
+            before_mark.line.str.?.fill(' ', before_mark.col, before_mark.col + length - 1);
+            before_mark.line.used = before_mark.line.str.?.trimmedLen(' ', before_mark.line.used);
+            markLineDirty(before_mark.line.group.?.frame, before_mark.line);
             new_line.used = new_col + length - 1;
         }
-        try line_ops.linesInject(allocator, new_line, new_line, before_mark.Line.f_link.?);
-        try mark_ops.marksShift(allocator, before_mark.Line, before_mark.Col, types.max_str_len_p1 + 1 - before_mark.Col, new_line, new_col);
+        try line_ops.linesInject(allocator, new_line, new_line, before_mark.line.f_link.?);
+        try mark_ops.marksShift(allocator, before_mark.line, before_mark.col, types.max_str_len_p1 + 1 - before_mark.col, new_line, new_col);
     } else {
-        equals_col = before_mark.Col;
+        equals_col = before_mark.col;
         equals_line = new_line;
-        if (before_mark.Col <= before_mark.Line.used) {
-            shift = before_mark.Col - 1;
+        if (before_mark.col <= before_mark.line.used) {
+            shift = before_mark.col - 1;
         } else {
-            before_mark.Col = before_mark.Line.used;
-            shift = before_mark.Col - 1;
+            before_mark.col = before_mark.line.used;
+            shift = before_mark.col - 1;
         }
 
         if (shift > 0) {
             try line_ops.lineChangeLength(allocator, new_line, shift);
-            new_line.str.?.copy(before_mark.Line.str.?, 1, shift, 1);
+            new_line.str.?.copy(before_mark.line.str.?, 1, shift, 1);
             new_line.used = new_line.str.?.trimmedLen(' ', shift);
         }
 
-        try line_ops.linesInject(allocator, new_line, new_line, before_mark.Line);
+        try line_ops.linesInject(allocator, new_line, new_line, before_mark.line);
         markLineDirty(new_line.group.?.frame, new_line);
-        if (before_mark.Col > 1) {
-            try mark_ops.marksShift(allocator, before_mark.Line, 1, before_mark.Col - 1, new_line, 1);
+        if (before_mark.col > 1) {
+            try mark_ops.marksShift(allocator, before_mark.line, 1, before_mark.col - 1, new_line, 1);
         }
 
-        shift = new_col - before_mark.Col;
+        shift = new_col - before_mark.col;
         if (shift <= 0) {
             if (shift < 0) {
-                before_mark.Col += shift;
+                before_mark.col += shift;
                 try textIntraRemove(allocator, before_mark, -shift);
             }
             if (new_col > 1) {
                 const blank = try newBlankString(allocator);
                 defer blank.destroy();
-                const save_col = before_mark.Col;
-                before_mark.Col = 1;
+                const save_col = before_mark.col;
+                before_mark.col = 1;
                 if (!try textOvertype(allocator, true, 1, blank, new_col - 1, before_mark)) {
                     return false;
                 }
-                before_mark.Col = save_col;
+                before_mark.col = save_col;
             }
         } else {
             const blank = try newBlankString(allocator);
@@ -730,18 +730,18 @@ pub fn textSplitLine(
                 return false;
             }
             if (new_col > 1) {
-                const save_col = before_mark.Col;
-                before_mark.Col = 1;
+                const save_col = before_mark.col;
+                before_mark.col = 1;
                 if (!try textOvertype(allocator, true, 1, blank, new_col - 1, before_mark)) {
                     return false;
                 }
-                before_mark.Col = save_col;
+                before_mark.col = save_col;
             }
         }
     }
 
-    before_mark.Line.group.?.frame.text_modified = true;
-    try mark_ops.markCreate(allocator, before_mark.Line, before_mark.Col, &before_mark.Line.group.?.frame.marks[types.mark_modified]);
+    before_mark.line.group.?.frame.text_modified = true;
+    try mark_ops.markCreate(allocator, before_mark.line, before_mark.col, &before_mark.line.group.?.frame.marks[types.mark_modified]);
     try mark_ops.markCreate(allocator, equals_line, equals_col, equals_mark);
     return true;
 }
@@ -771,20 +771,20 @@ test "text insert handles empty middle and null lines" {
     const allocator = arena.allocator();
 
     var empty_fixture = try line_ops.setupLinkedLines(allocator, 2);
-    var insert_mark = types.MarkObject{ .Line = empty_fixture.content_lines[0], .Col = 1 };
+    var insert_mark = types.MarkObject{ .line = empty_fixture.content_lines[0], .col = 1 };
     const hello = try str_object.newStrObjectFrom(allocator, "Hi");
     try std.testing.expect(try textInsert(allocator, false, 1, hello, 2, &insert_mark));
     try expectLineContent(empty_fixture.content_lines[0], "Hi");
 
     const middle_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
-    var middle_mark = types.MarkObject{ .Line = middle_fixture.content_lines[0], .Col = 4 };
+    var middle_mark = types.MarkObject{ .line = middle_fixture.content_lines[0], .col = 4 };
     const xy = try str_object.newStrObjectFrom(allocator, "XY");
     try std.testing.expect(try textInsert(allocator, false, 1, xy, 2, &middle_mark));
     try expectLineContent(middle_fixture.content_lines[0], "HelXYlo");
 
     empty_fixture.frame.dot = try allocator.create(types.MarkObject);
-    empty_fixture.frame.dot.?.* = .{ .Line = empty_fixture.sentinel_line, .Col = 1 };
-    var null_mark = types.MarkObject{ .Line = empty_fixture.sentinel_line, .Col = 1 };
+    empty_fixture.frame.dot.?.* = .{ .line = empty_fixture.sentinel_line, .col = 1 };
+    var null_mark = types.MarkObject{ .line = empty_fixture.sentinel_line, .col = 1 };
     const z = try str_object.newStrObjectFrom(allocator, "Z");
     try std.testing.expect(try textInsert(allocator, false, 1, z, 1, &null_mark));
     try std.testing.expect(empty_fixture.frame.text_modified);
@@ -796,11 +796,11 @@ test "text overtype advances destination mark" {
     const allocator = arena.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
-    var mark = types.MarkObject{ .Line = fixture.content_lines[0], .Col = 2 };
+    var mark = types.MarkObject{ .line = fixture.content_lines[0], .col = 2 };
     const xy = try str_object.newStrObjectFrom(allocator, "XY");
     try std.testing.expect(try textOvertype(allocator, false, 1, xy, 2, &mark));
     try expectLineContent(fixture.content_lines[0], "HXYlo");
-    try std.testing.expectEqual(@as(isize, 4), mark.Col);
+    try std.testing.expectEqual(@as(isize, 4), mark.col);
 }
 
 test "text remove works within and across lines" {
@@ -809,8 +809,8 @@ test "text remove works within and across lines" {
     const allocator = arena.allocator();
 
     const intra = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello World"});
-    var mark_one = types.MarkObject{ .Line = intra.content_lines[0], .Col = 7 };
-    var mark_two = types.MarkObject{ .Line = intra.content_lines[0], .Col = 12 };
+    var mark_one = types.MarkObject{ .line = intra.content_lines[0], .col = 7 };
+    var mark_two = types.MarkObject{ .line = intra.content_lines[0], .col = 12 };
     try std.testing.expect(try textRemove(allocator, &mark_one, &mark_two));
     try expectLineContent(intra.content_lines[0], "Hello");
 
@@ -818,10 +818,10 @@ test "text remove works within and across lines" {
     try line_ops.setLineContent(inter.content_lines[0], "First line");
     try line_ops.setLineContent(inter.content_lines[1], "Second line");
     try line_ops.setLineContent(inter.content_lines[2], "Third line");
-    mark_one = .{ .Line = inter.content_lines[0], .Col = 7 };
-    mark_two = .{ .Line = inter.content_lines[2], .Col = 7 };
+    mark_one = .{ .line = inter.content_lines[0], .col = 7 };
+    mark_two = .{ .line = inter.content_lines[2], .col = 7 };
     try std.testing.expect(try textRemove(allocator, &mark_one, &mark_two));
-    try expectLineContent(mark_two.Line, "First line");
+    try expectLineContent(mark_two.line, "First line");
 }
 
 test "text split line creates equals mark and preserves content" {
@@ -832,9 +832,9 @@ test "text split line creates equals mark and preserves content" {
     var fixture = try line_ops.setupLinkedLines(allocator, 2);
     try line_ops.setLineContent(fixture.content_lines[0], "Hello World");
     fixture.frame.dot = try allocator.create(types.MarkObject);
-    fixture.frame.dot.?.* = .{ .Line = fixture.content_lines[0], .Col = 1 };
+    fixture.frame.dot.?.* = .{ .line = fixture.content_lines[0], .col = 1 };
 
-    var before_mark = types.MarkObject{ .Line = fixture.content_lines[0], .Col = 7 };
+    var before_mark = types.MarkObject{ .line = fixture.content_lines[0], .col = 7 };
     var equals_mark: ?*types.MarkObject = null;
     try std.testing.expect(try textSplitLine(allocator, &before_mark, 1, &equals_mark));
     try std.testing.expect(equals_mark != null);
@@ -848,18 +848,18 @@ test "text move copies and moves single-line ranges" {
     const allocator = arena.allocator();
 
     const copy_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello"});
-    var mark_one = types.MarkObject{ .Line = copy_fixture.content_lines[0], .Col = 1 };
-    var mark_two = types.MarkObject{ .Line = copy_fixture.content_lines[0], .Col = 6 };
-    var dst = types.MarkObject{ .Line = copy_fixture.content_lines[0], .Col = 10 };
+    var mark_one = types.MarkObject{ .line = copy_fixture.content_lines[0], .col = 1 };
+    var mark_two = types.MarkObject{ .line = copy_fixture.content_lines[0], .col = 6 };
+    var dst = types.MarkObject{ .line = copy_fixture.content_lines[0], .col = 10 };
     var new_start: ?*types.MarkObject = null;
     var new_end: ?*types.MarkObject = null;
     try std.testing.expect(try textMove(allocator, true, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
     try std.testing.expect(new_start != null and new_end != null);
 
     const move_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"Hello World"});
-    mark_one = .{ .Line = move_fixture.content_lines[0], .Col = 1 };
-    mark_two = .{ .Line = move_fixture.content_lines[0], .Col = 6 };
-    dst = .{ .Line = move_fixture.content_lines[0], .Col = 12 };
+    mark_one = .{ .line = move_fixture.content_lines[0], .col = 1 };
+    mark_two = .{ .line = move_fixture.content_lines[0], .col = 6 };
+    dst = .{ .line = move_fixture.content_lines[0], .col = 12 };
     new_start = null;
     new_end = null;
     try std.testing.expect(try textMove(allocator, false, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
@@ -874,9 +874,9 @@ test "text move copies and moves multi-line ranges" {
     const copy_fixture = try line_ops.setupLinkedLines(allocator, 4);
     try line_ops.setLineContent(copy_fixture.content_lines[0], "First");
     try line_ops.setLineContent(copy_fixture.content_lines[1], "Second");
-    var mark_one = types.MarkObject{ .Line = copy_fixture.content_lines[0], .Col = 1 };
-    var mark_two = types.MarkObject{ .Line = copy_fixture.content_lines[1], .Col = 7 };
-    var dst = types.MarkObject{ .Line = copy_fixture.content_lines[2], .Col = 1 };
+    var mark_one = types.MarkObject{ .line = copy_fixture.content_lines[0], .col = 1 };
+    var mark_two = types.MarkObject{ .line = copy_fixture.content_lines[1], .col = 7 };
+    var dst = types.MarkObject{ .line = copy_fixture.content_lines[2], .col = 1 };
     var new_start: ?*types.MarkObject = null;
     var new_end: ?*types.MarkObject = null;
     try std.testing.expect(try textMove(allocator, true, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
@@ -886,9 +886,9 @@ test "text move copies and moves multi-line ranges" {
     const move_fixture = try line_ops.setupLinkedLines(allocator, 4);
     try line_ops.setLineContent(move_fixture.content_lines[0], "AAA");
     try line_ops.setLineContent(move_fixture.content_lines[1], "BBB");
-    mark_one = .{ .Line = move_fixture.content_lines[0], .Col = 2 };
-    mark_two = .{ .Line = move_fixture.content_lines[1], .Col = 3 };
-    dst = .{ .Line = move_fixture.content_lines[2], .Col = 1 };
+    mark_one = .{ .line = move_fixture.content_lines[0], .col = 2 };
+    mark_two = .{ .line = move_fixture.content_lines[1], .col = 3 };
+    dst = .{ .line = move_fixture.content_lines[2], .col = 1 };
     new_start = null;
     new_end = null;
     try std.testing.expect(try textMove(allocator, false, 1, &mark_one, &mark_two, &dst, &new_start, &new_end));
@@ -902,9 +902,9 @@ test "text insert tpar handles simple and multiline chains" {
     const allocator = arena.allocator();
 
     const simple_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{""});
-    var before_mark = types.MarkObject{ .Line = simple_fixture.content_lines[0], .Col = 1 };
+    var before_mark = types.MarkObject{ .line = simple_fixture.content_lines[0], .col = 1 };
     const hello = try str_object.newStrObjectFrom(allocator, "Hello");
-    var simple_tpar = types.TParObject{ .Len = 5, .str = hello };
+    var simple_tpar = types.TParObject{ .len = 5, .str = hello };
     var equals_mark: ?*types.MarkObject = null;
     try std.testing.expect(try textInsertTpar(allocator, &simple_tpar, &before_mark, &equals_mark));
     try expectLineContent(simple_fixture.content_lines[0], "Hello");
@@ -915,13 +915,13 @@ test "text insert tpar handles simple and multiline chains" {
     const line1 = try str_object.newStrObjectFrom(allocator, "Line1");
     const line2 = try str_object.newStrObjectFrom(allocator, "Line2");
     const line3 = try str_object.newStrObjectFrom(allocator, "Line3");
-    var tpar3 = types.TParObject{ .Len = 5, .str = line3 };
-    var tpar2 = types.TParObject{ .Len = 5, .str = line2, .Con = &tpar3 };
-    var tpar1 = types.TParObject{ .Len = 5, .str = line1, .Con = &tpar2 };
+    var tpar3 = types.TParObject{ .len = 5, .str = line3 };
+    var tpar2 = types.TParObject{ .len = 5, .str = line2, .con = &tpar3 };
+    var tpar1 = types.TParObject{ .len = 5, .str = line1, .con = &tpar2 };
     equals_mark = null;
     try std.testing.expect(try textInsertTpar(allocator, &tpar1, mark.?, &equals_mark));
     try std.testing.expect(equals_mark != null);
-    try expectLineContent(equals_mark.?.Line, "Hello Line1");
-    try expectLineContent(equals_mark.?.Line.f_link, "Line2");
-    try expectLineContent(equals_mark.?.Line.f_link.?.f_link, "Line3World");
+    try expectLineContent(equals_mark.?.line, "Hello Line1");
+    try expectLineContent(equals_mark.?.line.f_link, "Line2");
+    try expectLineContent(equals_mark.?.line.f_link.?.f_link, "Line3World");
 }

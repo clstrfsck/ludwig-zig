@@ -31,8 +31,8 @@ const VarType = enum {
 
 fn emitMessage(editor: *const state.Editor, message: []const u8) void {
     switch (editor.ludwig_mode) {
-        .LudwigScreen => interactive_io.queueStatusMessage(message),
-        .LudwigBatch, .LudwigHardcopy => {
+        .ludwig_screen => interactive_io.queueStatusMessage(message),
+        .ludwig_batch, .ludwig_hardcopy => {
             if (editor.batch_output_enabled) {
                 batch_output.printMessage(message);
             }
@@ -61,24 +61,24 @@ fn tparDuplicateCon(
 ) !void {
     tp_out.* = tpar.*;
     tp_out.str = try tpar.str.?.clone();
-    tp_out.Nxt = null;
-    tp_out.Con = null;
+    tp_out.nxt = null;
+    tp_out.con = null;
 
-    var src_con = tpar.Con;
+    var src_con = tpar.con;
     var prev: ?*types.TParObject = null;
     while (src_con) |current| {
         const node = try allocator.create(types.TParObject);
         node.* = current.*;
         node.str = try current.str.?.clone();
-        node.Nxt = null;
-        node.Con = null;
+        node.nxt = null;
+        node.con = null;
         if (prev) |previous| {
-            previous.Con = node;
+            previous.con = node;
         } else {
-            tp_out.Con = node;
+            tp_out.con = node;
         }
         prev = node;
-        src_con = current.Con;
+        src_con = current.con;
     }
 }
 
@@ -93,20 +93,20 @@ pub fn tparDuplicate(
     const to_tp = try allocator.create(types.TParObject);
     try tparDuplicateCon(allocator, from_tp.?, to_tp);
 
-    var src_next = from_tp.?.Nxt;
+    var src_next = from_tp.?.nxt;
     var dst_next = to_tp;
     while (src_next) |current| {
         const node = try allocator.create(types.TParObject);
         try tparDuplicateCon(allocator, current, node);
-        dst_next.Nxt = node;
+        dst_next.nxt = node;
         dst_next = node;
-        src_next = current.Nxt;
+        src_next = current.nxt;
     }
     return to_tp;
 }
 
 pub fn tparToInt(strng: *types.TParObject, chpos: *isize) ?isize {
-    const first = if (chpos.* > strng.Len) 0 else strng.str.?.get(chpos.*);
+    const first = if (chpos.* > strng.len) 0 else strng.str.?.get(chpos.*);
     if (first < '0' or first > '9') {
         return null;
     }
@@ -120,7 +120,7 @@ pub fn tparToInt(strng: *types.TParObject, chpos: *isize) ?isize {
         }
         number = number * 10 + digit;
         chpos.* += 1;
-        ch = if (chpos.* > strng.Len) 0 else strng.str.?.get(chpos.*);
+        ch = if (chpos.* > strng.len) 0 else strng.str.?.get(chpos.*);
         if (ch < '0' or ch > '9') {
             break;
         }
@@ -137,26 +137,26 @@ pub fn tparToIntMessage(editor: *state.Editor, strng: *types.TParObject, chpos: 
 }
 
 pub fn tparToMark(strng: *types.TParObject) ?isize {
-    if (strng.Len == 0) {
+    if (strng.len == 0) {
         return null;
     }
     const mch = strng.str.?.get(1);
     if (mch >= '0' and mch <= '9') {
         var pos: isize = 1;
         const mark = tparToInt(strng, &pos) orelse return null;
-        if (pos <= strng.Len or mark < types.min_user_mark_number or mark > types.max_user_mark_number) {
+        if (pos <= strng.len or mark < types.min_user_mark_number or mark > types.max_user_mark_number) {
             return null;
         }
         return mark;
     }
-    if (strng.Len > 1 or (mch != '=' and mch != '%')) {
+    if (strng.len > 1 or (mch != '=' and mch != '%')) {
         return null;
     }
     return if (mch == '=') types.mark_equals else types.mark_modified;
 }
 
 pub fn tparToMarkMessage(editor: *state.Editor, strng: *types.TParObject) ?isize {
-    if (strng.Len == 0) {
+    if (strng.len == 0) {
         emitMessage(editor, illegal_mark_number_message);
         return null;
     }
@@ -164,13 +164,13 @@ pub fn tparToMarkMessage(editor: *state.Editor, strng: *types.TParObject) ?isize
     if (mch >= '0' and mch <= '9') {
         var pos: isize = 1;
         const mark = tparToIntMessage(editor, strng, &pos) orelse return null;
-        if (pos <= strng.Len or mark < types.min_user_mark_number or mark > types.max_user_mark_number) {
+        if (pos <= strng.len or mark < types.min_user_mark_number or mark > types.max_user_mark_number) {
             emitMessage(editor, illegal_mark_number_message);
             return null;
         }
         return mark;
     }
-    if (strng.Len > 1 or (mch != '=' and mch != '%')) {
+    if (strng.len > 1 or (mch != '=' and mch != '%')) {
         emitMessage(editor, illegal_mark_number_message);
         return null;
     }
@@ -184,13 +184,13 @@ pub fn tparSubstitute(
     cmd: types.Commands,
     this_tp: isize,
 ) !bool {
-    if (tpar.Con != null) {
+    if (tpar.con != null) {
         emitMessage(editor, span_names_one_line_message);
         return false;
     }
     try ensureString(allocator, tpar);
 
-    const name = try uppercaseCopy(allocator, tpar.str.?.slice(1, tpar.Len));
+    const name = try uppercaseCopy(allocator, tpar.str.?.slice(1, tpar.len));
     defer allocator.free(name);
 
     var span: ?*types.SpanObject = null;
@@ -200,19 +200,19 @@ pub fn tparSubstitute(
         return false;
     }
 
-    tpar.Dlm = 0;
+    tpar.dlm = 0;
     var start_mark = span.?.mark_one.?.*;
     const end_mark = span.?.mark_two.?.*;
 
-    if (start_mark.Line == end_mark.Line) {
-        tpar.Len = end_mark.Col - start_mark.Col;
-        const src_len = if (start_mark.Col > start_mark.Line.used)
+    if (start_mark.line == end_mark.line) {
+        tpar.len = end_mark.col - start_mark.col;
+        const src_len = if (start_mark.col > start_mark.line.used)
             @as(isize, 0)
-        else if (end_mark.Col > end_mark.Line.used)
-            end_mark.Line.used - start_mark.Col + 1
+        else if (end_mark.col > end_mark.line.used)
+            end_mark.line.used - start_mark.col + 1
         else
-            tpar.Len;
-        tpar.str.?.fillCopy(start_mark.Line.str.?, start_mark.Col, src_len, 1, tpar.Len, ' ');
+            tpar.len;
+        tpar.str.?.fillCopy(start_mark.line.str.?, start_mark.col, src_len, 1, tpar.len, ' ');
         return true;
     }
 
@@ -221,39 +221,39 @@ pub fn tparSubstitute(
         return false;
     }
 
-    tpar.Len = if (start_mark.Col > start_mark.Line.used) 0 else start_mark.Line.used - start_mark.Col + 1;
-    tpar.str.?.copy(start_mark.Line.str.?, start_mark.Col, tpar.Len, 1);
+    tpar.len = if (start_mark.col > start_mark.line.used) 0 else start_mark.line.used - start_mark.col + 1;
+    tpar.str.?.copy(start_mark.line.str.?, start_mark.col, tpar.len, 1);
 
     var tmp_tp: ?*types.TParObject = null;
-    start_mark.Line = start_mark.Line.f_link.?;
-    while (start_mark.Line != end_mark.Line) {
+    start_mark.line = start_mark.line.f_link.?;
+    while (start_mark.line != end_mark.line) {
         const node = try allocator.create(types.TParObject);
         node.* = .{
             .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
-            .Dlm = 0,
-            .Len = start_mark.Line.used,
+            .dlm = 0,
+            .len = start_mark.line.used,
         };
-        node.str.?.copy(start_mark.Line.str.?, 1, node.Len, 1);
+        node.str.?.copy(start_mark.line.str.?, 1, node.len, 1);
         if (tmp_tp) |prev| {
-            prev.Con = node;
+            prev.con = node;
         } else {
-            tpar.Con = node;
+            tpar.con = node;
         }
         tmp_tp = node;
-        start_mark.Line = start_mark.Line.f_link.?;
+        start_mark.line = start_mark.line.f_link.?;
     }
 
     const last_node = try allocator.create(types.TParObject);
     last_node.* = .{
         .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
-        .Dlm = 0,
-        .Len = end_mark.Col - 1,
+        .dlm = 0,
+        .len = end_mark.col - 1,
     };
-    last_node.str.?.fillCopy(end_mark.Line.str.?, 1, end_mark.Line.used, 1, last_node.Len, ' ');
+    last_node.str.?.fillCopy(end_mark.line.str.?, 1, end_mark.line.used, 1, last_node.len, ' ');
     if (tmp_tp) |prev| {
-        prev.Con = last_node;
+        prev.con = last_node;
     } else {
-        tpar.Con = last_node;
+        tpar.con = last_node;
     }
     return true;
 }
@@ -314,13 +314,13 @@ pub fn findEnquiry(
                 if (current.input_file == 0 or editor.files[@intCast(current.input_file)] == null) {
                     break :blk try allocator.dupe(u8, "");
                 }
-                break :blk try allocator.dupe(u8, editor.files[@intCast(current.input_file)].?.Filename);
+                break :blk try allocator.dupe(u8, editor.files[@intCast(current.input_file)].?.filename);
             }
             if (std.mem.eql(u8, item, "OUTPUTFILE")) {
                 if (current.output_file == 0 or editor.files[@intCast(current.output_file)] == null) {
                     break :blk try allocator.dupe(u8, "");
                 }
-                break :blk try allocator.dupe(u8, editor.files[@intCast(current.output_file)].?.Filename);
+                break :blk try allocator.dupe(u8, editor.files[@intCast(current.output_file)].?.filename);
             }
             if (std.mem.eql(u8, item, "MODIFIED")) {
                 break :blk try allocator.dupe(u8, if (current.text_modified) "Y" else "N");
@@ -347,11 +347,11 @@ pub fn findEnquiry(
                 break :blk try allocator.dupe(u8, byte[0..]);
             }
             if (std.mem.eql(u8, item, "INSERT_MODE")) {
-                const enabled = editor.edit_mode == .ModeInsert or (editor.edit_mode == .ModeCommand and editor.previous_mode == .ModeInsert);
+                const enabled = editor.edit_mode == .mode_insert or (editor.edit_mode == .mode_command and editor.previous_mode == .mode_insert);
                 break :blk try allocator.dupe(u8, if (enabled) "Y" else "N");
             }
             if (std.mem.eql(u8, item, "OVERTYPE_MODE")) {
-                const enabled = editor.edit_mode == .ModeOvertype or (editor.edit_mode == .ModeCommand and editor.previous_mode == .ModeOvertype);
+                const enabled = editor.edit_mode == .mode_overtype or (editor.edit_mode == .mode_command and editor.previous_mode == .mode_overtype);
                 break :blk try allocator.dupe(u8, if (enabled) "Y" else "N");
             }
             break :blk null;
@@ -367,11 +367,11 @@ pub fn tparEnquire(
     tpar: *types.TParObject,
 ) !bool {
     try ensureString(allocator, tpar);
-    tpar.Dlm = 0;
-    if (try findEnquiry(allocator, editor, frame, tpar.str.?.slice(1, tpar.Len))) |result| {
+    tpar.dlm = 0;
+    if (try findEnquiry(allocator, editor, frame, tpar.str.?.slice(1, tpar.len))) |result| {
         defer allocator.free(result);
         try tpar.str.?.assign(result);
-        tpar.Len = @intCast(result.len);
+        tpar.len = @intCast(result.len);
         return true;
     }
     emitMessage(editor, unknown_item_message);
@@ -392,19 +392,19 @@ pub fn tparAnalyse(
         emitMessage(editor, tpar_too_deep_message);
         return false;
     }
-    if (tran.Dlm == types.tpd_smart or tran.Dlm == types.tpd_exact or tran.Dlm == types.tpd_lit) {
+    if (tran.dlm == types.tpd_smart or tran.dlm == types.tpd_exact or tran.dlm == types.tpd_lit) {
         return !editor.tt_control_c;
     }
 
     var ended = false;
     while (!ended and !editor.tt_control_c) {
-        const delim = tran.Dlm;
-        if (tran.Con == null) {
-            if (tran.Len > 1) {
+        const delim = tran.dlm;
+        if (tran.con == null) {
+            if (tran.len > 1) {
                 const first = tran.str.?.get(1);
-                if (first == tran.str.?.get(tran.Len) and (first == types.tpd_span or first == types.tpd_prompt or first == types.tpd_environment or first == types.tpd_smart or first == types.tpd_exact or first == types.tpd_lit)) {
-                    tran.Dlm = first;
-                    tran.Len -= 2;
+                if (first == tran.str.?.get(tran.len) and (first == types.tpd_span or first == types.tpd_prompt or first == types.tpd_environment or first == types.tpd_smart or first == types.tpd_exact or first == types.tpd_lit)) {
+                    tran.dlm = first;
+                    tran.len -= 2;
                     tran.str.?.erase(1, 1);
                     if (!try tparAnalyse(allocator, editor, frame, cmd, tran, depth + 1, this_tp)) {
                         return false;
@@ -412,17 +412,17 @@ pub fn tparAnalyse(
                 }
             }
         } else {
-            var tmp_tp = tran.Con.?;
-            while (tmp_tp.Con != null) {
-                tmp_tp = tmp_tp.Con.?;
+            var tmp_tp = tran.con.?;
+            while (tmp_tp.con != null) {
+                tmp_tp = tmp_tp.con.?;
             }
-            if (tran.Len != 0 and tmp_tp.Len != 0) {
+            if (tran.len != 0 and tmp_tp.len != 0) {
                 const first = tran.str.?.get(1);
-                if (first == tmp_tp.str.?.get(tmp_tp.Len) and (first == types.tpd_span or first == types.tpd_prompt or first == types.tpd_environment or first == types.tpd_smart or first == types.tpd_exact or first == types.tpd_lit)) {
-                    tran.Dlm = first;
-                    tran.Len -= 1;
+                if (first == tmp_tp.str.?.get(tmp_tp.len) and (first == types.tpd_span or first == types.tpd_prompt or first == types.tpd_environment or first == types.tpd_smart or first == types.tpd_exact or first == types.tpd_lit)) {
+                    tran.dlm = first;
+                    tran.len -= 1;
                     tran.str.?.erase(1, 1);
-                    tmp_tp.Len -= 1;
+                    tmp_tp.len -= 1;
                     if (!try tparAnalyse(allocator, editor, frame, cmd, tran, depth + 1, this_tp)) {
                         return false;
                     }
@@ -442,15 +442,15 @@ pub fn tparAnalyse(
                 }
             },
             types.tpd_prompt => {
-                if (editor.ludwig_mode != .LudwigScreen) {
+                if (editor.ludwig_mode != .ludwig_screen) {
                     emitMessage(editor, interactive_mode_only_message);
                     return false;
                 }
 
-                const prompt = if (tran.Len == 0)
+                const prompt = if (tran.len == 0)
                     editor.dflt_prompts[@intFromEnum(editor.cmd_attrib[@intFromEnum(cmd)].tpar_info[@intCast(this_tp)].prompt_name)]
                 else
-                    tran.str.?.slice(1, tran.Len);
+                    tran.str.?.slice(1, tran.len);
 
                 if (cmd == .CmdVerify) {
                     const reply = if (frame) |verify_frame|
@@ -465,10 +465,10 @@ pub fn tparAnalyse(
                         else => unreachable,
                     };
                     tran.str = try str_object.newStrObjectFrom(allocator, response);
-                    tran.Len = 1;
-                    tran.Dlm = 0;
+                    tran.len = 1;
+                    tran.dlm = 0;
                 } else {
-                    if (tran.Con != null) {
+                    if (tran.con != null) {
                         emitMessage(editor, prompts_one_line_message);
                         return false;
                     }
@@ -479,8 +479,8 @@ pub fn tparAnalyse(
                         .this_tp = this_tp,
                     });
                     tran.str = try str_object.newStrObjectFrom(allocator, response);
-                    tran.Len = @intCast(response.len);
-                    tran.Dlm = 0;
+                    tran.len = @intCast(response.len);
+                    tran.dlm = 0;
                 }
             },
             else => ended = true,
@@ -490,19 +490,19 @@ pub fn tparAnalyse(
 }
 
 pub fn trim(request: *types.TParObject) void {
-    if (request.Len <= 0) {
+    if (request.len <= 0) {
         return;
     }
-    const original_len = request.Len;
+    const original_len = request.len;
     var index: isize = 1;
-    while (index <= request.Len and request.str.?.get(index) == ' ') : (index += 1) {}
-    request.Len -= index - 1;
-    if (request.Len > 0) {
+    while (index <= request.len and request.str.?.get(index) == ' ') : (index += 1) {}
+    request.len -= index - 1;
+    if (request.len > 0) {
         request.str.?.erase(index - 1, 1);
-        request.str.?.applyN(chars.chToUpper, request.Len, 1);
+        request.str.?.applyN(chars.chToUpper, request.len, 1);
     }
-    if (request.Len < original_len) {
-        request.str.?.fill(' ', request.Len + 1, original_len);
+    if (request.len < original_len) {
+        request.str.?.fill(' ', request.len + 1, original_len);
     }
 }
 
@@ -536,17 +536,17 @@ pub fn tparGet2(
     trn1: *types.TParObject,
     trn2: *types.TParObject,
 ) !bool {
-    if (tpar == null or tpar.?.Nxt == null) {
+    if (tpar == null or tpar.?.nxt == null) {
         return false;
     }
 
     try tparDuplicateCon(allocator, tpar.?, trn1);
-    try tparDuplicateCon(allocator, tpar.?.Nxt.?, trn2);
+    try tparDuplicateCon(allocator, tpar.?.nxt.?, trn2);
 
     if (!try tparAnalyse(allocator, editor, frame, cmd, trn1, 1, 1)) {
         return false;
     }
-    if (trn1.Len != 0 and !try tparAnalyse(allocator, editor, frame, cmd, trn2, 1, 2)) {
+    if (trn1.len != 0 and !try tparAnalyse(allocator, editor, frame, cmd, trn2, 1, 2)) {
         return false;
     }
     if (editor.cmd_attrib[@intFromEnum(cmd)].tpar_info[1].trim_reply) {
@@ -566,15 +566,15 @@ test "tpar integer mark and duplicate helpers preserve list structure" {
     var pos: isize = 1;
     var digits = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "123"),
-        .Len = 3,
+        .len = 3,
     };
     var mark_three = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "3"),
-        .Len = 1,
+        .len = 1,
     };
     var mark_equals = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "="),
-        .Len = 1,
+        .len = 1,
     };
     try std.testing.expectEqual(@as(?isize, 123), tparToInt(&digits, &pos));
     try std.testing.expectEqual(@as(?isize, 3), tparToMark(&mark_three));
@@ -582,26 +582,26 @@ test "tpar integer mark and duplicate helpers preserve list structure" {
 
     var second = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "two"),
-        .Len = 3,
+        .len = 3,
     };
     var third = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "three"),
-        .Len = 5,
+        .len = 5,
     };
-    second.Con = &third;
+    second.con = &third;
     var first = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "one"),
-        .Len = 3,
-        .Nxt = &second,
+        .len = 3,
+        .nxt = &second,
     };
     const duplicate = (try tparDuplicate(allocator, &first)).?;
     try std.testing.expect(duplicate != &first);
     try std.testing.expect(duplicate.str != first.str);
     try std.testing.expectEqualStrings("one", duplicate.str.?.slice(1, 3));
-    try std.testing.expect(duplicate.Nxt != null);
-    try std.testing.expectEqualStrings("two", duplicate.Nxt.?.str.?.slice(1, 3));
-    try std.testing.expect(duplicate.Nxt.?.Con != null);
-    try std.testing.expectEqualStrings("three", duplicate.Nxt.?.Con.?.str.?.slice(1, 5));
+    try std.testing.expect(duplicate.nxt != null);
+    try std.testing.expectEqualStrings("two", duplicate.nxt.?.str.?.slice(1, 3));
+    try std.testing.expect(duplicate.nxt.?.con != null);
+    try std.testing.expectEqualStrings("three", duplicate.nxt.?.con.?.str.?.slice(1, 5));
 }
 
 test "tpar span substitution enquiries and analysis work in batch mode" {
@@ -624,45 +624,45 @@ test "tpar span substitution enquiries and analysis work in batch mode" {
 
     var substitute = types.TParObject{
         .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
-        .Len = 4,
-        .Dlm = types.tpd_span,
+        .len = 4,
+        .dlm = types.tpd_span,
     };
     try substitute.str.?.assign("TEST");
     try std.testing.expect(try tparSubstitute(&editor, allocator, &substitute, .CmdReplace, 2));
     try std.testing.expectEqualStrings("World", substitute.str.?.slice(1, 5));
-    try std.testing.expect(substitute.Con != null);
-    try std.testing.expectEqualStrings("Line2", substitute.Con.?.str.?.slice(1, 5));
+    try std.testing.expect(substitute.con != null);
+    try std.testing.expectEqualStrings("Line2", substitute.con.?.str.?.slice(1, 5));
 
     const version_enquiry = "LUDWIG-VERSION";
     var enquiry = types.TParObject{
         .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
-        .Len = version_enquiry.len,
-        .Dlm = types.tpd_environment,
+        .len = version_enquiry.len,
+        .dlm = types.tpd_environment,
     };
     try enquiry.str.?.assign(version_enquiry);
     try std.testing.expect(try tparEnquire(allocator, &editor, fixture.frame, &enquiry));
-    try std.testing.expectEqualStrings(types.ludwig_reader, enquiry.str.?.slice(1, enquiry.Len));
+    try std.testing.expectEqualStrings(types.ludwig_reader, enquiry.str.?.slice(1, enquiry.len));
 
     const frame_enquiry = "FRAME-MODIFIED";
     var analysed = types.TParObject{
         .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
-        .Len = frame_enquiry.len,
-        .Dlm = types.tpd_environment,
+        .len = frame_enquiry.len,
+        .dlm = types.tpd_environment,
     };
     try analysed.str.?.assign(frame_enquiry);
     try std.testing.expect(try tparAnalyse(allocator, &editor, fixture.frame, .CmdGet, &analysed, 1, 1));
-    try std.testing.expectEqualStrings("N", analysed.str.?.slice(1, analysed.Len));
+    try std.testing.expectEqualStrings("N", analysed.str.?.slice(1, analysed.len));
 }
 
 test "tpar message helpers queue interactive parse failures" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.ludwig_mode = .LudwigScreen;
+    editor.ludwig_mode = .ludwig_screen;
 
     var bad_int = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "ABC"),
-        .Len = 3,
+        .len = 3,
     };
     var pos: isize = 1;
     try std.testing.expectEqual(@as(?isize, null), tparToIntMessage(&editor, &bad_int, &pos));
@@ -670,7 +670,7 @@ test "tpar message helpers queue interactive parse failures" {
 
     var bad_mark = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, ""),
-        .Len = 0,
+        .len = 0,
     };
     try std.testing.expectEqual(@as(?isize, null), tparToMarkMessage(&editor, &bad_mark));
     try std.testing.expectEqualStrings(illegal_mark_number_message, interactive_io.takeStatusMessage().?);
@@ -680,18 +680,18 @@ test "tpar substitution and enquiry queue interactive failure messages" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.ludwig_mode = .LudwigScreen;
+    editor.ludwig_mode = .ludwig_screen;
 
     var substitute = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "MISSING"),
-        .Len = "MISSING".len,
+        .len = "MISSING".len,
     };
     try std.testing.expect(!(try tparSubstitute(&editor, allocator, &substitute, .CmdReplace, 1)));
     try std.testing.expectEqualStrings("No such span.", interactive_io.takeStatusMessage().?);
 
     var enquiry = types.TParObject{
         .str = try str_object.newBlankStrObject(allocator, types.max_str_len),
-        .Len = "BOGUS-THING".len,
+        .len = "BOGUS-THING".len,
     };
     try enquiry.str.?.assign("BOGUS-THING");
     try std.testing.expect(!(try tparEnquire(allocator, &editor, null, &enquiry)));
@@ -709,38 +709,38 @@ test "tpar get helpers duplicate analyse and trim replies" {
 
     var source1 = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "  42"),
-        .Len = 4,
-        .Dlm = 0,
+        .len = 4,
+        .dlm = 0,
     };
     var out1: types.TParObject = .{};
     try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &source1, .CmdEqualColumn, &out1));
-    try std.testing.expectEqualStrings("42", out1.str.?.slice(1, out1.Len));
+    try std.testing.expectEqualStrings("42", out1.str.?.slice(1, out1.len));
 
     var source2 = types.TParObject{
         .str = try str_object.newStrObjectFrom(allocator, "FRAME-MODIFIED"),
-        .Len = 14,
-        .Dlm = types.tpd_environment,
+        .len = 14,
+        .dlm = types.tpd_environment,
     };
-    source1.Nxt = &source2;
+    source1.nxt = &source2;
     var trn1: types.TParObject = .{};
     var trn2: types.TParObject = .{};
     try std.testing.expect(try tparGet2(allocator, &editor, fixture.frame, &source1, .CmdReplace, &trn1, &trn2));
-    try std.testing.expectEqualStrings("  42", trn1.str.?.slice(1, trn1.Len));
-    try std.testing.expectEqualStrings("N", trn2.str.?.slice(1, trn2.Len));
+    try std.testing.expectEqualStrings("  42", trn1.str.?.slice(1, trn1.len));
+    try std.testing.expectEqualStrings("N", trn2.str.?.slice(1, trn2.len));
 }
 
 test "tpar verify prompt retries invalid replies in screen mode" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.ludwig_mode = .LudwigScreen;
+    editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 80, .height = 24 };
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"alpha"});
 
     var prompt = types.TParObject{
         .str = try str_object.newBlankStrObject(allocator, 0),
-        .Dlm = types.tpd_prompt,
+        .dlm = types.tpd_prompt,
     };
     var reply: types.TParObject = .{};
 
@@ -749,6 +749,6 @@ test "tpar verify prompt retries invalid replies in screen mode" {
     interactive_io.resetTestBeepCount();
 
     try std.testing.expect(try tparGet1(allocator, &editor, fixture.frame, &prompt, .CmdVerify, &reply));
-    try std.testing.expectEqualStrings("Q", reply.str.?.slice(1, reply.Len));
+    try std.testing.expectEqualStrings("Q", reply.str.?.slice(1, reply.len));
     try std.testing.expectEqual(@as(usize, 1), interactive_io.getTestBeepCount());
 }

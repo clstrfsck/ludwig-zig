@@ -168,8 +168,8 @@ pub fn initializeCommandAttributes(editor: *state.Editor) void {
 }
 
 fn addLookupExp(editor: *state.Editor, index: usize, ch: u8, cmd: types.Commands) void {
-    editor.lookup_exp[index].Extn = ch;
-    editor.lookup_exp[index].Command = cmd;
+    editor.lookup_exp[index].extn = ch;
+    editor.lookup_exp[index].command = cmd;
 }
 
 pub fn loadCommandTable(editor: *state.Editor, old_version: bool) void {

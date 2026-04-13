@@ -10,8 +10,8 @@ pub fn swapLine(
     rept: types.LeadParam,
     count: isize,
 ) !bool {
-    const this_line = frame.dot.?.Line;
-    const dot_col = frame.dot.?.Col;
+    const this_line = frame.dot.?.line;
+    const dot_col = frame.dot.?.col;
     const next_line = this_line.f_link orelse return false;
 
     var top_mark: ?*types.MarkObject = null;
@@ -41,7 +41,7 @@ pub fn swapLine(
         .LeadParamNIndef => dest_line = frame.first_group.?.first_line.?,
         .LeadParamMarker => {
             const slot: usize = @intCast(count);
-            dest_line = frame.marks[slot].?.Line;
+            dest_line = frame.marks[slot].?.line;
         },
     }
 
@@ -52,8 +52,8 @@ pub fn swapLine(
         return false;
     }
     frame.text_modified = true;
-    frame.dot.?.Col = dot_col;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
+    frame.dot.?.col = dot_col;
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     return true;
 }
 
@@ -83,7 +83,7 @@ test "swap line handles forward backward and indefinite moves" {
     try line_ops.setLineContent(forward_fixture.content_lines[3], "fourth");
     try line_ops.setLineContent(forward_fixture.content_lines[4], "fifth");
     forward_fixture.frame.dot = try allocator.create(types.MarkObject);
-    forward_fixture.frame.dot.?.* = .{ .Line = forward_fixture.content_lines[0], .Col = 1 };
+    forward_fixture.frame.dot.?.* = .{ .line = forward_fixture.content_lines[0], .col = 1 };
     try std.testing.expect(try swapLine(allocator, forward_fixture.frame, .LeadParamNone, 1));
     var contents = try collectLineContents(allocator, forward_fixture.frame.first_group.?.first_line.?);
     try std.testing.expectEqualStrings("second", contents[0]);
@@ -96,7 +96,7 @@ test "swap line handles forward backward and indefinite moves" {
     try line_ops.setLineContent(backward_fixture.content_lines[3], "fourth");
     try line_ops.setLineContent(backward_fixture.content_lines[4], "fifth");
     backward_fixture.frame.dot = try allocator.create(types.MarkObject);
-    backward_fixture.frame.dot.?.* = .{ .Line = backward_fixture.content_lines[3], .Col = 1 };
+    backward_fixture.frame.dot.?.* = .{ .line = backward_fixture.content_lines[3], .col = 1 };
     try std.testing.expect(try swapLine(allocator, backward_fixture.frame, .LeadParamNInt, -1));
     contents = try collectLineContents(allocator, backward_fixture.frame.first_group.?.first_line.?);
     try std.testing.expectEqualStrings("fourth", contents[2]);
@@ -109,7 +109,7 @@ test "swap line handles forward backward and indefinite moves" {
     try line_ops.setLineContent(pindef_fixture.content_lines[3], "fourth");
     try line_ops.setLineContent(pindef_fixture.content_lines[4], "fifth");
     pindef_fixture.frame.dot = try allocator.create(types.MarkObject);
-    pindef_fixture.frame.dot.?.* = .{ .Line = pindef_fixture.content_lines[0], .Col = 1 };
+    pindef_fixture.frame.dot.?.* = .{ .line = pindef_fixture.content_lines[0], .col = 1 };
     try std.testing.expect(try swapLine(allocator, pindef_fixture.frame, .LeadParamPIndef, 0));
     contents = try collectLineContents(allocator, pindef_fixture.frame.first_group.?.first_line.?);
     try std.testing.expectEqualStrings("first", contents[contents.len - 1]);
@@ -127,10 +127,10 @@ test "swap line supports marker destination and preserves dot column" {
     try line_ops.setLineContent(fixture.content_lines[3], "fourth");
     try line_ops.setLineContent(fixture.content_lines[4], "fifth");
     fixture.frame.dot = try allocator.create(types.MarkObject);
-    fixture.frame.dot.?.* = .{ .Line = fixture.content_lines[0], .Col = 7 };
+    fixture.frame.dot.?.* = .{ .line = fixture.content_lines[0], .col = 7 };
     try mark_ops.markCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.marks[types.mark_equals]);
 
     try std.testing.expect(try swapLine(allocator, fixture.frame, .LeadParamMarker, types.mark_equals));
-    try std.testing.expectEqual(@as(isize, 7), fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 7), fixture.frame.dot.?.col);
     try std.testing.expect(fixture.frame.marks[types.mark_modified] != null);
 }

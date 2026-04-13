@@ -23,13 +23,13 @@ pub fn caseDittoCommand(
     previous_mode: types.ModeType,
 ) !bool {
     const insert = (command == .CmdDittoUp or command == .CmdDittoDown) and
-        (edit_mode == .ModeInsert or (edit_mode == .ModeCommand and previous_mode == .ModeInsert));
+        (edit_mode == .mode_insert or (edit_mode == .mode_command and previous_mode == .mode_insert));
 
-    const old_dot_col = frame.dot.?.Col;
+    const old_dot_col = frame.dot.?.col;
     var other_line: ?*types.LineHdrObject = switch (command) {
-        .CmdCaseUp, .CmdCaseLow, .CmdCaseEdit => frame.dot.?.Line,
-        .CmdDittoUp => frame.dot.?.Line.b_link,
-        .CmdDittoDown => frame.dot.?.Line.f_link,
+        .CmdCaseUp, .CmdCaseLow, .CmdCaseEdit => frame.dot.?.line,
+        .CmdDittoUp => frame.dot.?.line.b_link,
+        .CmdDittoDown => frame.dot.?.line.f_link,
         else => null,
     };
 
@@ -40,36 +40,36 @@ pub fn caseDittoCommand(
     }
 
     var cmd_valid = other_line != null;
-    var first_col: isize = frame.dot.?.Col;
-    var new_col: isize = frame.dot.?.Col;
+    var first_col: isize = frame.dot.?.col;
+    var new_col: isize = frame.dot.?.col;
     var count_mut = count;
 
     if (cmd_valid) {
         switch (rept) {
             .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
-                if (count_mut != 0 and frame.dot.?.Col + count_mut > other_line.?.used + 1) {
+                if (count_mut != 0 and frame.dot.?.col + count_mut > other_line.?.used + 1) {
                     cmd_valid = false;
                 }
-                first_col = frame.dot.?.Col;
-                new_col = frame.dot.?.Col + count_mut;
+                first_col = frame.dot.?.col;
+                new_col = frame.dot.?.col + count_mut;
             },
             .LeadParamPIndef => {
-                count_mut = other_line.?.used + 1 - frame.dot.?.Col;
+                count_mut = other_line.?.used + 1 - frame.dot.?.col;
                 if (count_mut < 0) cmd_valid = false;
-                first_col = frame.dot.?.Col;
+                first_col = frame.dot.?.col;
                 new_col = other_line.?.used + 1;
             },
             .LeadParamMinus, .LeadParamNInt => {
                 count_mut = -count_mut;
-                if (count_mut >= frame.dot.?.Col) {
+                if (count_mut >= frame.dot.?.col) {
                     cmd_valid = false;
                 } else {
-                    first_col = frame.dot.?.Col - count_mut;
+                    first_col = frame.dot.?.col - count_mut;
                 }
                 new_col = first_col;
             },
             .LeadParamNIndef => {
-                count_mut = frame.dot.?.Col - 1;
+                count_mut = frame.dot.?.col - 1;
                 first_col = 1;
                 new_col = 1;
             },
@@ -109,14 +109,14 @@ pub fn caseDittoCommand(
         }
 
         if (cmd_valid) {
-            frame.dot.?.Col = first_col;
+            frame.dot.?.col = first_col;
             const success = if (insert)
                 try text.textInsert(allocator, true, 1, new_str, count_mut, frame.dot.?)
             else
                 try text.textOvertype(allocator, true, 1, new_str, count_mut, frame.dot.?);
 
             if (success) {
-                frame.dot.?.Col = new_col;
+                frame.dot.?.col = new_col;
                 cmd_status = true;
             }
         }
@@ -124,8 +124,8 @@ pub fn caseDittoCommand(
 
     if (cmd_status) {
         frame.text_modified = true;
-        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
-        try mark_ops.markCreate(allocator, frame.dot.?.Line, old_dot_col, &frame.marks[types.mark_equals]);
+        try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
+        try mark_ops.markCreate(allocator, frame.dot.?.line, old_dot_col, &frame.marks[types.mark_equals]);
     }
     return cmd_status or !from_span;
 }
@@ -160,8 +160,8 @@ test "case ditto rejects negative ditto params in insert contexts" {
         .LeadParamMinus,
         -1,
         true,
-        .ModeInsert,
-        .ModeCommand,
+        .mode_insert,
+        .mode_command,
     )));
     try std.testing.expect(!(try caseDittoCommand(
         allocator,
@@ -170,8 +170,8 @@ test "case ditto rejects negative ditto params in insert contexts" {
         .LeadParamNInt,
         -1,
         true,
-        .ModeCommand,
-        .ModeInsert,
+        .mode_command,
+        .mode_insert,
     )));
 }
 
@@ -188,8 +188,8 @@ test "case commands rewrite the current line in place" {
         .LeadParamNone,
         5,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("HELLO world", line_ops.getLineContent(up_fixture.content_lines[0]));
 
@@ -201,8 +201,8 @@ test "case commands rewrite the current line in place" {
         .LeadParamNone,
         5,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("hello WORLD", line_ops.getLineContent(low_fixture.content_lines[0]));
 
@@ -214,8 +214,8 @@ test "case commands rewrite the current line in place" {
         .LeadParamNone,
         5,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("Hello WoRLd", line_ops.getLineContent(edit_fixture.content_lines[0]));
 }
@@ -234,8 +234,8 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
         .LeadParamPlus,
         4,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("12CDEF7890", line_ops.getLineContent(plus_fixture.content_lines[1]));
 
@@ -248,8 +248,8 @@ test "ditto commands copy from adjacent lines with repeat semantics" {
         .LeadParamPIndef,
         0,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("shMPLETE LINE", line_ops.getLineContent(pindef_fixture.content_lines[1]));
 }
@@ -268,11 +268,11 @@ test "ditto commands honor backward copy parameters" {
         .LeadParamMinus,
         -3,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("12CDE67890", line_ops.getLineContent(minus_fixture.content_lines[1]));
-    try std.testing.expectEqual(@as(isize, 3), minus_fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 3), minus_fixture.frame.dot.?.col);
 
     const nindef_fixture = try buildFrame(allocator, &[_][]const u8{ "PREFIXSUFFIX", "lowercase text" });
     try moveDot(allocator, nindef_fixture.frame, nindef_fixture.content_lines[1], 7);
@@ -283,9 +283,9 @@ test "ditto commands honor backward copy parameters" {
         .LeadParamNIndef,
         0,
         true,
-        .ModeCommand,
-        .ModeCommand,
+        .mode_command,
+        .mode_command,
     ));
     try std.testing.expectEqualStrings("PREFIXase text", line_ops.getLineContent(nindef_fixture.content_lines[1]));
-    try std.testing.expectEqual(@as(isize, 1), nindef_fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 1), nindef_fixture.frame.dot.?.col);
 }

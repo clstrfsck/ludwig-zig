@@ -43,13 +43,13 @@ pub fn userKeyNameToCode(editor: *const state.Editor, key_name: []const u8) ?isi
 }
 
 pub fn resolveUserKeyCode(editor: *const state.Editor, key: *const types.TParObject) ?isize {
-    if (key.str == null or key.Len <= 0) {
+    if (key.str == null or key.len <= 0) {
         return null;
     }
-    if (key.Len == 1) {
+    if (key.len == 1) {
         return key.str.?.get(1);
     }
-    return userKeyNameToCode(editor, key.str.?.slice(1, key.Len));
+    return userKeyNameToCode(editor, key.str.?.slice(1, key.len));
 }
 
 fn ensureKeyName(
@@ -95,13 +95,13 @@ fn newPromptTpar(allocator: std.mem.Allocator) !*types.TParObject {
     const tpar = try allocator.create(types.TParObject);
     tpar.* = .{
         .str = try str_object.newBlankStrObject(allocator, 0),
-        .Dlm = types.tpd_prompt,
+        .dlm = types.tpd_prompt,
     };
     return tpar;
 }
 
 fn emitMessage(editor: *const state.Editor, message: []const u8) void {
-    if (editor.ludwig_mode == .LudwigScreen) {
+    if (editor.ludwig_mode == .ludwig_screen) {
         interactive_io.queueStatusMessage(message);
     }
 }
@@ -290,17 +290,17 @@ pub fn userCommandIntroducer(
     temp.set(1, @intCast(editor.command_introducer));
 
     const cmd_success = switch (editor.edit_mode) {
-        .ModeInsert => try text.textInsert(allocator, true, 1, temp, 1, frame.dot.?),
-        .ModeCommand => if (editor.previous_mode == .ModeInsert)
+        .mode_insert => try text.textInsert(allocator, true, 1, temp, 1, frame.dot.?),
+        .mode_command => if (editor.previous_mode == .mode_insert)
             try text.textInsert(allocator, true, 1, temp, 1, frame.dot.?)
         else
             try text.textOvertype(allocator, true, 1, temp, 1, frame.dot.?),
-        .ModeOvertype => try text.textOvertype(allocator, true, 1, temp, 1, frame.dot.?),
+        .mode_overtype => try text.textOvertype(allocator, true, 1, temp, 1, frame.dot.?),
     };
 
     if (cmd_success) {
         frame.text_modified = true;
-        try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &frame.marks[types.mark_modified]);
+        try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
     return cmd_success;
 }
@@ -322,8 +322,8 @@ pub fn bindCompiledKey(
     binding.tpar = null;
 
     const code = key_span.code orelse return false;
-    const first = &editor.compiler_code[@intCast(code.Code)];
-    if (code.Len == 2 and first.rep == .LeadParamNone and !specialCommand(first.op)) {
+    const first = &editor.compiler_code[@intCast(code.code)];
+    if (code.len == 2 and first.rep == .LeadParamNone and !specialCommand(first.op)) {
         binding.command = first.op;
         binding.tpar = first.tpar;
         first.tpar = null;
@@ -351,14 +351,14 @@ test "user key lookup uses editor key name list" {
     const named = try str_object.newStrObjectFrom(allocator, "TAB");
     var named_tpar = types.TParObject{
         .str = named,
-        .Len = 3,
+        .len = 3,
     };
     try std.testing.expectEqual(@as(?isize, 9), resolveUserKeyCode(&editor, &named_tpar));
 
     const literal = try str_object.newStrObjectFrom(allocator, "A");
     var literal_tpar = types.TParObject{
         .str = literal,
-        .Len = 1,
+        .len = 1,
     };
     try std.testing.expectEqual(@as(?isize, 'A'), resolveUserKeyCode(&editor, &literal_tpar));
 }
@@ -374,7 +374,7 @@ test "user command introducer inserts in insert mode" {
 
     try std.testing.expect(try userCommandIntroducer(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings("a@b", line_ops.getLineContent(fixture.content_lines[0]));
-    try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.col);
     try std.testing.expect(fixture.frame.text_modified);
     try std.testing.expect(fixture.frame.marks[types.mark_modified] != null);
 }
@@ -386,13 +386,13 @@ test "user command introducer overtypes in command mode after overtype" {
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
     editor.command_introducer = '@';
-    editor.edit_mode = .ModeCommand;
-    editor.previous_mode = .ModeOvertype;
+    editor.edit_mode = .mode_command;
+    editor.previous_mode = .mode_overtype;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.dot);
 
     try std.testing.expect(try userCommandIntroducer(&editor, allocator, fixture.frame));
     try std.testing.expectEqualStrings("a@", line_ops.getLineContent(fixture.content_lines[0]));
-    try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.col);
 }
 
 test "user command introducer rejects non-printable introducer" {

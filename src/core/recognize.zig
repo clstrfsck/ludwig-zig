@@ -459,12 +459,12 @@ fn buildEvents(
         if (col == frame.margin_right) {
             patparse.setAdd(&positional, types.pattern_right_margin);
         }
-        if (frame.dot != null and col == frame.dot.?.Col) {
+        if (frame.dot != null and col == frame.dot.?.col) {
             patparse.setAdd(&positional, types.pattern_dot_column);
         }
         for (0..types.max_mark_number + 1) |mark_no| {
             if (frame.marks[mark_no]) |mark| {
-                if (mark.Line == line and mark.Col == col) {
+                if (mark.line == line and mark.col == col) {
                     patparse.setAdd(&positional, @intCast(mark_no + types.pattern_marks_start));
                 }
             }

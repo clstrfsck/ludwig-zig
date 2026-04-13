@@ -163,7 +163,7 @@ const RepeatSpec = struct {
 };
 
 fn patternCharAt(pattern: *types.TParObject, pos: isize) ?u8 {
-    if (pattern.str == null or pos < 1 or pos > pattern.Len) return null;
+    if (pattern.str == null or pos < 1 or pos > pattern.len) return null;
     return pattern.str.?.get(pos);
 }
 
@@ -468,11 +468,11 @@ pub fn patternParser(
 ) bool {
     _ = frame;
     nfa_table.* = [_]types.NFATransitionType{.{}} ** (types.max_nfa_state_range + 1);
-    if (pattern.str == null or pattern.Len == 0) return false;
+    if (pattern.str == null or pattern.len == 0) return false;
 
     pattern_definition.* = .{
         .strng = pattern.str,
-        .length = pattern.Len,
+        .length = pattern.len,
     };
 
     first_pattern_start.* = types.pattern_nfa_start;
@@ -499,7 +499,7 @@ pub fn patternParser(
     }
 
     skipSpaces(pattern, &pos);
-    if (pos <= pattern.Len) return false;
+    if (pos <= pattern.len) return false;
 
     pattern_final_state.* = current_state;
     states_used.* = current_state;
@@ -541,7 +541,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
     const single_class = "s";
     const tpar = types.TParObject{
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, single_class),
-        .Len = single_class.len,
+        .len = single_class.len,
     };
     var nfa_table: types.NFATableType = [_]types.NFATransitionType{.{}} ** (types.max_nfa_state_range + 1);
     var pattern_def: types.PatternDefType = .{};
@@ -558,14 +558,14 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
     const email_like = "+a'@'+a'.'+a";
     var literal = types.TParObject{
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, email_like),
-        .Len = email_like.len,
+        .len = email_like.len,
     };
     try std.testing.expect(patternParser(null, &literal, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
 
     const context_source = "'a','b','c'";
     var context_pattern = types.TParObject{
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, context_source),
-        .Len = context_source.len,
+        .len = context_source.len,
     };
     try std.testing.expect(patternParser(null, &context_pattern, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     try std.testing.expect(left_end != first_start);
@@ -574,7 +574,7 @@ test "pattern parser accepts common pattern forms and populates accept sets" {
     const trailing_bar_source = "('+'|'-'|)+n";
     var trailing_bar = types.TParObject{
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, trailing_bar_source),
-        .Len = trailing_bar_source.len,
+        .len = trailing_bar_source.len,
     };
     try std.testing.expect(patternParser(null, &trailing_bar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
 }
@@ -612,7 +612,7 @@ test "pattern parser rejects malformed inputs and enforces nesting limits" {
     }) |content| {
         var tpar = types.TParObject{
             .str = try @import("str_object.zig").newStrObjectFrom(allocator, content),
-            .Len = @intCast(content.len),
+            .len = @intCast(content.len),
         };
         try std.testing.expect(!patternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     }
@@ -628,7 +628,7 @@ test "pattern parser rejects malformed inputs and enforces nesting limits" {
     }) |content| {
         var tpar = types.TParObject{
             .str = try @import("str_object.zig").newStrObjectFrom(allocator, content),
-            .Len = @intCast(content.len),
+            .len = @intCast(content.len),
         };
         try std.testing.expect(patternParser(null, &tpar, &nfa_table, &first_start, &final_state, &left_end, &middle_end, &pattern_def, &states_used));
     }

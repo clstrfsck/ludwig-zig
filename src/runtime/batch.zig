@@ -17,7 +17,7 @@ pub const Session = struct {
 };
 
 fn configureBatchTerminal(editor: *state.Editor) void {
-    editor.ludwig_mode = .LudwigBatch;
+    editor.ludwig_mode = .ludwig_batch;
     editor.terminal_info = .{
         .name = "",
         .width = 80,
@@ -172,7 +172,7 @@ pub fn startUp(
             editor.file_data.initial,
         );
         current_frame = init_outcome.frame;
-        if (!init_outcome.ok and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
+        if (!init_outcome.ok and editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
             batch_output.printMessage("COMMAND FAILED");
         }
         editor.exit_abort = false;
@@ -209,7 +209,7 @@ pub fn runBatchCommands(
         const command_span = try makeBatchCommandSpan(allocator, source);
         if (!try code_ops.codeCompile(editor, allocator, session.current_frame, command_span.span, true)) {
             ok = false;
-            if (editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
+            if (editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
                 batch_output.printMessage("Syntax error.");
             }
         } else {
@@ -225,7 +225,7 @@ pub fn runBatchCommands(
             );
             session.current_frame = outcome.frame;
             ok = outcome.ok;
-            if (!ok and editor.ludwig_mode == .LudwigBatch and editor.batch_output_enabled) {
+            if (!ok and editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
                 batch_output.printMessage("COMMAND FAILED");
             }
         }

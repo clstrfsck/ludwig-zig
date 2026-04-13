@@ -40,9 +40,9 @@ fn parseIntArg(arg: []const u8) ?isize {
 fn makeStdinFile(allocator: std.mem.Allocator) !*types.FileObject {
     const input = try allocator.create(types.FileObject);
     input.* = .{
-        .Valid = true,
-        .OutputFlag = false,
-        .Filename = "<stdin>",
+        .valid = true,
+        .output_flag = false,
+        .filename = "<stdin>",
     };
     return input;
 }
@@ -75,11 +75,11 @@ fn openOutputFile(
         .create = create,
         .memory = expanded_memory,
     })) orelse return null;
-    output.Memory = if (expanded_memory) |path| path else "";
-    output.Entab = entab;
-    output.Purge = purge;
-    output.Versions = versions;
-    output.Create = create;
+    output.memory = if (expanded_memory) |path| path else "";
+    output.entab = entab;
+    output.purge = purge;
+    output.versions = versions;
+    output.create = create;
     return output;
 }
 
@@ -302,7 +302,7 @@ pub fn fileCreateOpen(
                 if (input_out.* == null and (check_input or parse_type == .parse_edit)) {
                     return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{input_name}));
                 }
-                const related_name = if (input_out.*) |input| input.Filename else input_name;
+                const related_name = if (input_out.*) |input| input.filename else input_name;
                 output_out.* = (try openOutputFile(editor, allocator, output_name, related_name, false, memory, entab, purge, versions)) orelse
                     return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
             }
@@ -329,13 +329,13 @@ pub fn fileCreateOpen(
             const output_name = if (file_count == 1)
                 files[0]
             else if (input_out.*) |input|
-                input.Filename
+                input.filename
             else
                 "";
             if (output_name.len == 0) {
                 return fail("No output file specified");
             }
-            const related_name = if (input_out.*) |input| input.Filename else null;
+            const related_name = if (input_out.*) |input| input.filename else null;
             output_out.* = (try openOutputFile(editor, allocator, output_name, related_name, false, memory, entab, purge, versions)) orelse
                 return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
         },

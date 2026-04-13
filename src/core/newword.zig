@@ -28,36 +28,36 @@ pub fn currentWord(
     allocator: std.mem.Allocator,
     dot: *types.MarkObject,
 ) !bool {
-    if (dot.Line.used + 2 < dot.Col) {
-        if (dot.Line.f_link == null or dot.Line.f_link.?.used == 0) {
+    if (dot.line.used + 2 < dot.col) {
+        if (dot.line.f_link == null or dot.line.f_link.?.used == 0) {
             return false;
         }
-        dot.Col = dot.Line.used;
-    } else if (dot.Line.used < dot.Col) {
-        dot.Col = dot.Line.used;
+        dot.col = dot.line.used;
+    } else if (dot.line.used < dot.col) {
+        dot.col = dot.line.used;
     }
 
-    if (dot.Col == 0) return false;
+    if (dot.col == 0) return false;
 
-    while (dot.Col > 1 and chars.chIsWordElement(0, dot.Line.str.?.get(dot.Col))) {
-        dot.Col -= 1;
+    while (dot.col > 1 and chars.chIsWordElement(0, dot.line.str.?.get(dot.col))) {
+        dot.col -= 1;
     }
-    if (chars.chIsWordElement(0, dot.Line.str.?.get(dot.Col))) {
-        if (dot.Line.b_link == null or dot.Line.b_link.?.used == 0) {
+    if (chars.chIsWordElement(0, dot.line.str.?.get(dot.col))) {
+        if (dot.line.b_link == null or dot.line.b_link.?.used == 0) {
             return false;
         }
-        try moveMarkInPlace(allocator, dot, dot.Line.b_link.?, dot.Line.b_link.?.used);
+        try moveMarkInPlace(allocator, dot, dot.line.b_link.?, dot.line.b_link.?.used);
     }
 
     var element: usize = 0;
-    while (!chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
+    while (!chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
         element += 1;
     }
-    while (dot.Col > 1 and chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
-        dot.Col -= 1;
+    while (dot.col > 1 and chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
+        dot.col -= 1;
     }
-    if (!chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
-        dot.Col += 1;
+    if (!chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
+        dot.col += 1;
     }
     return true;
 }
@@ -66,26 +66,26 @@ pub fn nextWord(
     allocator: std.mem.Allocator,
     dot: *types.MarkObject,
 ) !bool {
-    if (dot.Col > dot.Line.used) {
-        if (dot.Line.used == 0) return false;
-        dot.Col = dot.Line.used;
+    if (dot.col > dot.line.used) {
+        if (dot.line.used == 0) return false;
+        dot.col = dot.line.used;
     }
 
     var element: usize = 0;
-    while (!chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
+    while (!chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
         element += 1;
     }
-    while (dot.Col < dot.Line.used and chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
-        dot.Col += 1;
+    while (dot.col < dot.line.used and chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
+        dot.col += 1;
     }
-    if (chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
-        if (dot.Line.f_link == null or dot.Line.f_link.?.used == 0) {
+    if (chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
+        if (dot.line.f_link == null or dot.line.f_link.?.used == 0) {
             return false;
         }
-        try moveMarkInPlace(allocator, dot, dot.Line.f_link.?, 1);
+        try moveMarkInPlace(allocator, dot, dot.line.f_link.?, 1);
     }
-    while (chars.chIsWordElement(0, dot.Line.str.?.get(dot.Col))) {
-        dot.Col += 1;
+    while (chars.chIsWordElement(0, dot.line.str.?.get(dot.col))) {
+        dot.col += 1;
     }
     return true;
 }
@@ -95,17 +95,17 @@ pub fn previousWord(
     dot: *types.MarkObject,
 ) !bool {
     var element: usize = 0;
-    while (!chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
+    while (!chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
         element += 1;
     }
-    while (dot.Col > 1 and chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
-        dot.Col -= 1;
+    while (dot.col > 1 and chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
+        dot.col -= 1;
     }
-    if (chars.chIsWordElement(element, dot.Line.str.?.get(dot.Col))) {
-        if (dot.Line.b_link == null or dot.Line.b_link.?.used == 0) {
+    if (chars.chIsWordElement(element, dot.line.str.?.get(dot.col))) {
+        if (dot.line.b_link == null or dot.line.b_link.?.used == 0) {
             return false;
         }
-        try moveMarkInPlace(allocator, dot, dot.Line.b_link.?, dot.Line.b_link.?.used);
+        try moveMarkInPlace(allocator, dot, dot.line.b_link.?, dot.line.b_link.?.used);
     }
     return currentWord(allocator, dot);
 }
@@ -117,7 +117,7 @@ pub fn newwordAdvanceWord(
     count: isize,
 ) !bool {
     var new_dot: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &new_dot);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &new_dot);
     defer mark_ops.markDestroy(allocator, &new_dot);
 
     var rept_mut = rept;
@@ -125,7 +125,7 @@ pub fn newwordAdvanceWord(
 
     if (rept_mut == .LeadParamMarker) {
         const index: usize = @intCast(count_mut);
-        try moveMarkInPlace(allocator, new_dot.?, frame.marks[index].?.Line, frame.marks[index].?.Col);
+        try moveMarkInPlace(allocator, new_dot.?, frame.marks[index].?.line, frame.marks[index].?.col);
         rept_mut = .LeadParamNInt;
         count_mut = 0;
     }
@@ -138,7 +138,7 @@ pub fn newwordAdvanceWord(
             while (count_mut > 0) : (count_mut -= 1) {
                 if (!try nextWord(allocator, new_dot.?)) return false;
             }
-            try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+            try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
         .LeadParamMinus, .LeadParamNInt => {
             count_mut = -count_mut;
@@ -146,28 +146,28 @@ pub fn newwordAdvanceWord(
             while (count_mut > 0) : (count_mut -= 1) {
                 if (!try previousWord(allocator, new_dot.?)) return false;
             }
-            try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+            try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
         .LeadParamPIndef => {
-            if (new_dot.?.Line.used == 0) return false;
-            if (new_dot.?.Col > new_dot.?.Line.used + 2) {
-                if (new_dot.?.Line.f_link == null or new_dot.?.Line.f_link.?.used == 0) return false;
-                new_dot.?.Col = new_dot.?.Line.used;
+            if (new_dot.?.line.used == 0) return false;
+            if (new_dot.?.col > new_dot.?.line.used + 2) {
+                if (new_dot.?.line.f_link == null or new_dot.?.line.f_link.?.used == 0) return false;
+                new_dot.?.col = new_dot.?.line.used;
             }
             while (try nextWord(allocator, new_dot.?)) {
-                try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+                try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
             }
-            if (new_dot.?.Line.used + 2 > types.max_str_len_p1) {
-                try moveDot(allocator, frame, new_dot.?.Line, types.max_str_len_p1);
+            if (new_dot.?.line.used + 2 > types.max_str_len_p1) {
+                try moveDot(allocator, frame, new_dot.?.line, types.max_str_len_p1);
             } else {
-                try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Line.used + 2);
+                try moveDot(allocator, frame, new_dot.?.line, new_dot.?.line.used + 2);
             }
         },
         .LeadParamNIndef => {
             if (!try currentWord(allocator, new_dot.?)) return false;
-            try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+            try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
             while (try previousWord(allocator, new_dot.?)) {
-                try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+                try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
             }
         },
         else => return false,
@@ -185,23 +185,23 @@ pub fn newwordDeleteWord(
     var old_pos: ?*types.MarkObject = null;
     var here: ?*types.MarkObject = null;
     var other_mark: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &old_pos);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &old_pos);
     defer mark_ops.markDestroy(allocator, &old_pos);
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
     if (!try newwordAdvanceWord(allocator, frame, .LeadParamPInt, 0)) return false;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &here);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &here);
     if (!try newwordAdvanceWord(allocator, frame, rept, count)) {
-        try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
+        try moveDot(allocator, frame, old_pos.?.line, old_pos.?.col);
         return false;
     }
 
-    const old_dot_col = frame.dot.?.Col;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &other_mark);
-    const line_nr = line_ops.lineToNumber(other_mark.?.Line);
-    const new_line_nr = line_ops.lineToNumber(here.?.Line);
-    if (line_nr > new_line_nr or (line_nr == new_line_nr and other_mark.?.Col > here.?.Col)) {
+    const old_dot_col = frame.dot.?.col;
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &other_mark);
+    const line_nr = line_ops.lineToNumber(other_mark.?.line);
+    const new_line_nr = line_ops.lineToNumber(here.?.line);
+    if (line_nr > new_line_nr or (line_nr == new_line_nr and other_mark.?.col > here.?.col)) {
         const another_mark = here;
         here = other_mark;
         other_mark = another_mark;
@@ -225,10 +225,10 @@ pub fn currentParagraph(
     allocator: std.mem.Allocator,
     dot: *types.MarkObject,
 ) !bool {
-    var new_line = dot.Line;
+    var new_line = dot.line;
     var pos: isize = 0;
-    if (dot.Col < dot.Line.used) {
-        pos = dot.Col;
+    if (dot.col < dot.line.used) {
+        pos = dot.col;
         while (pos > 1 and chars.chIsWordElement(0, new_line.str.?.get(pos))) {
             pos -= 1;
         }
@@ -259,18 +259,18 @@ pub fn nextParagraph(
     allocator: std.mem.Allocator,
     dot: *types.MarkObject,
 ) !bool {
-    var new_line = dot.Line;
+    var new_line = dot.line;
     var pos: isize = 0;
-    if (dot.Col < dot.Line.used) {
-        pos = dot.Col;
+    if (dot.col < dot.line.used) {
+        pos = dot.col;
         while (pos > 1 and chars.chIsWordElement(0, new_line.str.?.get(pos))) {
             pos -= 1;
         }
         if (chars.chIsWordElement(0, new_line.str.?.get(pos))) {
             if (new_line.b_link == null) {
-                dot.Col = 1;
-                while (chars.chIsWordElement(0, new_line.str.?.get(dot.Col))) {
-                    dot.Col += 1;
+                dot.col = 1;
+                while (chars.chIsWordElement(0, new_line.str.?.get(dot.col))) {
+                    dot.col += 1;
                 }
                 return true;
             }
@@ -300,14 +300,14 @@ pub fn newwordAdvanceParagraph(
     count: isize,
 ) !bool {
     var new_dot: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &new_dot);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &new_dot);
     defer mark_ops.markDestroy(allocator, &new_dot);
 
     var rept_mut = rept;
     var count_mut = count;
     if (rept_mut == .LeadParamMarker) {
         const index: usize = @intCast(count_mut);
-        try moveMarkInPlace(allocator, new_dot.?, frame.marks[index].?.Line, frame.marks[index].?.Col);
+        try moveMarkInPlace(allocator, new_dot.?, frame.marks[index].?.line, frame.marks[index].?.col);
         rept_mut = .LeadParamNInt;
         count_mut = 0;
     }
@@ -320,21 +320,21 @@ pub fn newwordAdvanceParagraph(
             while (count_mut > 0) : (count_mut -= 1) {
                 if (!try nextParagraph(allocator, new_dot.?)) return false;
             }
-            try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+            try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
         .LeadParamMinus, .LeadParamNInt => {
             count_mut = -count_mut;
             if (!try currentParagraph(allocator, new_dot.?)) return false;
             while (count_mut > 0) : (count_mut -= 1) {
-                if (new_dot.?.Line.b_link == null) return false;
-                try moveMarkInPlace(allocator, new_dot.?, new_dot.?.Line.b_link.?, 1);
+                if (new_dot.?.line.b_link == null) return false;
+                try moveMarkInPlace(allocator, new_dot.?, new_dot.?.line.b_link.?, 1);
                 if (!try currentParagraph(allocator, new_dot.?)) return false;
             }
-            try moveDot(allocator, frame, new_dot.?.Line, new_dot.?.Col);
+            try moveDot(allocator, frame, new_dot.?.line, new_dot.?.col);
         },
         .LeadParamPIndef => try moveDot(allocator, frame, frame.last_group.?.last_line.?, frame.margin_left),
         .LeadParamNIndef => {
-            var new_line = new_dot.?.Line;
+            var new_line = new_dot.?.line;
             while (new_line.b_link != null and new_line.used == 0) {
                 new_line = new_line.b_link.?;
             }
@@ -364,20 +364,20 @@ pub fn newwordDeleteParagraph(
     var old_pos: ?*types.MarkObject = null;
     var here: ?*types.MarkObject = null;
     var other_mark: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, frame.dot.?.Col, &old_pos);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &old_pos);
     defer mark_ops.markDestroy(allocator, &old_pos);
     defer mark_ops.markDestroy(allocator, &here);
     defer mark_ops.markDestroy(allocator, &other_mark);
 
     if (!try newwordAdvanceParagraph(allocator, frame, .LeadParamPInt, 0)) return false;
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, 1, &here);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, 1, &here);
     if (!try newwordAdvanceParagraph(allocator, frame, rept, count)) {
-        try moveDot(allocator, frame, old_pos.?.Line, old_pos.?.Col);
+        try moveDot(allocator, frame, old_pos.?.line, old_pos.?.col);
         return false;
     }
-    try mark_ops.markCreate(allocator, frame.dot.?.Line, 1, &other_mark);
-    const line_nr = line_ops.lineToNumber(other_mark.?.Line);
-    const new_line_nr = line_ops.lineToNumber(here.?.Line);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, 1, &other_mark);
+    const line_nr = line_ops.lineToNumber(other_mark.?.line);
+    const new_line_nr = line_ops.lineToNumber(here.?.line);
     if (line_nr > new_line_nr) {
         const another_mark = here;
         here = other_mark;
@@ -408,11 +408,11 @@ test "current next and previous word follow paragraph boundaries" {
     var dot: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 8, &dot);
     try std.testing.expect(try currentWord(allocator, dot.?));
-    try std.testing.expectEqual(@as(isize, 7), dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 7), dot.?.col);
     try std.testing.expect(try nextWord(allocator, dot.?));
-    try std.testing.expectEqual(@as(isize, 13), dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 13), dot.?.col);
     try std.testing.expect(try previousWord(allocator, dot.?));
-    try std.testing.expectEqual(@as(isize, 7), dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 7), dot.?.col);
 }
 
 test "newword advance word supports forward backward and marker movement" {
@@ -422,15 +422,15 @@ test "newword advance word supports forward backward and marker movement" {
 
     const fixture = try buildWordFrame(allocator, &[_][]const u8{"hello world foo"});
     try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamNone, 1));
-    try std.testing.expectEqual(@as(isize, 7), fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 7), fixture.frame.dot.?.col);
 
     try moveDot(allocator, fixture.frame, fixture.content_lines[0], 9);
     try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamNInt, -1));
-    try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 14, &fixture.frame.marks[1]);
     try std.testing.expect(try newwordAdvanceWord(allocator, fixture.frame, .LeadParamMarker, 1));
-    try std.testing.expectEqual(@as(isize, 13), fixture.frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 13), fixture.frame.dot.?.col);
 }
 
 test "newword advance paragraph finds current next and first paragraphs" {
@@ -441,14 +441,14 @@ test "newword advance paragraph finds current next and first paragraphs" {
     const fixture = try buildWordFrame(allocator, &[_][]const u8{ "hello world", "", "foo bar" });
     try moveDot(allocator, fixture.frame, fixture.content_lines[0], 5);
     try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamPInt, 0));
-    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[0]);
-    try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.Col);
+    try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
+    try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.col);
 
     try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNone, 1));
-    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[2]);
+    try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[2]);
 
     try std.testing.expect(try newwordAdvanceParagraph(allocator, fixture.frame, .LeadParamNIndef, 0));
-    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[0]);
+    try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
 }
 
 test "newword delete word and paragraph remove text ranges" {

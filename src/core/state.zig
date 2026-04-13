@@ -20,14 +20,14 @@ pub const Editor = struct {
     hangup: bool = false,
     quit_requested: bool = false,
     batch_output_enabled: bool = !builtin.is_test,
-    edit_mode: types.ModeType = .ModeInsert,
-    previous_mode: types.ModeType = .ModeInsert,
+    edit_mode: types.ModeType = .mode_insert,
+    previous_mode: types.ModeType = .mode_insert,
     files: [types.max_files + 1]?*types.FileObject = [_]?*types.FileObject{null} ** (types.max_files + 1),
     files_frames: [types.max_files + 1]?*types.FrameObject = [_]?*types.FrameObject{null} ** (types.max_files + 1),
     fgi_file: isize = 0,
     fgo_file: isize = 0,
     first_span: ?*types.SpanObject = null,
-    ludwig_mode: types.LudwigModeType = .LudwigBatch,
+    ludwig_mode: types.LudwigModeType = .ludwig_batch,
     command_introducer: isize = '\\',
     prompt_region: [types.max_tp_count + 1]types.PromptRegionAttrib = [_]types.PromptRegionAttrib{.{}} ** (types.max_tp_count + 1),
     screen: types.ScreenState = .{},
@@ -99,9 +99,9 @@ pub const Editor = struct {
         self.code_top = 0;
         const code_list = try self.allocator().create(types.CodeHeader);
         code_list.* = .{
-            .Ref = 1,
-            .Code = 1,
-            .Len = 0,
+            .ref = 1,
+            .code = 1,
+            .len = 0,
         };
         code_list.f_link = code_list;
         code_list.b_link = code_list;
@@ -113,9 +113,9 @@ test "editor init ports value.go defaults and compiler state" {
     var editor = try Editor.init(std.testing.allocator);
     defer editor.deinit();
 
-    try std.testing.expectEqual(types.ModeType.ModeInsert, editor.edit_mode);
-    try std.testing.expectEqual(types.ModeType.ModeInsert, editor.previous_mode);
-    try std.testing.expectEqual(types.LudwigModeType.LudwigBatch, editor.ludwig_mode);
+    try std.testing.expectEqual(types.ModeType.mode_insert, editor.edit_mode);
+    try std.testing.expectEqual(types.ModeType.mode_insert, editor.previous_mode);
+    try std.testing.expectEqual(types.LudwigModeType.ludwig_batch, editor.ludwig_mode);
     try std.testing.expectEqual(@as(isize, '\\'), editor.command_introducer);
     try std.testing.expectEqual(types.max_int, editor.screen.msg_row);
     try std.testing.expect(editor.screen.stdin_reader_initialized);
@@ -162,6 +162,6 @@ test "editor can switch to new command lookup tables" {
     editor.loadCommandTable(false);
     try std.testing.expectEqual(types.Commands.CmdPrefixA, editor.lookup['A'].command);
     try std.testing.expectEqual(types.Commands.CmdPrefixT, editor.lookup['T'].command);
-    try std.testing.expectEqual(types.Commands.CmdJump, editor.lookup_exp[1].Command);
+    try std.testing.expectEqual(types.Commands.CmdJump, editor.lookup_exp[1].command);
     try std.testing.expectEqual(@as(usize, 80), editor.lookup_exp_ptr[@intFromEnum(types.Commands.CmdPrefixT)]);
 }

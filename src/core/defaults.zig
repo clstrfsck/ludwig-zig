@@ -20,13 +20,13 @@ pub fn setupInitialValues(editor: *state.Editor) !void {
     editor.hangup = false;
     editor.quit_requested = false;
     editor.batch_output_enabled = !builtin.is_test;
-    editor.edit_mode = .ModeInsert;
-    editor.previous_mode = .ModeInsert;
+    editor.edit_mode = .mode_insert;
+    editor.previous_mode = .mode_insert;
 
     editor.fgi_file = 0;
     editor.fgo_file = 0;
     editor.first_span = null;
-    editor.ludwig_mode = .LudwigBatch;
+    editor.ludwig_mode = .ludwig_batch;
     editor.command_introducer = '\\';
     editor.screen = .{
         .stdin_reader_initialized = true,

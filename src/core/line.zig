@@ -607,7 +607,7 @@ test "content frame helper creates sentinel null line and dot mark" {
 
     const fixture = try createContentFrame(allocator, &[_][]const u8{ "one", "two" });
     try std.testing.expect(fixture.frame.dot != null);
-    try std.testing.expect(fixture.frame.dot.?.Line == fixture.content_lines[0]);
+    try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
     try std.testing.expect(fixture.sentinel_line.f_link == null);
     try std.testing.expectEqual(@as(isize, 2), fixture.frame.last_group.?.num_lines);
     try std.testing.expect(fixture.frame.last_group.?.last_line == fixture.sentinel_line);

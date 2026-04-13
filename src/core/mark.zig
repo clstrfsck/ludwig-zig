@@ -19,8 +19,8 @@ pub fn markCreate(
     if (mark_slot.* == null) {
         const new_mark = try allocator.create(types.MarkObject);
         new_mark.* = .{
-            .Line = in_line,
-            .Col = column,
+            .line = in_line,
+            .col = column,
         };
         try in_line.marks.insert(allocator, 0, new_mark);
         mark_slot.* = new_mark;
@@ -28,15 +28,15 @@ pub fn markCreate(
     }
 
     const current_mark = mark_slot.*.?;
-    if (current_mark.Line == in_line) {
-        current_mark.Col = column;
+    if (current_mark.line == in_line) {
+        current_mark.col = column;
         return;
     }
 
-    removeFromMarks(&current_mark.Line.marks, current_mark);
+    removeFromMarks(&current_mark.line.marks, current_mark);
     try in_line.marks.insert(allocator, 0, current_mark);
-    current_mark.Line = in_line;
-    current_mark.Col = column;
+    current_mark.line = in_line;
+    current_mark.col = column;
 }
 
 pub fn markDestroy(
@@ -44,7 +44,7 @@ pub fn markDestroy(
     mark_slot: *?*types.MarkObject,
 ) void {
     if (mark_slot.*) |mark| {
-        removeFromMarks(&mark.Line.marks, mark);
+        removeFromMarks(&mark.line.marks, mark);
         allocator.destroy(mark);
         mark_slot.* = null;
     }
@@ -59,16 +59,16 @@ pub fn marksSqueeze(
 ) !void {
     if (first_line == last_line) {
         for (last_line.marks.items) |mark| {
-            if (mark.Col >= first_column and mark.Col < last_column) {
-                mark.Col = last_column;
+            if (mark.col >= first_column and mark.col < last_column) {
+                mark.col = last_column;
             }
         }
         return;
     }
 
     for (last_line.marks.items) |mark| {
-        if (mark.Col < last_column) {
-            mark.Col = last_column;
+        if (mark.col < last_column) {
+            mark.col = last_column;
         }
     }
 
@@ -81,9 +81,9 @@ pub fn marksSqueeze(
         var index: usize = 0;
         while (index < line.marks.items.len) {
             const mark = line.marks.items[index];
-            if (mark.Col >= column) {
-                mark.Col = last_column;
-                mark.Line = last_line;
+            if (mark.col >= column) {
+                mark.col = last_column;
+                mark.line = last_line;
                 try last_line.marks.insert(allocator, 0, mark);
                 _ = line.marks.orderedRemove(index);
             } else {
@@ -108,8 +108,8 @@ pub fn marksShift(
 
     if (source_line == dest_line) {
         for (source_line.marks.items) |mark| {
-            if (mark.Col >= source_column and mark.Col <= source_end) {
-                mark.Col = @min(mark.Col + offset, types.max_str_len_p1);
+            if (mark.col >= source_column and mark.col <= source_end) {
+                mark.col = @min(mark.col + offset, types.max_str_len_p1);
             }
         }
         return;
@@ -118,9 +118,9 @@ pub fn marksShift(
     var index: usize = 0;
     while (index < source_line.marks.items.len) {
         const mark = source_line.marks.items[index];
-        if (mark.Col >= source_column and mark.Col <= source_end) {
-            mark.Line = dest_line;
-            mark.Col = @min(mark.Col + offset, types.max_str_len_p1);
+        if (mark.col >= source_column and mark.col <= source_end) {
+            mark.line = dest_line;
+            mark.col = @min(mark.col + offset, types.max_str_len_p1);
             try dest_line.marks.insert(allocator, 0, mark);
             _ = source_line.marks.orderedRemove(index);
         } else {
@@ -163,7 +163,7 @@ test "mark create move and destroy preserve line mark lists" {
     try markCreate(allocator, line2, 15, &mark);
     try std.testing.expectEqual(@as(usize, 0), line1.marks.items.len);
     try std.testing.expectEqual(@as(usize, 1), line2.marks.items.len);
-    try std.testing.expectEqual(@as(isize, 15), mark.?.Col);
+    try std.testing.expectEqual(@as(isize, 15), mark.?.col);
 
     markDestroy(allocator, &mark);
     try std.testing.expect(mark == null);
@@ -192,12 +192,12 @@ test "marks squeeze across lines moves marks to the last line" {
     try markCreate(allocator, lines[1], 10, &mark3);
 
     try marksSqueeze(allocator, lines[0], 10, lines[2], 20);
-    try std.testing.expectEqual(@as(isize, 5), mark1.?.Col);
-    try std.testing.expect(mark1.?.Line == lines[0]);
-    try std.testing.expect(mark2.?.Line == lines[2]);
-    try std.testing.expect(mark3.?.Line == lines[2]);
-    try std.testing.expectEqual(@as(isize, 20), mark2.?.Col);
-    try std.testing.expectEqual(@as(isize, 20), mark3.?.Col);
+    try std.testing.expectEqual(@as(isize, 5), mark1.?.col);
+    try std.testing.expect(mark1.?.line == lines[0]);
+    try std.testing.expect(mark2.?.line == lines[2]);
+    try std.testing.expect(mark3.?.line == lines[2]);
+    try std.testing.expectEqual(@as(isize, 20), mark2.?.col);
+    try std.testing.expectEqual(@as(isize, 20), mark3.?.col);
 
     markDestroy(allocator, &mark1);
     markDestroy(allocator, &mark2);
@@ -221,10 +221,10 @@ test "marks shift clamps to max_str_len_p1 and preserves out-of-range marks" {
     try markCreate(allocator, line1, 25, &mark2);
 
     try marksShift(allocator, line1, 10, 10, line2, types.max_str_len_p1 + 50);
-    try std.testing.expect(mark1.?.Line == line2);
-    try std.testing.expectEqual(@as(isize, types.max_str_len_p1), mark1.?.Col);
-    try std.testing.expect(mark2.?.Line == line1);
-    try std.testing.expectEqual(@as(isize, 25), mark2.?.Col);
+    try std.testing.expect(mark1.?.line == line2);
+    try std.testing.expectEqual(@as(isize, types.max_str_len_p1), mark1.?.col);
+    try std.testing.expect(mark2.?.line == line1);
+    try std.testing.expectEqual(@as(isize, 25), mark2.?.col);
 
     markDestroy(allocator, &mark1);
     markDestroy(allocator, &mark2);

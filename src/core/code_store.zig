@@ -6,10 +6,10 @@ pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
         return;
     }
 
-    code_head.*.?.Ref -= 1;
-    if (code_head.*.?.Ref == 0) {
-        const start = code_head.*.?.Code;
-        const size = code_head.*.?.Len;
+    code_head.*.?.ref -= 1;
+    if (code_head.*.?.ref == 0) {
+        const start = code_head.*.?.code;
+        const size = code_head.*.?.len;
 
         var source = start;
         while (source < start + size) : (source += 1) {
@@ -27,7 +27,7 @@ pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
 
         var link = code_head.*.?.b_link;
         while (link != editor.code_list) {
-            link.?.Code -= size;
+            link.?.code -= size;
             link = link.?.b_link;
         }
 

@@ -23,14 +23,14 @@ pub fn doCmdLeft(frame: *types.FrameObject, rept: types.LeadParam, count: isize,
     new_eql.* = frame.dot.?.*;
     switch (rept) {
         .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
-            if (frame.dot.?.Col - count >= 1) {
-                frame.dot.?.Col -= count;
+            if (frame.dot.?.col - count >= 1) {
+                frame.dot.?.col -= count;
                 return true;
             }
         },
         .LeadParamPIndef => {
-            if (frame.dot.?.Col >= frame.margin_left) {
-                frame.dot.?.Col = frame.margin_left;
+            if (frame.dot.?.col >= frame.margin_left) {
+                frame.dot.?.col = frame.margin_left;
                 return true;
             }
         },
@@ -43,14 +43,14 @@ pub fn doCmdRight(frame: *types.FrameObject, rept: types.LeadParam, count: isize
     new_eql.* = frame.dot.?.*;
     switch (rept) {
         .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
-            if (frame.dot.?.Col + count <= types.max_str_len_p1) {
-                frame.dot.?.Col += count;
+            if (frame.dot.?.col + count <= types.max_str_len_p1) {
+                frame.dot.?.col += count;
                 return true;
             }
         },
         .LeadParamPIndef => {
-            if (frame.dot.?.Col <= frame.margin_right) {
-                frame.dot.?.Col = frame.margin_right;
+            if (frame.dot.?.col <= frame.margin_right) {
+                frame.dot.?.col = frame.margin_right;
                 return true;
             }
         },
@@ -61,7 +61,7 @@ pub fn doCmdRight(frame: *types.FrameObject, rept: types.LeadParam, count: isize
 
 pub fn doCmdTabBacktab(frame: *types.FrameObject, step: isize, count: isize, new_eql: *types.MarkObject) bool {
     new_eql.* = frame.dot.?.*;
-    var new_col = frame.dot.?.Col;
+    var new_col = frame.dot.?.col;
     var counter: isize = 1;
     while (counter <= count) : (counter += 1) {
         while (true) {
@@ -74,7 +74,7 @@ pub fn doCmdTabBacktab(frame: *types.FrameObject, step: isize, count: isize, new
             return false;
         }
     }
-    frame.dot.?.Col = new_col;
+    frame.dot.?.col = new_col;
     return true;
 }
 
@@ -82,8 +82,8 @@ pub fn doCmdHome(screen: *const types.ScreenState, frame: *types.FrameObject, ne
     new_eql.* = frame.dot.?.*;
     if (frame == screen.frame) {
         const top_line = screen.top_line orelse return true;
-        frame.dot.?.Line = top_line;
-        frame.dot.?.Col = frame.scr_offset + 1;
+        frame.dot.?.line = top_line;
+        frame.dot.?.col = frame.scr_offset + 1;
     }
     return true;
 }
@@ -95,7 +95,7 @@ pub fn doCmdUp(
     count: isize,
     new_eql: *types.MarkObject,
 ) !bool {
-    var dot_line = frame.dot.?.Line;
+    var dot_line = frame.dot.?.line;
     const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
         .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
@@ -116,7 +116,7 @@ pub fn doCmdUp(
         else => {},
     }
     new_eql.* = frame.dot.?.*;
-    try mark_ops.markCreate(allocator, dot_line, frame.dot.?.Col, &frame.dot);
+    try mark_ops.markCreate(allocator, dot_line, frame.dot.?.col, &frame.dot);
     return true;
 }
 
@@ -128,7 +128,7 @@ pub fn doCmdDown(
     new_eql: *types.MarkObject,
     eop_line_nr: isize,
 ) !bool {
-    var dot_line = frame.dot.?.Line;
+    var dot_line = frame.dot.?.line;
     const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
         .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
@@ -147,7 +147,7 @@ pub fn doCmdDown(
         else => {},
     }
     new_eql.* = frame.dot.?.*;
-    try mark_ops.markCreate(allocator, dot_line, frame.dot.?.Col, &frame.dot);
+    try mark_ops.markCreate(allocator, dot_line, frame.dot.?.col, &frame.dot);
     return true;
 }
 
@@ -159,8 +159,8 @@ pub fn doCmdReturn(
     eop_line_nr: *isize,
 ) !bool {
     new_eql.* = frame.dot.?.*;
-    var dot_line = frame.dot.?.Line;
-    var dot_col = frame.dot.?.Col;
+    var dot_line = frame.dot.?.line;
+    var dot_col = frame.dot.?.col;
     var counter: isize = 1;
     while (counter <= count) : (counter += 1) {
         if (dot_line.f_link == null) {
@@ -168,7 +168,7 @@ pub fn doCmdReturn(
             eop_line_nr.* += 1;
             dot_line = dot_line.b_link.?;
             if (counter == 1) {
-                new_eql.Line = dot_line;
+                new_eql.line = dot_line;
             }
         }
         dot_col = text.textReturnCol(dot_line, dot_col, false);
@@ -191,14 +191,14 @@ test "left and right commands obey bounds and margins" {
         .margin_right = 80,
     };
     var dot_line = types.LineHdrObject{};
-    var dot = types.MarkObject{ .Line = &dot_line, .Col = 10 };
+    var dot = types.MarkObject{ .line = &dot_line, .col = 10 };
     frame.dot = &dot;
 
-    var eql = types.MarkObject{ .Line = &dot_line, .Col = 0 };
+    var eql = types.MarkObject{ .line = &dot_line, .col = 0 };
     try std.testing.expect(doCmdLeft(&frame, .LeadParamNone, 1, &eql));
-    try std.testing.expectEqual(@as(isize, 9), frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 9), frame.dot.?.col);
     try std.testing.expect(doCmdRight(&frame, .LeadParamPIndef, 0, &eql));
-    try std.testing.expectEqual(@as(isize, 80), frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 80), frame.dot.?.col);
 }
 
 test "tab and backtab follow tab stops and margins" {
@@ -211,24 +211,24 @@ test "tab and backtab follow tab stops and margins" {
     frame.tab_stops[20] = true;
     frame.tab_stops[30] = true;
     var dot_line = types.LineHdrObject{};
-    var dot = types.MarkObject{ .Line = &dot_line, .Col = 5 };
+    var dot = types.MarkObject{ .line = &dot_line, .col = 5 };
     frame.dot = &dot;
-    var eql = types.MarkObject{ .Line = &dot_line, .Col = 0 };
+    var eql = types.MarkObject{ .line = &dot_line, .col = 0 };
     try std.testing.expect(doCmdTabBacktab(&frame, 1, 2, &eql));
-    try std.testing.expectEqual(@as(isize, 20), frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 20), frame.dot.?.col);
     try std.testing.expect(doCmdTabBacktab(&frame, -1, 1, &eql));
-    try std.testing.expectEqual(@as(isize, 10), frame.dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 10), frame.dot.?.col);
 }
 
 test "home command uses screen top line when frame is visible" {
     var top_line = types.LineHdrObject{};
     var current_line = types.LineHdrObject{};
     var frame = types.FrameObject{ .dot = undefined, .scr_offset = 10 };
-    var dot = types.MarkObject{ .Line = &current_line, .Col = 50 };
+    var dot = types.MarkObject{ .line = &current_line, .col = 50 };
     frame.dot = &dot;
     const screen = types.ScreenState{ .frame = &frame, .top_line = &top_line };
-    var eql = types.MarkObject{ .Line = &current_line, .Col = 0 };
+    var eql = types.MarkObject{ .line = &current_line, .col = 0 };
     _ = doCmdHome(&screen, &frame, &eql);
-    try std.testing.expect(frame.dot.?.Line == &top_line);
-    try std.testing.expectEqual(@as(isize, 11), frame.dot.?.Col);
+    try std.testing.expect(frame.dot.?.line == &top_line);
+    try std.testing.expectEqual(@as(isize, 11), frame.dot.?.col);
 }

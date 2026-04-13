@@ -291,71 +291,71 @@ pub const PromptType = enum(u16) {
 };
 
 pub const ParameterType = enum(u16) {
-    PatternFail,
-    PatternRange,
-    NullParam,
+    pattern_fail,
+    pattern_range,
+    null_param,
 };
 
 pub const ModeType = enum(u16) {
-    ModeOvertype,
-    ModeInsert,
-    ModeCommand,
+    mode_overtype,
+    mode_insert,
+    mode_command,
 };
 
 pub const LudwigModeType = enum(u16) {
-    LudwigBatch,
-    LudwigHardcopy,
-    LudwigScreen,
+    ludwig_batch,
+    ludwig_hardcopy,
+    ludwig_screen,
 };
 
 pub const LookupExpType = struct {
-    Extn: u8 = 0,
-    Command: Commands = .CmdNoop,
+    extn: u8 = 0,
+    command: Commands = .CmdNoop,
 };
 
 pub const TParObject = struct {
-    Len: isize = 0,
-    Dlm: u8 = 0,
+    len: isize = 0,
+    dlm: u8 = 0,
     str: ?*StrObject = null,
-    Nxt: ?*TParObject = null,
-    Con: ?*TParObject = null,
+    nxt: ?*TParObject = null,
+    con: ?*TParObject = null,
 };
 
 pub const CodeHeader = struct {
     f_link: ?*CodeHeader = null,
     b_link: ?*CodeHeader = null,
-    Ref: isize = 0,
-    Code: isize = 0,
-    Len: isize = 0,
+    ref: isize = 0,
+    code: isize = 0,
+    len: isize = 0,
 };
 
 pub const MarkObject = struct {
-    Line: *LineHdrObject,
-    Col: isize,
+    line: *LineHdrObject,
+    col: isize,
 };
 
 pub const FileObject = struct {
-    Valid: bool = false,
+    valid: bool = false,
     first_line: ?*LineHdrObject = null,
     last_line: ?*LineHdrObject = null,
-    LineCount: isize = 0,
-    RewindFirstLine: ?*LineHdrObject = null,
-    RewindLastLine: ?*LineHdrObject = null,
-    RewindLineCount: isize = 0,
-    OutputFlag: bool = false,
-    Eof: bool = false,
-    Filename: []const u8 = "",
-    LCounter: isize = 0,
-    Memory: []const u8 = "",
-    Tnm: []const u8 = "",
-    Entab: bool = false,
-    Create: bool = false,
-    OsFile: ?std.fs.File = null,
-    Reader: ?*anyopaque = null,
-    Mode: isize = 0,
-    PreviousFileId: i64 = 0,
-    Purge: bool = false,
-    Versions: isize = 0,
+    line_count: isize = 0,
+    rewind_first_line: ?*LineHdrObject = null,
+    rewind_last_line: ?*LineHdrObject = null,
+    rewind_line_count: isize = 0,
+    output_flag: bool = false,
+    eof: bool = false,
+    filename: []const u8 = "",
+    l_counter: isize = 0,
+    memory: []const u8 = "",
+    tnm: []const u8 = "",
+    entab: bool = false,
+    create: bool = false,
+    os_file: ?std.fs.File = null,
+    reader: ?*anyopaque = null,
+    mode: isize = 0,
+    previous_file_id: i64 = 0,
+    purge: bool = false,
+    versions: isize = 0,
 };
 
 pub const MarkArray = [max_mark_number + 1]?*MarkObject;

@@ -31,7 +31,7 @@ pub fn validateCommand(
         if (this_span.mark_one == null or this_span.mark_two == null) {
             return false;
         }
-        if (this_span.code != null and this_span.code.?.Ref == 0) {
+        if (this_span.code != null and this_span.code.?.ref == 0) {
             return false;
         }
 
@@ -44,12 +44,12 @@ pub fn validateCommand(
             if (this_frame.dot == null) {
                 return false;
             }
-            if (this_frame.dot.?.Line.group == null or this_frame.dot.?.Line.group.?.frame != this_frame) {
+            if (this_frame.dot.?.line.group == null or this_frame.dot.?.line.group.?.frame != this_frame) {
                 return false;
             }
             for (this_frame.marks) |maybe_mark| {
                 if (maybe_mark) |mark| {
-                    if (mark.Line.group == null or mark.Line.group.?.frame != this_frame) {
+                    if (mark.line.group == null or mark.line.group.?.frame != this_frame) {
                         return false;
                     }
                 }
@@ -72,17 +72,17 @@ pub fn validateCommand(
             if (this_frame.margin_left >= this_frame.margin_right) {
                 return false;
             }
-            if (this_span.mark_one.?.Line.group == null or this_span.mark_two.?.Line.group == null) {
+            if (this_span.mark_one.?.line.group == null or this_span.mark_two.?.line.group == null) {
                 return false;
             }
-            if (this_span.mark_one.?.Line.group.?.frame != this_frame or this_span.mark_two.?.Line.group.?.frame != this_frame) {
+            if (this_span.mark_one.?.line.group.?.frame != this_frame or this_span.mark_two.?.line.group.?.frame != this_frame) {
                 return false;
             }
         } else {
-            if (this_span.mark_one.?.Line.group == null or this_span.mark_two.?.Line.group == null) {
+            if (this_span.mark_one.?.line.group == null or this_span.mark_two.?.line.group == null) {
                 return false;
             }
-            if (this_span.mark_one.?.Line.group.?.frame != this_span.mark_two.?.Line.group.?.frame) {
+            if (this_span.mark_one.?.line.group.?.frame != this_span.mark_two.?.line.group.?.frame) {
                 return false;
             }
         }

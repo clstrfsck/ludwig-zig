@@ -623,7 +623,7 @@ fn computePromptPosition(editor: *state.Editor, frame: *types.FrameObject, max_t
         return region.line_num;
     }
 
-    if (frame.dot != null and absoluteScreenRow(editor, frame, frame.dot.?.Line.scr_row_num) <= 2) {
+    if (frame.dot != null and absoluteScreenRow(editor, frame, frame.dot.?.line.scr_row_num) <= 2) {
         region.line_num = bottom_row;
         region.redraw = lineAtVisibleRow(editor, frame, top_line, bot_line, bottom_row);
         return region.line_num;
@@ -646,16 +646,16 @@ fn restorePromptLines(editor: *state.Editor, frame: *types.FrameObject, max_tp: 
         region.* = .{};
     }
 
-    if (frame.dot != null and frame.dot.?.Line.scr_row_num > 0) {
+    if (frame.dot != null and frame.dot.?.line.scr_row_num > 0) {
         const width = frameDisplayWidth(editor, frame);
-        const cursor_col = @min(@max(frame.dot.?.Col - frame.scr_offset, 1), width);
-        moveCursor(cursor_col, absoluteScreenRow(editor, frame, frame.dot.?.Line.scr_row_num));
+        const cursor_col = @min(@max(frame.dot.?.col - frame.scr_offset, 1), width);
+        moveCursor(cursor_col, absoluteScreenRow(editor, frame, frame.dot.?.line.scr_row_num));
     }
     refresh();
 }
 
 fn initialVerifyTopLine(frame: *const types.FrameObject, height: isize) isize {
-    const dot_number = line_ops.lineToNumber(frame.dot.?.Line);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.line);
     const desired_row = if (height > 1) @as(isize, 2) else 1;
     return clampTopLine(frame, dot_number - desired_row + 1, height);
 }
@@ -725,9 +725,9 @@ fn drawVerifyViewport(
 
     drawLine(terminal_height, prompt);
 
-    const dot_number = line_ops.lineToNumber(frame.dot.?.Line);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.line);
     const cursor_row = @min(@max(dot_number - top_number + 1, 1), @min(height, terminal_height));
-    const cursor_col = @min(@max(frame.dot.?.Col - frame.scr_offset, 1), width);
+    const cursor_col = @min(@max(frame.dot.?.col - frame.scr_offset, 1), width);
     moveCursor(cursor_col, cursor_row);
     refresh();
 }
@@ -940,7 +940,7 @@ test "interactive io verify reply handles invalid keys and more context" {
     var editor = try state.Editor.init(std.testing.allocator);
     defer editor.deinit();
     const allocator = editor.allocator();
-    editor.ludwig_mode = .LudwigScreen;
+    editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 40, .height = 6 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
