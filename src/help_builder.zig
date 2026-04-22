@@ -125,9 +125,6 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(allocator);
     defer allocator.free(args);
 
-    // const args = try std.process.argsAlloc(allocator);
-    // defer std.process.argsFree(allocator, args);
-
     const input_path = if (args.len > 1) args[1] else default_input_file;
     const output_path = if (args.len > 2) args[2] else default_output_file;
 

@@ -72,13 +72,6 @@ fn openReadOnly(io: std.Io, path: []const u8) !std.Io.File {
 }
 
 fn createTruncated(io: std.Io, path: []const u8, mode: u16) !std.Io.File {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.Io.Dir.createFileAbsolute(io, path, .{
-            .truncate = true,
-            .read = true,
-            .permissions = std.Io.File.Permissions.fromMode(mode),
-        });
-    }
     return std.Io.Dir.cwd().createFile(io, path, .{
         .truncate = true,
         .read = true,
@@ -91,9 +84,6 @@ fn openWriteOnly(io: std.Io, path: []const u8) !std.Io.File {
 }
 
 fn openDirIter(io: std.Io, path: []const u8) !std.Io.Dir {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.Io.Dir.openDirAbsolute(io, path, .{ .iterate = true });
-    }
     return std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
 }
 
@@ -130,9 +120,6 @@ pub fn renamePath(io: std.Io, old_path: []const u8, new_path: []const u8) !void 
 }
 
 pub fn deleteFile(io: std.Io, path: []const u8) !void {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.Io.Dir.deleteFileAbsolute(io, path);
-    }
     return std.Io.Dir.cwd().deleteFile(io, path);
 }
 
@@ -260,6 +247,29 @@ test "sys writes and reads memory filenames" {
     try std.testing.expect(try writeFilename(io, memory_path, "/tmp/example.txt"));
     const remembered = (try readFilename(io, allocator, memory_path)) orelse return error.TestUnexpectedResult;
     try std.testing.expectEqualStrings("/tmp/example.txt", remembered);
+}
+
+test "sys file helpers accept absolute paths" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const io = std.testing.io;
+    const allocator = arena.allocator();
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    const cwd = try std.process.currentPathAlloc(io, allocator);
+    const rel_path = try tmpPath(allocator, &tmp_dir, "absolute.txt");
+    const abs_path = try std.fs.path.resolve(allocator, &.{ cwd, rel_path });
+
+    try std.testing.expect(try writeFilename(io, abs_path, "/tmp/absolute.txt"));
+    try std.testing.expect(fileExists(io, abs_path));
+    try std.testing.expect(fileWritable(io, abs_path));
+
+    const remembered = (try readFilename(io, allocator, abs_path)) orelse return error.TestUnexpectedResult;
+    try std.testing.expectEqualStrings("/tmp/absolute.txt", remembered);
+
+    try deleteFile(io, abs_path);
+    try std.testing.expect(!fileExists(io, abs_path));
 }
 
 test "sys lists numeric backup suffixes in order" {
