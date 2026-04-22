@@ -38,7 +38,7 @@ artifacts into `zig-out/bin`.
 
 Prerequisites:
 
-- Zig `0.15.2`
+- Zig `0.16.0`
 - `ncurses`
 - `pcre2`
 
