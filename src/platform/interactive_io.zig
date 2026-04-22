@@ -254,12 +254,12 @@ pub fn readInputKey() !?isize {
     return error.NoActiveSession;
 }
 
-pub fn printLine(message: []const u8) void {
+pub fn printLine(io: std.Io, message: []const u8) void {
     if (builtin.is_test) {
         return;
     }
     var buf: [1024]u8 = undefined;
-    var file_writer = std.fs.File.stdout().writerStreaming(&buf);
+    var file_writer = std.Io.File.stdout().writerStreaming(io, &buf);
     const stdout = &file_writer.interface;
     defer stdout.flush() catch {};
     stdout.print("{s}\r\n", .{message}) catch {};
@@ -783,7 +783,7 @@ pub fn readPromptLineWithOptions(
         std.debug.print("[io:prompt-line] prompt={s}\n", .{prompt});
     }
 
-    var buffer: std.ArrayList(u8) = .{};
+    var buffer: std.ArrayList(u8) = .empty;
     errdefer buffer.deinit(allocator);
     const max_len = @min(options.max_len, width - @min(prompt_len, width));
 
@@ -937,9 +937,13 @@ test "interactive io verify reply handles invalid keys and more context" {
     testing.installInput("\x01MQ");
     defer testing.clearInput();
 
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 40, .height = 6 };
 

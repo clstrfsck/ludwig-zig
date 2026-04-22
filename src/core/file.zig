@@ -62,14 +62,14 @@ fn reportNameWidth(editor: *const state.Editor) usize {
     return types.file_name_len;
 }
 
-fn renderFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slot: usize, file: *const types.FileObject) ![]const u8 {
+fn renderFileLine(editor: *state.Editor, slot: usize, file: *const types.FileObject) ![]const u8 {
     const frame = editor.files_frames[slot];
-    const usage = try padRight(allocator, usageLabel(editor, slot, file), 3);
+    const usage = try padRight(editor.allocator(), usageLabel(editor, slot, file), 3);
     const eof_status: []const u8 = if (file.eof) "EOF" else "   ";
     const mod_status: []const u8 = if (frame != null and frame.?.text_modified) " * " else "   ";
-    const frame_name = try padRight(allocator, if (frame != null and frame.?.span != null) frame.?.span.?.name else "", 6);
-    const filename = try fileNameForWidth(allocator, file, reportNameWidth(editor));
-    return std.fmt.allocPrint(allocator, "{s} {s} {s}{s} {s}", .{
+    const frame_name = try padRight(editor.allocator(), if (frame != null and frame.?.span != null) frame.?.span.?.name else "", 6);
+    const filename = try fileNameForWidth(editor.allocator(), file, reportNameWidth(editor));
+    return std.fmt.allocPrint(editor.allocator(), "{s} {s} {s}{s} {s}", .{
         usage,
         eof_status,
         mod_status,
@@ -78,14 +78,14 @@ fn renderFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slo
     });
 }
 
-fn renderBatchFileLine(editor: *const state.Editor, allocator: std.mem.Allocator, slot: usize, file: *const types.FileObject) ![]const u8 {
+fn renderBatchFileLine(editor: *state.Editor, slot: usize, file: *const types.FileObject) ![]const u8 {
     const frame = editor.files_frames[slot];
-    const usage = try padRight(allocator, usageLabel(editor, slot, file), 3);
+    const usage = try padRight(editor.allocator(), usageLabel(editor, slot, file), 3);
     const eof_status: []const u8 = if (file.eof) "EOF" else "   ";
     const mod_status: []const u8 = if (frame != null and frame.?.text_modified) " * " else "   ";
-    const frame_name = try padRight(allocator, if (frame != null and frame.?.span != null) frame.?.span.?.name else "", 6);
-    const filename = try fileNameForWidth(allocator, file, reportNameWidth(editor));
-    return std.fmt.allocPrint(allocator, "{s} {s} {s} {s} {s}", .{
+    const frame_name = try padRight(editor.allocator(), if (frame != null and frame.?.span != null) frame.?.span.?.name else "", 6);
+    const filename = try fileNameForWidth(editor.allocator(), file, reportNameWidth(editor));
+    return std.fmt.allocPrint(editor.allocator(), "{s} {s} {s} {s} {s}", .{
         usage,
         eof_status,
         mod_status,
@@ -137,45 +137,44 @@ fn replaceReportFrame(
 
 pub fn fileTable(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     report_frame: *types.FrameObject,
 ) !bool {
-    var lines: std.ArrayList([]const u8) = .{};
-    try lines.append(allocator, "Usage   Mod Frame  Filename");
-    try lines.append(allocator, "------- --- ------ --------");
-    try lines.append(allocator, "");
+    var lines: std.ArrayList([]const u8) = .empty;
+    try lines.append(editor.allocator(), "Usage   Mod Frame  Filename");
+    try lines.append(editor.allocator(), "------- --- ------ --------");
+    try lines.append(editor.allocator(), "");
 
     var have_files = false;
     var slot: usize = 1;
     while (slot <= types.max_files) : (slot += 1) {
         const file = editor.files[slot] orelse continue;
         have_files = true;
-        try lines.append(allocator, try renderFileLine(editor, allocator, slot, file));
+        try lines.append(editor.allocator(), try renderFileLine(editor, slot, file));
     }
     if (!have_files) {
-        try lines.append(allocator, "<none>");
+        try lines.append(editor.allocator(), "<none>");
     }
 
-    const ok = try replaceReportFrame(allocator, report_frame, lines.items);
+    const ok = try replaceReportFrame(editor.allocator(), report_frame, lines.items);
     if (ok) {
         switch (editor.ludwig_mode) {
-            .ludwig_screen => try interactive_io.showTemporaryReport(allocator, lines.items),
+            .ludwig_screen => try interactive_io.showTemporaryReport(editor.allocator(), lines.items),
             .ludwig_batch, .ludwig_hardcopy => if (editor.batch_output_enabled) {
-                var batch_lines: std.ArrayList([]const u8) = .{};
-                try batch_lines.append(allocator, "Usage   Mod Frame  Filename");
-                try batch_lines.append(allocator, "------- --- ------ --------");
-                try batch_lines.append(allocator, "");
+                var batch_lines: std.ArrayList([]const u8) = .empty;
+                try batch_lines.append(editor.allocator(), "Usage   Mod Frame  Filename");
+                try batch_lines.append(editor.allocator(), "------- --- ------ --------");
+                try batch_lines.append(editor.allocator(), "");
 
                 if (have_files) {
                     slot = 1;
                     while (slot <= types.max_files) : (slot += 1) {
                         const file = editor.files[slot] orelse continue;
-                        try batch_lines.append(allocator, try renderBatchFileLine(editor, allocator, slot, file));
+                        try batch_lines.append(editor.allocator(), try renderBatchFileLine(editor, slot, file));
                     }
                 } else {
-                    try batch_lines.append(allocator, "<none>");
+                    try batch_lines.append(editor.allocator(), "<none>");
                 }
-                batch_output.printLines(batch_lines.items, 2);
+                batch_output.printLines(editor.io, batch_lines.items, 2);
             },
         }
     }
@@ -302,7 +301,7 @@ fn emitStatusMessage(editor: *const state.Editor, message: []const u8) void {
     switch (editor.ludwig_mode) {
         .ludwig_screen => interactive_io.queueStatusMessage(message),
         .ludwig_batch, .ludwig_hardcopy => if (editor.batch_output_enabled) {
-            batch_output.printMessage(message);
+            batch_output.printMessage(editor.io, message);
         },
     }
 }
@@ -313,14 +312,13 @@ fn emitNoFileOpenMessage(editor: *const state.Editor) void {
 
 fn pageFileWithLoadingMessage(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
     if (editor.ludwig_mode == .ludwig_screen) {
         interactive_io.queueStatusMessage(loading_file_message);
     }
     defer interactive_io.clearStatusMessage();
-    return filePage(editor, allocator, frame);
+    return filePage(editor, frame);
 }
 
 fn emitInputClosedMessage(editor: *const state.Editor, file: *const types.FileObject) void {
@@ -427,28 +425,27 @@ fn isPrintableFileByte(byte: u8) bool {
 }
 
 fn makeDiskInputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     file_name: []const u8,
 ) !?*types.FileObject {
-    const owned_name = (try sys_ops.expandFilename(allocator, file_name)) orelse return null;
-    const status = sys_ops.fileStatus(owned_name);
+    const owned_name = (try sys_ops.expandFilename(editor.io, editor.allocator(), editor.env, file_name)) orelse return null;
+    const status = sys_ops.fileStatus(editor.io, owned_name);
     if (!status.valid or status.is_dir) {
         return null;
     }
-    const data = sys_ops.readFileAlloc(allocator, owned_name, std.math.maxInt(usize)) catch return null;
-    const file = try createFileObject(allocator, false);
+    const data = sys_ops.readFileAlloc(editor.io, editor.allocator(), owned_name, std.math.maxInt(usize)) catch return null;
+    const file = try createFileObject(editor.allocator(), false);
     file.filename = owned_name;
     file.mode = status.mode;
     file.previous_file_id = @intCast(status.m_time);
 
-    var line_buffer: std.ArrayList(u8) = .{};
-    defer line_buffer.deinit(allocator);
+    var line_buffer: std.ArrayList(u8) = .empty;
+    defer line_buffer.deinit(editor.allocator());
 
     const tab_width = clampTabWidth(editor);
     for (data) |byte| {
         if (isLineTerminator(byte)) {
-            try appendLineBytesToFile(allocator, file, line_buffer.items);
+            try appendLineBytesToFile(editor.allocator(), file, line_buffer.items);
             line_buffer.clearRetainingCapacity();
             continue;
         }
@@ -457,10 +454,10 @@ fn makeDiskInputFile(
             var spaces = tab_width - (line_buffer.items.len % tab_width);
             while (spaces > 0) : (spaces -= 1) {
                 if (line_buffer.items.len == types.max_str_len) {
-                    try appendLineBytesToFile(allocator, file, line_buffer.items);
+                    try appendLineBytesToFile(editor.allocator(), file, line_buffer.items);
                     line_buffer.clearRetainingCapacity();
                 }
-                try line_buffer.append(allocator, ' ');
+                try line_buffer.append(editor.allocator(), ' ');
             }
             continue;
         }
@@ -470,14 +467,14 @@ fn makeDiskInputFile(
         }
 
         if (line_buffer.items.len == types.max_str_len) {
-            try appendLineBytesToFile(allocator, file, line_buffer.items);
+            try appendLineBytesToFile(editor.allocator(), file, line_buffer.items);
             line_buffer.clearRetainingCapacity();
         }
-        try line_buffer.append(allocator, byte);
+        try line_buffer.append(editor.allocator(), byte);
     }
 
     if (line_buffer.items.len > 0 or (data.len > 0 and !isLineTerminator(data[data.len - 1]))) {
-        try appendLineBytesToFile(allocator, file, line_buffer.items);
+        try appendLineBytesToFile(editor.allocator(), file, line_buffer.items);
     }
 
     file.l_counter = 0;
@@ -485,13 +482,12 @@ fn makeDiskInputFile(
     if (file.line_count > 0) {
         file.eof = false;
     }
-    try setSnapshotFromQueue(allocator, file);
+    try setSnapshotFromQueue(editor.allocator(), file);
     return file;
 }
 
 fn makeDiskOutputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     file_name: []const u8,
     options: DiskOutputOptions,
 ) !?*types.FileObject {
@@ -502,23 +498,23 @@ fn makeDiskOutputFile(
     else
         return null;
 
-    var owned_name = (try sys_ops.expandFilename(allocator, resolved_name)) orelse return null;
-    var status = sys_ops.fileStatus(owned_name);
+    var owned_name = (try sys_ops.expandFilename(editor.io, editor.allocator(), editor.env, resolved_name)) orelse return null;
+    var status = sys_ops.fileStatus(editor.io, owned_name);
     if (status.valid and status.is_dir) {
         const related_name = options.related_name orelse return null;
-        owned_name = try sys_ops.copyFilename(allocator, related_name, owned_name);
-        status = sys_ops.fileStatus(owned_name);
+        owned_name = try sys_ops.copyFilename(editor.allocator(), related_name, owned_name);
+        status = sys_ops.fileStatus(editor.io, owned_name);
     }
     if (status.valid) {
-        if (options.create or status.is_dir or !sys_ops.fileWritable(owned_name)) {
+        if (options.create or status.is_dir or !sys_ops.fileWritable(editor.io, owned_name)) {
             return null;
         }
     }
 
-    const file = try createFileObject(allocator, true);
+    const file = try createFileObject(editor.allocator(), true);
     file.filename = owned_name;
     file.memory = if (options.memory) |memory| memory else "";
-    file.tnm = try buildTempOutputName(allocator, owned_name);
+    file.tnm = try buildTempOutputName(editor.io, editor.allocator(), owned_name);
     file.entab = editor.file_data.entab;
     file.create = options.create;
     file.mode = if (status.valid) status.mode else sys_ops.fileMask();
@@ -530,20 +526,18 @@ fn makeDiskOutputFile(
 }
 
 pub fn openDiskInputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     file_name: []const u8,
 ) !?*types.FileObject {
-    return makeDiskInputFile(editor, allocator, file_name);
+    return makeDiskInputFile(editor, file_name);
 }
 
 pub fn openDiskOutputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     file_name: []const u8,
     options: DiskOutputOptions,
 ) !?*types.FileObject {
-    return makeDiskOutputFile(editor, allocator, file_name, options);
+    return makeDiskOutputFile(editor, file_name, options);
 }
 
 fn appendEncodedLine(
@@ -569,6 +563,7 @@ fn appendEncodedLine(
 }
 
 fn removeBackupFiles(
+    io: std.Io,
     allocator: std.mem.Allocator,
     backup_file: []const u8,
     versions: []const i64,
@@ -578,11 +573,12 @@ fn removeBackupFiles(
     var index = start;
     while (index < end) : (index += 1) {
         const file_name = try std.fmt.allocPrint(allocator, "{s}{d}", .{ backup_file, versions[index] });
-        sys_ops.deleteFile(file_name) catch {};
+        sys_ops.deleteFile(io, file_name) catch {};
     }
 }
 
 fn buildTempOutputName(
+    io: std.Io,
     allocator: std.mem.Allocator,
     file_name: []const u8,
 ) ![]const u8 {
@@ -592,50 +588,51 @@ fn buildTempOutputName(
             try std.fmt.allocPrint(allocator, "{s}-lw", .{file_name})
         else
             try std.fmt.allocPrint(allocator, "{s}-lw{d}", .{ file_name, unique });
-        if (!sys_ops.fileExists(candidate)) {
+        if (!sys_ops.fileExists(io, candidate)) {
             return candidate;
         }
     }
 }
 
 fn writeOutputBytes(
+    io: std.Io,
     allocator: std.mem.Allocator,
     output_file: *types.FileObject,
     data: []const u8,
 ) !bool {
     if (output_file.tnm.len == 0) {
-        output_file.tnm = try buildTempOutputName(allocator, output_file.filename);
+        output_file.tnm = try buildTempOutputName(io, allocator, output_file.filename);
     }
-    sys_ops.writeFile(output_file.tnm, data, if (output_file.mode != 0) @intCast(output_file.mode) else 0o600) catch return false;
+    sys_ops.writeFile(io, output_file.tnm, data, if (output_file.mode != 0) @intCast(output_file.mode) else 0o600) catch return false;
 
     const backup_name = try std.fmt.allocPrint(allocator, "{s}~", .{output_file.filename});
-    const versions = try sys_ops.listBackups(allocator, backup_name);
+    const versions = try sys_ops.listBackups(io, allocator, backup_name);
     const max_vnum: i64 = if (versions.len > 0) versions[versions.len - 1] else 0;
     if (output_file.purge) {
         if (output_file.versions <= 0) {
-            try removeBackupFiles(allocator, backup_name, versions, 0, versions.len);
+            try removeBackupFiles(io, allocator, backup_name, versions, 0, versions.len);
         } else {
             const retain: usize = @intCast(@max(output_file.versions - 1, 0));
             if (versions.len > retain) {
-                try removeBackupFiles(allocator, backup_name, versions, 0, versions.len - retain);
+                try removeBackupFiles(io, allocator, backup_name, versions, 0, versions.len - retain);
             }
         }
     } else if (versions.len > 0 and versions.len >= @as(usize, @intCast(@max(output_file.versions, 0)))) {
-        try removeBackupFiles(allocator, backup_name, versions, 0, 1);
+        try removeBackupFiles(io, allocator, backup_name, versions, 0, 1);
     }
 
     if (output_file.versions != 0 or (!output_file.purge and max_vnum != 0)) {
-        if (sys_ops.fileExists(output_file.filename)) {
+        if (sys_ops.fileExists(io, output_file.filename)) {
             const backup_path = try std.fmt.allocPrint(allocator, "{s}{d}", .{ backup_name, max_vnum + 1 });
-            sys_ops.renamePath(output_file.filename, backup_path) catch {};
+            sys_ops.renamePath(io, output_file.filename, backup_path) catch {};
         }
     }
 
-    sys_ops.renamePath(output_file.tnm, output_file.filename) catch return false;
+    sys_ops.renamePath(io, output_file.tnm, output_file.filename) catch return false;
     if (output_file.memory.len > 0 and !sys_ops.isTempPath(output_file.filename)) {
-        _ = try sys_ops.writeFilename(output_file.memory, output_file.filename);
+        _ = try sys_ops.writeFilename(io, output_file.memory, output_file.filename);
     }
-    const status = sys_ops.fileStatus(output_file.filename);
+    const status = sys_ops.fileStatus(io, output_file.filename);
     if (status.valid) {
         output_file.mode = status.mode;
         output_file.previous_file_id = @intCast(status.m_time);
@@ -644,27 +641,26 @@ fn writeOutputBytes(
 }
 
 fn writeLineRangeToDisk(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     output_file: *types.FileObject,
     first: ?*const types.LineHdrObject,
     last: ?*const types.LineHdrObject,
 ) !bool {
-    var bytes: std.ArrayList(u8) = .{};
-    defer bytes.deinit(allocator);
+    var bytes: std.ArrayList(u8) = .empty;
+    defer bytes.deinit(editor.allocator());
 
     if (first != null and last != null) {
         const tab_width = clampTabWidth(editor);
         var line = first.?;
         while (true) {
-            try appendEncodedLine(allocator, &bytes, line_ops.getLineContent(line), output_file.entab, tab_width);
+            try appendEncodedLine(editor.allocator(), &bytes, line_ops.getLineContent(line), output_file.entab, tab_width);
             if (line == last.?) {
                 break;
             }
             line = line.f_link.?;
         }
     }
-    return writeOutputBytes(allocator, output_file, bytes.items);
+    return writeOutputBytes(editor.io, editor.allocator(), output_file, bytes.items);
 }
 
 fn buildSavedFileContents(
@@ -695,8 +691,7 @@ fn buildSavedFileContents(
 }
 
 fn persistDiskBackedFrameOutput(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     frame: *types.FrameObject,
     output_file: *types.FileObject,
     input_file: ?*types.FileObject,
@@ -705,10 +700,9 @@ fn persistDiskBackedFrameOutput(
         return null;
     }
 
-    const assembled = try buildSavedFileContents(allocator, frame, output_file, input_file);
+    const assembled = try buildSavedFileContents(editor.allocator(), frame, output_file, input_file);
     if (!try writeLineRangeToDisk(
         editor,
-        allocator,
         output_file,
         assembled.first_line,
         assembled.last_line,
@@ -725,8 +719,7 @@ fn persistDiskBackedFrameOutput(
 }
 
 fn persistDiskBackedOutputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     output_file: *types.FileObject,
 ) !bool {
     if (output_file.filename.len == 0) {
@@ -734,7 +727,6 @@ fn persistDiskBackedOutputFile(
     }
     return writeLineRangeToDisk(
         editor,
-        allocator,
         output_file,
         output_file.first_line,
         output_file.last_line,
@@ -908,7 +900,6 @@ fn computeLineRange(
 
 pub fn fileReadCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
     count: isize,
@@ -921,19 +912,18 @@ pub fn fileReadCommand(
     const read_result = fileReadBuffered(input_file, lines_to_read, rept == .lead_param_p_indef) orelse return false;
     if (read_result.first) |first| {
         const last = read_result.last.?;
-        try line_ops.linesInject(allocator, first, last, frame.dot.?.line);
-        try mark_ops.markCreate(allocator, first, 1, &frame.marks[types.mark_equals]);
+        try line_ops.linesInject(editor.allocator(), first, last, frame.dot.?.line);
+        try mark_ops.markCreate(editor.allocator(), first, 1, &frame.marks[types.mark_equals]);
         frame.text_modified = true;
         const after = last.f_link.?;
-        try mark_ops.markCreate(allocator, after, 1, &frame.marks[types.mark_modified]);
-        try mark_ops.markCreate(allocator, after, 1, &frame.dot);
+        try mark_ops.markCreate(editor.allocator(), after, 1, &frame.marks[types.mark_modified]);
+        try mark_ops.markCreate(editor.allocator(), after, 1, &frame.dot);
     }
     return true;
 }
 
 pub fn fileWriteCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     rept: types.LeadParam,
     count: isize,
@@ -945,14 +935,13 @@ pub fn fileWriteCommand(
     const output_file = editor.files[@intCast(editor.fgo_file)] orelse return false;
     const range = computeLineRange(frame, rept, count, mark) orelse return false;
     if (range.first) |first| {
-        return fileWriteBuffered(allocator, first, range.last.?, output_file);
+        return fileWriteBuffered(editor.allocator(), first, range.last.?, output_file);
     }
     return true;
 }
 
 pub fn filePage(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
     const page_out = computeLineRange(frame, .lead_param_n_indef, 0, null) orelse return false;
@@ -960,13 +949,13 @@ pub fn filePage(
         const last = page_out.last.?;
         if (frame.output_file != 0) {
             const output_file = editor.files[@intCast(frame.output_file)] orelse return false;
-            if (!try fileWriteBuffered(allocator, first, last, output_file)) {
+            if (!try fileWriteBuffered(editor.allocator(), first, last, output_file)) {
                 editor.exit_abort = true;
                 return false;
             }
         }
         const after = last.f_link orelse return false;
-        try mark_ops.marksSqueeze(allocator, first, 1, after, 1);
+        try mark_ops.marksSqueeze(editor.allocator(), first, 1, after, 1);
         line_ops.linesExtract(first, last);
     }
 
@@ -981,13 +970,13 @@ pub fn filePage(
         if (read_result.first == null) {
             break;
         }
-        try line_ops.linesInject(allocator, read_result.first.?, read_result.last.?, frame.last_group.?.last_line.?);
+        try line_ops.linesInject(editor.allocator(), read_result.first.?, read_result.last.?, frame.last_group.?.last_line.?);
         if (frame.dot.?.line.f_link == null) {
-            try mark_ops.markCreate(allocator, read_result.first.?, frame.dot.?.col, &frame.dot);
+            try mark_ops.markCreate(editor.allocator(), read_result.first.?, frame.dot.?.col, &frame.dot);
         }
     }
 
-    try fileFixEOP(allocator, input_file.eof, frame.last_group.?.last_line.?);
+    try fileFixEOP(editor.allocator(), input_file.eof, frame.last_group.?.last_line.?);
     frame.dirty_line = 1;
     return true;
 }
@@ -1101,7 +1090,6 @@ fn requireFileSlot(editor: *state.Editor, slot: isize, output_flag: bool) ?*type
 
 pub fn fileOpenCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     command: types.Commands,
     file_name: []const u8,
@@ -1112,18 +1100,18 @@ pub fn fileOpenCommand(
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
-            const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
+            const input_file = (try makeDiskInputFile(editor, file_name)) orelse break :blk false;
             editor.files[@intCast(slot)] = input_file;
             editor.files_frames[@intCast(slot)] = frame;
             frame.input_file = slot;
-            break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
+            break :blk try pageFileWithLoadingMessage(editor, frame);
         },
         .cmd_file_global_input => blk: {
             if (editor.fgi_file != 0) {
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
-            const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
+            const input_file = (try makeDiskInputFile(editor, file_name)) orelse break :blk false;
             editor.files[@intCast(slot)] = input_file;
             editor.fgi_file = slot;
             break :blk true;
@@ -1137,7 +1125,7 @@ pub fn fileOpenCommand(
                 (requireFileSlot(editor, frame.input_file, false) orelse break :blk false).filename
             else
                 null;
-            const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{ .related_name = related_name })) orelse break :blk false;
+            const output_file = (try makeDiskOutputFile(editor, file_name, .{ .related_name = related_name })) orelse break :blk false;
             editor.files[@intCast(slot)] = output_file;
             editor.files_frames[@intCast(slot)] = frame;
             frame.output_file = slot;
@@ -1148,7 +1136,7 @@ pub fn fileOpenCommand(
                 break :blk false;
             }
             const slot = getFreeSlot(editor, 0) orelse break :blk false;
-            const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{})) orelse break :blk false;
+            const output_file = (try makeDiskOutputFile(editor, file_name, .{})) orelse break :blk false;
             editor.files[@intCast(slot)] = output_file;
             editor.fgo_file = slot;
             break :blk true;
@@ -1159,15 +1147,15 @@ pub fn fileOpenCommand(
             }
             const input_slot = getFreeSlot(editor, 0) orelse break :blk false;
             const output_slot = getFreeSlot(editor, input_slot) orelse break :blk false;
-            const input_file = (try makeDiskInputFile(editor, allocator, file_name)) orelse break :blk false;
-            const output_file = (try makeDiskOutputFile(editor, allocator, file_name, .{ .related_name = input_file.filename })) orelse break :blk false;
+            const input_file = (try makeDiskInputFile(editor, file_name)) orelse break :blk false;
+            const output_file = (try makeDiskOutputFile(editor, file_name, .{ .related_name = input_file.filename })) orelse break :blk false;
             editor.files[@intCast(input_slot)] = input_file;
             editor.files_frames[@intCast(input_slot)] = frame;
             frame.input_file = input_slot;
             editor.files[@intCast(output_slot)] = output_file;
             editor.files_frames[@intCast(output_slot)] = frame;
             frame.output_file = output_slot;
-            break :blk try pageFileWithLoadingMessage(editor, allocator, frame);
+            break :blk try pageFileWithLoadingMessage(editor, frame);
         },
         else => false,
     };
@@ -1175,38 +1163,35 @@ pub fn fileOpenCommand(
 
 pub fn fileRewindCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
     const input_file = requireFileSlot(editor, frame.input_file, false) orelse return false;
-    if (!try loadFileQueueFromSnapshot(allocator, input_file)) {
+    if (!try loadFileQueueFromSnapshot(editor.allocator(), input_file)) {
         return false;
     }
     if (frame.dot.?.line.f_link == null) {
-        try clearFrameText(allocator, frame);
+        try clearFrameText(editor.allocator(), frame);
     }
-    return filePage(editor, allocator, frame);
+    return filePage(editor, frame);
 }
 
 pub fn fileGlobalRewindCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
 ) !bool {
     const input_file = requireFileSlot(editor, editor.fgi_file, false) orelse return false;
-    return loadFileQueueFromSnapshot(allocator, input_file);
+    return loadFileQueueFromSnapshot(editor.allocator(), input_file);
 }
 
 pub fn loadBufferedFileIntoFrameByName(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     file_name: []const u8,
 ) !bool {
     if (findBufferedInputByFilename(editor, file_name)) |source| {
-        return injectFileIntoFrame(allocator, frame, source);
+        return injectFileIntoFrame(editor.allocator(), frame, source);
     }
-    const source = (try makeDiskInputFile(editor, allocator, file_name)) orelse return false;
-    return injectFileIntoFrame(allocator, frame, source);
+    const source = (try makeDiskInputFile(editor, file_name)) orelse return false;
+    return injectFileIntoFrame(editor.allocator(), frame, source);
 }
 
 fn copyUnreadInputToOutput(
@@ -1223,7 +1208,6 @@ fn copyUnreadInputToOutput(
 
 fn detachFileSlot(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     slot: isize,
 ) !bool {
     _ = getFileSlot(editor, slot) orelse return false;
@@ -1234,7 +1218,7 @@ fn detachFileSlot(
             frame.output_file = 0;
         } else {
             frame.input_file = 0;
-            try fileFixEOP(allocator, true, frame.last_group.?.last_line.?);
+            try fileFixEOP(editor.allocator(), true, frame.last_group.?.last_line.?);
             frame.dirty_line = 1;
         }
         editor.files_frames[slot_index] = null;
@@ -1250,7 +1234,6 @@ fn detachFileSlot(
 
 pub fn fileSaveCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
     const output_file = requireFileSlot(editor, frame.output_file, true) orelse return false;
@@ -1264,7 +1247,7 @@ pub fn fileSaveCommand(
         else
             null;
         const lines_read_before_save = frame.input_count;
-        const total_saved = (try persistDiskBackedFrameOutput(editor, allocator, frame, output_file, input_file)) orelse return false;
+        const total_saved = (try persistDiskBackedFrameOutput(editor, frame, output_file, input_file)) orelse return false;
         frame.input_count = total_saved;
         output_file.l_counter = total_saved;
         if (input_file) |input| {
@@ -1274,7 +1257,7 @@ pub fn fileSaveCommand(
         const last = frame.last_group.?.last_line.?.b_link;
         if (last != null) {
             const first = frame.first_group.?.first_line.?;
-            if (!try fileWriteBuffered(allocator, first, last.?, output_file)) {
+            if (!try fileWriteBuffered(editor.allocator(), first, last.?, output_file)) {
                 return false;
             }
         }
@@ -1282,7 +1265,7 @@ pub fn fileSaveCommand(
         if (frame.input_file != 0) {
             const input_file = requireFileSlot(editor, frame.input_file, false) orelse return false;
             const lines_read_before_save = frame.input_count;
-            try copyUnreadInputToOutput(allocator, input_file, output_file);
+            try copyUnreadInputToOutput(editor.allocator(), input_file, output_file);
             frame.input_count = output_file.l_counter;
             input_file.l_counter = lines_read_before_save + input_file.line_count;
         } else {
@@ -1291,13 +1274,12 @@ pub fn fileSaveCommand(
     }
 
     frame.text_modified = false;
-    mark_ops.markDestroy(allocator, &frame.marks[types.mark_modified]);
+    mark_ops.markDestroy(editor.allocator(), &frame.marks[types.mark_modified]);
     return true;
 }
 
 pub fn fileKillCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
     const output_file = requireFileSlot(editor, frame.output_file, true) orelse {
@@ -1305,9 +1287,9 @@ pub fn fileKillCommand(
         return false;
     };
     if (output_file.tnm.len > 0) {
-        sys_ops.deleteFile(output_file.tnm) catch {};
+        sys_ops.deleteFile(editor.io, output_file.tnm) catch {};
     }
-    if (!try detachFileSlot(editor, allocator, frame.output_file)) {
+    if (!try detachFileSlot(editor, frame.output_file)) {
         return false;
     }
     emitOutputDeletedMessage(editor, output_file);
@@ -1316,16 +1298,15 @@ pub fn fileKillCommand(
 
 pub fn fileGlobalKillCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
 ) !bool {
     const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse {
         emitNoFileOpenMessage(editor);
         return false;
     };
     if (output_file.tnm.len > 0) {
-        sys_ops.deleteFile(output_file.tnm) catch {};
+        sys_ops.deleteFile(editor.io, output_file.tnm) catch {};
     }
-    if (!try detachFileSlot(editor, allocator, editor.fgo_file)) {
+    if (!try detachFileSlot(editor, editor.fgo_file)) {
         return false;
     }
     emitOutputDeletedMessage(editor, output_file);
@@ -1334,47 +1315,46 @@ pub fn fileGlobalKillCommand(
 
 pub fn fileCloseCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     command: types.Commands,
 ) !bool {
     return switch (command) {
         .cmd_file_input => blk: {
             _ = requireFileSlot(editor, frame.input_file, false) orelse break :blk false;
-            break :blk try detachFileSlot(editor, allocator, frame.input_file);
+            break :blk try detachFileSlot(editor, frame.input_file);
         },
         .cmd_file_output => blk: {
             const output_file = requireFileSlot(editor, frame.output_file, true) orelse break :blk false;
             const had_modifications = frame.text_modified;
-            if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
+            if (had_modifications and !try fileSaveCommand(editor, frame)) {
                 break :blk false;
             }
-            if (!had_modifications and !try persistDiskBackedOutputFile(editor, allocator, output_file)) {
+            if (!had_modifications and !try persistDiskBackedOutputFile(editor, output_file)) {
                 break :blk false;
             }
-            break :blk try detachFileSlot(editor, allocator, frame.output_file);
+            break :blk try detachFileSlot(editor, frame.output_file);
         },
         .cmd_file_edit => blk: {
             _ = requireFileSlot(editor, frame.input_file, false) orelse break :blk false;
             _ = requireFileSlot(editor, frame.output_file, true) orelse break :blk false;
-            if (frame.text_modified and !try fileSaveCommand(editor, allocator, frame)) {
+            if (frame.text_modified and !try fileSaveCommand(editor, frame)) {
                 break :blk false;
             }
-            if (!try detachFileSlot(editor, allocator, frame.output_file)) {
+            if (!try detachFileSlot(editor, frame.output_file)) {
                 break :blk false;
             }
-            break :blk try detachFileSlot(editor, allocator, frame.input_file);
+            break :blk try detachFileSlot(editor, frame.input_file);
         },
         .cmd_file_global_input => blk: {
             _ = requireFileSlot(editor, editor.fgi_file, false) orelse break :blk false;
-            break :blk try detachFileSlot(editor, allocator, editor.fgi_file);
+            break :blk try detachFileSlot(editor, editor.fgi_file);
         },
         .cmd_file_global_output => blk: {
             const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse break :blk false;
-            if (!try persistDiskBackedOutputFile(editor, allocator, output_file)) {
+            if (!try persistDiskBackedOutputFile(editor, output_file)) {
                 break :blk false;
             }
-            break :blk try detachFileSlot(editor, allocator, editor.fgo_file);
+            break :blk try detachFileSlot(editor, editor.fgo_file);
         },
         else => false,
     };
@@ -1382,7 +1362,6 @@ pub fn fileCloseCommand(
 
 fn closeFrameFilesForQuit(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     slot: isize,
 ) !bool {
@@ -1402,7 +1381,7 @@ fn closeFrameFilesForQuit(
         const output_file = requireFileSlot(editor, output_slot, true) orelse return false;
         const had_modifications = frame.text_modified;
 
-        if (had_modifications and !try fileSaveCommand(editor, allocator, frame)) {
+        if (had_modifications and !try fileSaveCommand(editor, frame)) {
             return false;
         }
 
@@ -1411,7 +1390,7 @@ fn closeFrameFilesForQuit(
             if (editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
                 emitInputClosedMessage(editor, input_file);
             }
-            if (!try detachFileSlot(editor, allocator, input_slot)) {
+            if (!try detachFileSlot(editor, input_slot)) {
                 return false;
             }
         }
@@ -1419,7 +1398,7 @@ fn closeFrameFilesForQuit(
         if (had_modifications and output_file.filename.len > 0 and editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
             emitOutputCreatedMessage(editor, output_file);
         }
-        return detachFileSlot(editor, allocator, output_slot);
+        return detachFileSlot(editor, output_slot);
     }
 
     if (input_slot != 0 and input_slot == slot) {
@@ -1427,7 +1406,7 @@ fn closeFrameFilesForQuit(
         if (editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
             emitInputClosedMessage(editor, input_file);
         }
-        return detachFileSlot(editor, allocator, input_slot);
+        return detachFileSlot(editor, input_slot);
     }
 
     return true;
@@ -1435,37 +1414,34 @@ fn closeFrameFilesForQuit(
 
 fn closeGlobalInputForQuit(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
 ) !bool {
     const input_file = requireFileSlot(editor, editor.fgi_file, false) orelse return false;
     if (editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
         emitInputClosedMessage(editor, input_file);
     }
-    return detachFileSlot(editor, allocator, editor.fgi_file);
+    return detachFileSlot(editor, editor.fgi_file);
 }
 
 fn closeGlobalOutputForQuit(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
 ) !bool {
     const output_file = requireFileSlot(editor, editor.fgo_file, true) orelse return false;
-    if (!try persistDiskBackedOutputFile(editor, allocator, output_file)) {
+    if (!try persistDiskBackedOutputFile(editor, output_file)) {
         return false;
     }
     if (output_file.filename.len > 0 and editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
         emitOutputCreatedMessage(editor, output_file);
     }
-    return detachFileSlot(editor, allocator, editor.fgo_file);
+    return detachFileSlot(editor, editor.fgo_file);
 }
 
 fn closeUnattachedSlotForQuit(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     slot: isize,
 ) !bool {
     const file = getFileSlot(editor, slot) orelse return false;
     if (file.output_flag) {
-        if (!try persistDiskBackedOutputFile(editor, allocator, file)) {
+        if (!try persistDiskBackedOutputFile(editor, file)) {
             return false;
         }
         if (file.filename.len > 0 and editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
@@ -1474,12 +1450,11 @@ fn closeUnattachedSlotForQuit(
     } else if (editor.ludwig_mode == .ludwig_batch and editor.batch_output_enabled) {
         emitInputClosedMessage(editor, file);
     }
-    return detachFileSlot(editor, allocator, slot);
+    return detachFileSlot(editor, slot);
 }
 
 pub fn quitCloseFiles(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
 ) !bool {
     var slot: isize = 1;
     while (slot <= types.max_files) : (slot += 1) {
@@ -1489,27 +1464,27 @@ pub fn quitCloseFiles(
         }
 
         if (editor.files_frames[slot_index]) |frame| {
-            if (!try closeFrameFilesForQuit(editor, allocator, frame, slot)) {
+            if (!try closeFrameFilesForQuit(editor, frame, slot)) {
                 return false;
             }
             continue;
         }
 
         if (slot == editor.fgi_file) {
-            if (!try closeGlobalInputForQuit(editor, allocator)) {
+            if (!try closeGlobalInputForQuit(editor)) {
                 return false;
             }
             continue;
         }
 
         if (slot == editor.fgo_file) {
-            if (!try closeGlobalOutputForQuit(editor, allocator)) {
+            if (!try closeGlobalOutputForQuit(editor)) {
                 return false;
             }
             continue;
         }
 
-        if (!try closeUnattachedSlotForQuit(editor, allocator, slot)) {
+        if (!try closeUnattachedSlotForQuit(editor, slot)) {
             return false;
         }
     }
@@ -1551,13 +1526,17 @@ fn expectFrameLines(frame: *types.FrameObject, expected: []const []const u8) !vo
 }
 
 test "file table writes current file usage into report frame" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const work = (try @import("frame.zig").frameEdit(&editor, allocator, root.frame, "WORK")).?;
-    const oops = (try @import("frame.zig").frameEdit(&editor, allocator, work, "OOPS")).?;
+    const work = (try @import("frame.zig").frameEdit(&editor, root.frame, "WORK")).?;
+    const oops = (try @import("frame.zig").frameEdit(&editor, work, "OOPS")).?;
 
     const input = try allocator.create(types.FileObject);
     input.* = .{
@@ -1593,7 +1572,7 @@ test "file table writes current file usage into report frame" {
     editor.files[4] = global_output;
     editor.fgo_file = 4;
 
-    try std.testing.expect(try fileTable(&editor, allocator, oops));
+    try std.testing.expect(try fileTable(&editor, oops));
     try expectFrameLines(oops, &[_][]const u8{
         "Usage   Mod Frame  Filename",
         "------- --- ------ --------",
@@ -1606,14 +1585,18 @@ test "file table writes current file usage into report frame" {
 }
 
 test "file table shows none when no files are open" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const root = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const oops = (try @import("frame.zig").frameEdit(&editor, allocator, root.frame, "OOPS")).?;
+    const oops = (try @import("frame.zig").frameEdit(&editor, root.frame, "OOPS")).?;
 
-    try std.testing.expect(try fileTable(&editor, allocator, oops));
+    try std.testing.expect(try fileTable(&editor, oops));
     try expectFrameLines(oops, &[_][]const u8{
         "Usage   Mod Frame  Filename",
         "------- --- ------ --------",
@@ -1623,9 +1606,13 @@ test "file table shows none when no files are open" {
 }
 
 test "file save appends frame and unread input to output buffer" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "visible1",
@@ -1648,7 +1635,7 @@ test "file save appends frame and unread input to output buffer" {
     fixture.frame.text_modified = true;
     try mark_ops.markCreate(allocator, fixture.content_lines[1], fixture.content_lines[1].used + 1, &fixture.frame.marks[types.mark_modified]);
 
-    try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileSaveCommand(&editor, fixture.frame));
     try std.testing.expect(!fixture.frame.text_modified);
     try std.testing.expect(fixture.frame.marks[types.mark_modified] == null);
     try std.testing.expectEqual(@as(isize, 5), output.line_count);
@@ -1660,9 +1647,13 @@ test "file save appends frame and unread input to output buffer" {
 }
 
 test "file kill detaches current output file" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
@@ -1670,16 +1661,20 @@ test "file kill detaches current output file" {
     editor.files_frames[1] = fixture.frame;
     fixture.frame.output_file = 1;
 
-    try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileKillCommand(&editor, fixture.frame));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.output_file);
     try std.testing.expect(editor.files[1] == null);
     try std.testing.expect(editor.files_frames[1] == null);
 }
 
 test "file kill queues interactive deleted status message" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
@@ -1690,7 +1685,7 @@ test "file kill queues interactive deleted status message" {
     editor.files_frames[1] = fixture.frame;
     fixture.frame.output_file = 1;
 
-    try std.testing.expect(try fileKillCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileKillCommand(&editor, fixture.frame));
     try std.testing.expectEqualStrings(
         "Output file output.txt-lw deleted.",
         interactive_io.takeStatusMessage().?,
@@ -1698,21 +1693,29 @@ test "file kill queues interactive deleted status message" {
 }
 
 test "file kill queues no-file-open status message when no output is attached" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
 
-    try std.testing.expect(!try fileKillCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(!try fileKillCommand(&editor, fixture.frame));
     try std.testing.expectEqualStrings(no_file_open_message, interactive_io.takeStatusMessage().?);
 }
 
 test "file close detaches current input file and marks eof" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
     const input = try makeBufferedFile(allocator, &[_][]const u8{"tail"}, false);
@@ -1720,31 +1723,40 @@ test "file close detaches current input file and marks eof" {
     editor.files_frames[1] = fixture.frame;
     fixture.frame.input_file = 1;
 
-    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .cmd_file_input));
+    try std.testing.expect(try fileCloseCommand(&editor, fixture.frame, .cmd_file_input));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.input_file);
     try std.testing.expect(editor.files[1] == null);
     try std.testing.expectEqualStrings("<End of File>", line_ops.getDisplayLineContent(fixture.frame.last_group.?.last_line.?));
 }
 
 test "file close detaches global output file" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const output = try makeBufferedFile(allocator, &[_][]const u8{}, true);
     editor.files[1] = output;
     editor.fgo_file = 1;
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    try std.testing.expect(try fileCloseCommand(&editor, allocator, fixture.frame, .cmd_file_global_output));
+    try std.testing.expect(try fileCloseCommand(&editor, fixture.frame, .cmd_file_global_output));
     try std.testing.expectEqual(@as(isize, 0), editor.fgo_file);
     try std.testing.expect(editor.files[1] == null);
 }
 
 test "file save rotates disk backups and updates memory file" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
+    const io = editor.io;
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
@@ -1754,28 +1766,28 @@ test "file save rotates disk backups and updates memory file" {
     const backup1_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/save.txt~1", .{tmp_dir.sub_path});
     const backup2_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/save.txt~2", .{tmp_dir.sub_path});
     const memory_path = try std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}/memory.txt", .{tmp_dir.sub_path});
-    const expanded_memory = (try sys_ops.expandFilename(allocator, memory_path)) orelse return error.TestUnexpectedResult;
+    const expanded_memory = (try sys_ops.expandFilename(io, allocator, editor.env, memory_path)) orelse return error.TestUnexpectedResult;
 
-    try tmp_dir.dir.writeFile(.{ .sub_path = "save.txt", .data = "old\n" });
-    try tmp_dir.dir.writeFile(.{ .sub_path = "save.txt~1", .data = "older\n" });
+    try tmp_dir.dir.writeFile(io, .{ .sub_path = "save.txt", .data = "old\n" });
+    try tmp_dir.dir.writeFile(io, .{ .sub_path = "save.txt~1", .data = "older\n" });
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"new"});
-    const output = (try openDiskOutputFile(&editor, allocator, file_path, .{ .memory = expanded_memory })) orelse return error.TestUnexpectedResult;
+    const output = (try openDiskOutputFile(&editor, file_path, .{ .memory = expanded_memory })) orelse return error.TestUnexpectedResult;
     editor.files[1] = output;
     editor.files_frames[1] = fixture.frame;
     fixture.frame.output_file = 1;
     fixture.frame.text_modified = true;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], fixture.content_lines[0].used + 1, &fixture.frame.marks[types.mark_modified]);
 
-    try std.testing.expect(try fileSaveCommand(&editor, allocator, fixture.frame));
+    try std.testing.expect(try fileSaveCommand(&editor, fixture.frame));
 
-    const saved = try std.fs.cwd().readFileAlloc(allocator, file_path, std.math.maxInt(usize));
+    const saved = try std.Io.Dir.cwd().readFileAlloc(io, file_path, allocator, .unlimited);
     try std.testing.expectEqualStrings("new\n", saved);
-    const old_backup = try std.fs.cwd().readFileAlloc(allocator, backup1_path, std.math.maxInt(usize));
+    const old_backup = try std.Io.Dir.cwd().readFileAlloc(io, backup1_path, allocator, .unlimited);
     try std.testing.expectEqualStrings("older\n", old_backup);
-    const new_backup = try std.fs.cwd().readFileAlloc(allocator, backup2_path, std.math.maxInt(usize));
+    const new_backup = try std.Io.Dir.cwd().readFileAlloc(io, backup2_path, allocator, .unlimited);
     try std.testing.expectEqualStrings("old\n", new_backup);
-    const remembered = try std.fs.cwd().readFileAlloc(allocator, memory_path, std.math.maxInt(usize));
+    const remembered = try std.Io.Dir.cwd().readFileAlloc(io, memory_path, allocator, .unlimited);
     const expected_memory = try std.fmt.allocPrint(allocator, "{s}\n", .{output.filename});
     try std.testing.expectEqualStrings(expected_memory, remembered);
 }

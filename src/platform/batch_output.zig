@@ -1,15 +1,15 @@
 const std = @import("std");
 
-pub fn printMessage(message: []const u8) void {
+pub fn printMessage(io: std.Io, message: []const u8) void {
     var buf: [4096]u8 = undefined;
-    var writer = std.fs.File.stdout().writer(&buf);
+    var writer = std.Io.File.stdout().writer(io, &buf);
     defer writer.interface.flush() catch {};
     writer.interface.print("{s}\n", .{message}) catch {};
 }
 
-pub fn printLines(lines: []const []const u8, leading_blank_lines: usize) void {
+pub fn printLines(io: std.Io, lines: []const []const u8, leading_blank_lines: usize) void {
     var buf: [4096]u8 = undefined;
-    var writer = std.fs.File.stdout().writer(&buf);
+    var writer = std.Io.File.stdout().writer(io, &buf);
     defer writer.interface.flush() catch {};
 
     var blanks: usize = 0;

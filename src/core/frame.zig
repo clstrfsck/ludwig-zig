@@ -39,7 +39,6 @@ fn emitFrameMessage(editor: *const state.Editor, message: []const u8) void {
 
 pub fn frameEdit(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     return_frame: ?*types.FrameObject,
     frame_name: []const u8,
 ) !?*types.FrameObject {
@@ -47,7 +46,7 @@ pub fn frameEdit(
 
     var span_ptr: ?*types.SpanObject = null;
     var span_prev: ?*types.SpanObject = null;
-    if (try span_ops.spanFind(editor, allocator, resolved_name, &span_ptr, &span_prev)) {
+    if (try span_ops.spanFind(editor, resolved_name, &span_ptr, &span_prev)) {
         if (span_ptr.?.frame) |frame| {
             if (return_frame != null and frame != return_frame.?) {
                 frame.return_frame = return_frame;
@@ -57,7 +56,7 @@ pub fn frameEdit(
         return null;
     }
 
-    const frame = try allocator.create(types.FrameObject);
+    const frame = try editor.allocator().create(types.FrameObject);
     frame.* = .{
         .marks = editor.initial_marks,
         .scr_height = editor.initial_scr_height,
@@ -75,17 +74,17 @@ pub fn frameEdit(
         .options = editor.initial_options,
     };
 
-    const group = try line_ops.lineEOPCreate(allocator, frame);
+    const group = try line_ops.lineEOPCreate(editor.allocator(), frame);
     frame.first_group = group;
     frame.last_group = group;
-    try line_ops.setSentinelDisplayContent(allocator, group.first_line.?, end_of_file_prefix, resolved_name);
+    try line_ops.setSentinelDisplayContent(editor.allocator(), group.first_line.?, end_of_file_prefix, resolved_name);
 
-    const span = try allocator.create(types.SpanObject);
+    const span = try editor.allocator().create(types.SpanObject);
     span.* = .{
         .b_link = span_prev,
         .f_link = span_ptr,
         .frame = frame,
-        .name = try allocator.dupe(u8, resolved_name),
+        .name = try editor.allocator().dupe(u8, resolved_name),
     };
     if (span_prev) |prev| {
         prev.f_link = span;
@@ -96,22 +95,21 @@ pub fn frameEdit(
         next.b_link = span;
     }
 
-    try mark_ops.markCreate(allocator, group.first_line.?, 1, &span.mark_one);
-    try mark_ops.markCreate(allocator, group.last_line.?, 1, &span.mark_two);
+    try mark_ops.markCreate(editor.allocator(), group.first_line.?, 1, &span.mark_one);
+    try mark_ops.markCreate(editor.allocator(), group.last_line.?, 1, &span.mark_two);
     frame.span = span;
-    try mark_ops.markCreate(allocator, group.first_line.?, editor.initial_margin_left, &frame.dot);
+    try mark_ops.markCreate(editor.allocator(), group.first_line.?, editor.initial_margin_left, &frame.dot);
     return frame;
 }
 
 pub fn frameKill(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     current_frame: *types.FrameObject,
     frame_name: []const u8,
 ) !bool {
     var span_ptr: ?*types.SpanObject = null;
     var span_prev: ?*types.SpanObject = null;
-    if (!try span_ops.spanFind(editor, allocator, frame_name, &span_ptr, &span_prev)) {
+    if (!try span_ops.spanFind(editor, frame_name, &span_ptr, &span_prev)) {
         return false;
     }
     if (span_ptr.?.frame == null) {
@@ -135,7 +133,7 @@ pub fn frameKill(
             }
         } else if (span.mark_one != null and span.mark_one.?.line.group.?.frame == target_frame) {
             var slot = iter;
-            if (!span_ops.spanDestroy(editor, allocator, &slot)) {
+            if (!span_ops.spanDestroy(editor, &slot)) {
                 return false;
             }
         }
@@ -144,15 +142,15 @@ pub fn frameKill(
 
     target_frame.span.?.frame = null;
     var frame_span = target_frame.span;
-    if (!span_ops.spanDestroy(editor, allocator, &frame_span)) {
+    if (!span_ops.spanDestroy(editor, &frame_span)) {
         return false;
     }
     target_frame.span = null;
 
-    mark_ops.markDestroy(allocator, &target_frame.dot);
+    mark_ops.markDestroy(editor.allocator(), &target_frame.dot);
     var mark_index: usize = 0;
     while (mark_index < target_frame.marks.len) : (mark_index += 1) {
-        mark_ops.markDestroy(allocator, &target_frame.marks[mark_index]);
+        mark_ops.markDestroy(editor.allocator(), &target_frame.marks[mark_index]);
     }
 
     const last_content = target_frame.last_group.?.last_line.?.b_link;
@@ -163,9 +161,9 @@ pub fn frameKill(
     target_frame.first_group = null;
     target_frame.last_group = null;
 
-    dfa.patternDFATableKill(allocator, &target_frame.eqs_pattern_ptr);
-    dfa.patternDFATableKill(allocator, &target_frame.get_pattern_ptr);
-    dfa.patternDFATableKill(allocator, &target_frame.rep_pattern_ptr);
+    dfa.patternDFATableKill(editor.allocator(), &target_frame.eqs_pattern_ptr);
+    dfa.patternDFATableKill(editor.allocator(), &target_frame.get_pattern_ptr);
+    dfa.patternDFATableKill(editor.allocator(), &target_frame.rep_pattern_ptr);
     return true;
 }
 
@@ -657,7 +655,7 @@ fn appendDisplayOption(
 }
 
 fn renderOptionsSummary(allocator: std.mem.Allocator, options: types.FrameOptions) ![]const u8 {
-    var buffer: std.ArrayList(u8) = .{};
+    var buffer: std.ArrayList(u8) = .empty;
     try buffer.append(allocator, ' ');
     var count: usize = 1;
     var first = true;
@@ -770,7 +768,7 @@ fn buildInteractiveParameterLines(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !std.ArrayList([]const u8) {
-    var lines: std.ArrayList([]const u8) = .{};
+    var lines: std.ArrayList([]const u8) = .empty;
     const frame_name = if (frame.span != null) frame.span.?.name else "";
     const padded_frame_name = try renderName(allocator, frame_name, types.name_len);
     const version_underline = try allocator.alloc(u8, 7 + types.ludwig_reader.len);
@@ -883,10 +881,8 @@ fn buildInteractiveParameterLines(
 
 fn showInteractiveParameters(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    _ = allocator;
     while (true) {
         const done = blk: {
             var loop_arena = std.heap.ArenaAllocator.init(editor.base_allocator);
@@ -908,7 +904,7 @@ fn showInteractiveParameters(
                 .str = try str_object.newStrObjectFrom(temp, response),
                 .len = @intCast(response.len),
             };
-            if (!try setParam(editor, temp, frame, &request)) {
+            if (!try setParam(editor, frame, &request)) {
                 interactive_io.beep();
             }
             break :blk false;
@@ -921,13 +917,12 @@ fn showInteractiveParameters(
 
 fn setParam(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     request: *types.TParObject,
 ) !bool {
     var parser = TparParser{
         .editor = editor,
-        .allocator = allocator,
+        .allocator = editor.allocator(),
         .request = request,
     };
     var ch = parser.nextChar();
@@ -983,32 +978,35 @@ fn setParam(
 
 pub fn frameParameter(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     tpar: ?*types.TParObject,
 ) !bool {
     var request: types.TParObject = .{};
-    if (!try tpar_ops.tparGet1(allocator, editor, frame, tpar, .cmd_frame_parameters, &request)) {
+    if (!try tpar_ops.tparGet1(editor, frame, tpar, .cmd_frame_parameters, &request)) {
         return false;
     }
     if (request.len > 0) {
-        return setParam(editor, allocator, frame, &request);
+        return setParam(editor, frame, &request);
     }
     if (editor.ludwig_mode == .ludwig_screen) {
-        return showInteractiveParameters(editor, allocator, frame);
+        return showInteractiveParameters(editor, frame);
     }
     return false;
 }
 
 test "frame edit creates and reuses named frames" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const origin_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const origin = origin_fixture.frame;
 
-    const created = (try frameEdit(&editor, allocator, origin, "WORK")).?;
+    const created = (try frameEdit(&editor, origin, "WORK")).?;
     try std.testing.expect(created != origin);
     try std.testing.expect(created.span != null);
     try std.testing.expectEqualStrings("WORK", created.span.?.name);
@@ -1017,60 +1015,76 @@ test "frame edit creates and reuses named frames" {
     try std.testing.expect(created.first_group == created.last_group);
     try std.testing.expect(created.dot != null);
 
-    const reused = (try frameEdit(&editor, allocator, origin, "WORK")).?;
+    const reused = (try frameEdit(&editor, origin, "WORK")).?;
     try std.testing.expect(reused == created);
     try std.testing.expect(reused.return_frame == origin);
 }
 
 test "frame kill removes frame span and clears return links" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const origin_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const origin = origin_fixture.frame;
-    const target = (try frameEdit(&editor, allocator, origin, "WORK")).?;
-    const follower = (try frameEdit(&editor, allocator, target, "FOLLOW")).?;
+    const target = (try frameEdit(&editor, origin, "WORK")).?;
+    const follower = (try frameEdit(&editor, target, "FOLLOW")).?;
     try std.testing.expect(follower.return_frame == target);
 
     const span_mark_one = target.span.?.mark_one.?;
     const span_mark_two = target.span.?.mark_two.?;
-    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "INNER", span_mark_one, span_mark_two));
+    try std.testing.expect(try span_ops.spanCreate(&editor, "INNER", span_mark_one, span_mark_two));
 
-    try std.testing.expect(try frameKill(&editor, allocator, origin, "WORK"));
+    try std.testing.expect(try frameKill(&editor, origin, "WORK"));
     try std.testing.expect(follower.return_frame == null);
-    try std.testing.expect((try frameEdit(&editor, allocator, origin, "WORK")).? != target);
+    try std.testing.expect((try frameEdit(&editor, origin, "WORK")).? != target);
 }
 
 test "frame kill rejects current and special frames" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const origin_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"origin"});
     const origin = origin_fixture.frame;
-    const current_named = (try frameEdit(&editor, allocator, origin, "CURRENT")).?;
-    try std.testing.expect(!try frameKill(&editor, allocator, current_named, "CURRENT"));
+    const current_named = (try frameEdit(&editor, origin, "CURRENT")).?;
+    try std.testing.expect(!try frameKill(&editor, current_named, "CURRENT"));
 
-    const special = (try frameEdit(&editor, allocator, origin, "SPECIAL")).?;
+    const special = (try frameEdit(&editor, origin, "SPECIAL")).?;
     special.options.special_frame = true;
-    try std.testing.expect(!try frameKill(&editor, allocator, origin, "SPECIAL"));
+    try std.testing.expect(!try frameKill(&editor, origin, "SPECIAL"));
 }
 
 test "frame edit initializes empty frame with end-of-file sentinel" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    const frame = (try frameEdit(&editor, allocator, null, "WORK")).?;
+    const frame = (try frameEdit(&editor, null, "WORK")).?;
     try std.testing.expectEqualStrings("<End of File>   WORK", line_ops.getDisplayLineContent(frame.last_group.?.last_line.?));
     try std.testing.expectEqualStrings("", line_ops.getLineContent(frame.last_group.?.last_line.?));
 }
 
 test "frame parameter updates batch-safe state values" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.terminal_info = .{ .width = 160, .height = 48 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha beta"});
@@ -1081,7 +1095,7 @@ test "frame parameter updates batch-safe state values" {
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, request),
         .len = request.len,
     };
-    try std.testing.expect(try frameParameter(&editor, allocator, frame, &tpar));
+    try std.testing.expect(try frameParameter(&editor, frame, &tpar));
     try std.testing.expectEqual(types.ModeType.mode_overtype, editor.edit_mode);
     try std.testing.expect(frame.options.auto_indent);
     try std.testing.expect(!frame.options.new_line);
@@ -1101,9 +1115,13 @@ test "frame parameter updates batch-safe state values" {
 }
 
 test "frame parameter accepts named command introducers in screen mode" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
     try user_ops.userKeyInitialize(&editor, allocator);
     const function_key = user_ops.userKeyNameToCode(&editor, "FUNCTION-1").?;
@@ -1114,14 +1132,18 @@ test "frame parameter accepts named command introducers in screen mode" {
         .len = "C=FUNCTION-1".len,
     };
 
-    try std.testing.expect(try frameParameter(&editor, allocator, fixture.frame, &tpar));
+    try std.testing.expect(try frameParameter(&editor, fixture.frame, &tpar));
     try std.testing.expectEqual(function_key, editor.command_introducer);
 }
 
 test "frame parameter reports unrecognized named introducers" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
     try user_ops.userKeyInitialize(&editor, allocator);
 
@@ -1131,14 +1153,18 @@ test "frame parameter reports unrecognized named introducers" {
         .len = "C=BOGUS".len,
     };
 
-    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &tpar)));
+    try std.testing.expect(!(try frameParameter(&editor, fixture.frame, &tpar)));
     try std.testing.expectEqualStrings(unrecognized_key_name_message, interactive_io.takeStatusMessage().?);
 }
 
 test "frame parameter queues validation messages in screen mode" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 120, .height = 24 };
     try user_ops.userKeyInitialize(&editor, allocator);
@@ -1149,28 +1175,32 @@ test "frame parameter queues validation messages in screen mode" {
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, "K=X"),
         .len = "K=X".len,
     };
-    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &bad_mode)));
+    try std.testing.expect(!(try frameParameter(&editor, fixture.frame, &bad_mode)));
     try std.testing.expectEqualStrings(mode_error_message, interactive_io.takeStatusMessage().?);
 
     var bad_option = types.TParObject{
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, "O=Z"),
         .len = "O=Z".len,
     };
-    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &bad_option)));
+    try std.testing.expect(!(try frameParameter(&editor, fixture.frame, &bad_option)));
     try std.testing.expectEqualStrings(unknown_option_message, interactive_io.takeStatusMessage().?);
 
     var bad_height = types.TParObject{
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, "H=999"),
         .len = "H=999".len,
     };
-    try std.testing.expect(!(try frameParameter(&editor, allocator, fixture.frame, &bad_height)));
+    try std.testing.expect(!(try frameParameter(&editor, fixture.frame, &bad_height)));
     try std.testing.expectEqualStrings(invalid_screen_height_message, interactive_io.takeStatusMessage().?);
 }
 
 test "frame parameter tab ruler operations update text and tab stops" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha beta"});
     const frame = fixture.frame;
@@ -1180,7 +1210,7 @@ test "frame parameter tab ruler operations update text and tab stops" {
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, "T=I"),
         .len = 3,
     };
-    try std.testing.expect(try frameParameter(&editor, allocator, frame, &insert));
+    try std.testing.expect(try frameParameter(&editor, frame, &insert));
     try std.testing.expect(frame.text_modified);
     const ruler_line = frame.first_group.?.first_line.?;
     try std.testing.expect(ruler_line != fixture.content_lines[0]);
@@ -1197,7 +1227,7 @@ test "frame parameter tab ruler operations update text and tab stops" {
         .str = try @import("str_object.zig").newStrObjectFrom(allocator, "T=R"),
         .len = 3,
     };
-    try std.testing.expect(try frameParameter(&editor, allocator, frame, &apply));
+    try std.testing.expect(try frameParameter(&editor, frame, &apply));
     try std.testing.expect(frame.tab_stops[4]);
     try std.testing.expect(frame.tab_stops[8]);
     try std.testing.expectEqual(@as(isize, 1), frame.margin_left);
@@ -1205,9 +1235,13 @@ test "frame parameter tab ruler operations update text and tab stops" {
 }
 
 test "interactive parameter display lines show current settings summary" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 120, .height = 24 };
     try user_ops.userKeyInitialize(&editor, allocator);
@@ -1217,8 +1251,6 @@ test "interactive parameter display lines show current settings summary" {
     frame.scr_width = 20;
     frame.scr_height = 12;
 
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
     const lines = try buildInteractiveParameterLines(&editor, arena.allocator(), frame);
 
     var saw_parameters_header = false;

@@ -4,4 +4,5 @@
 c_src/
 system-test/
 .zig-cache/
+.zig-global-cache/
 zig-out/

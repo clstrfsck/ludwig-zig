@@ -151,7 +151,9 @@ fn createLinkedLines(allocator: std.mem.Allocator, count: usize) ![]*types.LineH
 }
 
 test "mark create move and destroy preserve line mark lists" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const line1 = try createTestLine(allocator);
     const line2 = try createTestLine(allocator);
 
@@ -176,7 +178,9 @@ test "mark create move and destroy preserve line mark lists" {
 }
 
 test "marks squeeze across lines moves marks to the last line" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const lines = try createLinkedLines(allocator, 3);
     defer allocator.free(lines);
     defer for (lines) |line| {
@@ -205,7 +209,9 @@ test "marks squeeze across lines moves marks to the last line" {
 }
 
 test "marks shift clamps to max_str_len_p1 and preserves out-of-range marks" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const line1 = try createTestLine(allocator);
     const line2 = try createTestLine(allocator);
     defer {

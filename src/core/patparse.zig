@@ -229,7 +229,7 @@ fn parseQuotedLiteral(
     repeat: RepeatSpec,
 ) bool {
     var chars_seen: isize = 0;
-    var literal = std.ArrayList(u8){};
+    var literal: std.ArrayList(u8) = .empty;
     defer literal.deinit(std.heap.page_allocator);
 
     while (patternCharAt(pattern, pos.*)) |ch| {

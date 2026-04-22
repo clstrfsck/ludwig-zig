@@ -70,7 +70,7 @@ const Parser = struct {
     index: usize = 0,
 
     fn parse(self: *Parser) ParseError!CompiledPattern {
-        var segments = std.ArrayList(*Node){};
+        var segments: std.ArrayList(*Node) = .empty;
         defer segments.deinit(self.allocator);
 
         try segments.append(self.allocator, try self.parseExpression(false));
@@ -107,7 +107,7 @@ const Parser = struct {
     }
 
     fn parseExpression(self: *Parser, stop_at_rparen: bool) ParseError!*Node {
-        var alternatives = std.ArrayList(*Node){};
+        var alternatives: std.ArrayList(*Node) = .empty;
         defer alternatives.deinit(self.allocator);
 
         try alternatives.append(self.allocator, try self.parseSequence(stop_at_rparen));
@@ -125,7 +125,7 @@ const Parser = struct {
     }
 
     fn parseSequence(self: *Parser, stop_at_rparen: bool) ParseError!*Node {
-        var pieces = std.ArrayList(*Node){};
+        var pieces: std.ArrayList(*Node) = .empty;
         defer pieces.deinit(self.allocator);
 
         self.skipSpaces();
@@ -318,7 +318,7 @@ const Parser = struct {
 
     fn parseQuotedLiteral(self: *Parser, delimiter: u8) ParseError!*Node {
         self.index += 1;
-        var pieces = std.ArrayList(*Node){};
+        var pieces: std.ArrayList(*Node) = .empty;
         defer pieces.deinit(self.allocator);
 
         while (true) {
@@ -441,7 +441,7 @@ fn buildEvents(
     frame: *types.FrameObject,
     line: *types.LineHdrObject,
 ) ![]Event {
-    var events = std.ArrayList(Event){};
+    var events: std.ArrayList(Event) = .empty;
     const used = searchableLineUsed(line);
     const final_col = used + 1;
     var col: isize = 1;
@@ -548,7 +548,7 @@ const Matcher = struct {
     fn matchSequence(self: *Matcher, nodes: []const *Node, cursor: Cursor) MatchError![]Cursor {
         var cursors = try self.allocator.dupe(Cursor, &.{cursor});
         for (nodes) |child| {
-            var next = std.ArrayList(Cursor){};
+            var next: std.ArrayList(Cursor) = .empty;
             for (cursors) |current| {
                 const results = try self.matchNode(child, current);
                 for (results) |result| {
@@ -564,7 +564,7 @@ const Matcher = struct {
     }
 
     fn matchAlternatives(self: *Matcher, nodes: []const *Node, cursor: Cursor) MatchError![]Cursor {
-        var results = std.ArrayList(Cursor){};
+        var results: std.ArrayList(Cursor) = .empty;
         for (nodes) |child| {
             const child_results = try self.matchNode(child, cursor);
             for (child_results) |result| {
@@ -575,7 +575,7 @@ const Matcher = struct {
     }
 
     fn matchRepeatNode(self: *Matcher, repeat_node: RepeatNode, cursor: Cursor) MatchError![]Cursor {
-        var results = std.ArrayList(Cursor){};
+        var results: std.ArrayList(Cursor) = .empty;
         try self.matchRepeatRecursive(repeat_node, cursor, 0, &results);
         return results.toOwnedSlice(self.allocator);
     }

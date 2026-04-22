@@ -79,7 +79,7 @@ pub const Regex = struct {
 };
 
 fn normalizePattern(allocator: std.mem.Allocator, pattern: []const u8) ![]u8 {
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     errdefer output.deinit(allocator);
 
     var index: usize = 0;

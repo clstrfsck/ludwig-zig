@@ -56,10 +56,9 @@ fn configureInteractiveTerminal(editor: *state.Editor) void {
 
 fn makeSpecialFrame(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.frameEdit(editor, allocator, null, name)).?;
+    const frame = (try frame_ops.frameEdit(editor, null, name)).?;
     frame.options.special_frame = true;
     return frame;
 }
@@ -84,22 +83,20 @@ fn attachStartupFiles(
 
 fn executeCommandFrameFile(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     current_frame: *types.FrameObject,
     special_frames: *types.SpecialFrames,
     file_name: []const u8,
 ) !code_ops.InterpretResult {
     const cmd_frame = special_frames.cmd orelse return error.MissingCommandFrame;
     const cmd_span = cmd_frame.span orelse return error.MissingCommandSpan;
-    if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
+    if (!try file_ops.loadBufferedFileIntoFrameByName(editor, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    if (!try code_ops.codeCompile(editor, allocator, current_frame, cmd_span, true)) {
+    if (!try code_ops.codeCompile(editor, current_frame, cmd_span, true)) {
         return .{ .frame = current_frame, .ok = false };
     }
     return code_ops.codeInterpretFrame(
         editor,
-        allocator,
         current_frame,
         special_frames,
         .lead_param_none,
@@ -128,13 +125,13 @@ pub fn startUp(
     errdefer interactive_io.deactivate(&session.terminal);
     configureInteractiveTerminal(editor);
 
-    session.special_frames.oops = try makeSpecialFrame(editor, allocator, "OOPS");
+    session.special_frames.oops = try makeSpecialFrame(editor, "OOPS");
     session.special_frames.oops.?.space_limit = types.max_space;
     session.special_frames.oops.?.space_left = types.max_space - 50;
-    session.special_frames.cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
-    session.special_frames.heap = try makeSpecialFrame(editor, allocator, "HEAP");
+    session.special_frames.cmd = try makeSpecialFrame(editor, "COMMAND");
+    session.special_frames.heap = try makeSpecialFrame(editor, "HEAP");
 
-    session.current_frame = (try frame_ops.frameEdit(editor, allocator, null, types.default_frame_name)).?;
+    session.current_frame = (try frame_ops.frameEdit(editor, null, types.default_frame_name)).?;
     editor.screen.frame = session.current_frame;
     editor.screen.top_line = session.current_frame.first_group.?.first_line.?;
     editor.screen.bot_line = session.current_frame.last_group.?.last_line.?;
@@ -145,14 +142,13 @@ pub fn startUp(
     if (session.current_frame.input_file != 0) {
         interactive_io.queueStatusMessage(startup_loading_message);
     }
-    if (session.current_frame.input_file != 0 and !try file_ops.filePage(editor, allocator, session.current_frame)) {
+    if (session.current_frame.input_file != 0 and !try file_ops.filePage(editor, session.current_frame)) {
         return error.InteractiveStartupFailed;
     }
 
     if (editor.file_data.initial.len > 0) {
         const init_outcome = try executeCommandFrameFile(
             editor,
-            allocator,
             session.current_frame,
             &session.special_frames,
             editor.file_data.initial,
@@ -427,7 +423,7 @@ const testing = struct {
     }
 };
 
-fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session) !void {
+fn windUp(editor: *state.Editor, session: *Session) !void {
     interactive_io.moveCursor(1, terminalHeight(editor));
     interactive_io.clearLine();
     interactive_io.refresh();
@@ -435,7 +431,7 @@ fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session
     if (session.terminal.active) {
         interactive_io.deactivate(&session.terminal);
     }
-    interactive_io.printLine("");
+    interactive_io.printLine(editor.io, "");
 
     editor.ludwig_mode = .ludwig_batch;
     editor.screen.frame = null;
@@ -447,12 +443,11 @@ fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session
     if (editor.quit_requested) {
         editor.quit_requested = false;
     }
-    _ = try file_ops.quitCloseFiles(editor, allocator);
+    _ = try file_ops.quitCloseFiles(editor);
 }
 
 fn executeCompiledCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     session: *Session,
 ) !bool {
     trace("[rt:compile] start mode={s} introducer={c}\n", .{
@@ -462,7 +457,7 @@ fn executeCompiledCommand(
         else
             '.',
     });
-    if (!try code_ops.codeCompile(editor, allocator, session.current_frame, session.command_span, false)) {
+    if (!try code_ops.codeCompile(editor, session.current_frame, session.command_span, false)) {
         trace("[rt:compile] compile failed\n", .{});
         return false;
     }
@@ -470,7 +465,6 @@ fn executeCompiledCommand(
     trace("[rt:compile] op={s}\n", .{@tagName(compiled.op)});
     const outcome = try code_ops.codeInterpretFrame(
         editor,
-        allocator,
         session.current_frame,
         &session.special_frames,
         .lead_param_none,
@@ -566,7 +560,6 @@ fn insertPrintable(
 
 fn executeLookupKey(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     session: *Session,
     key: isize,
 ) !bool {
@@ -586,7 +579,6 @@ fn executeLookupKey(
         const code = binding.code orelse return false;
         const outcome = try code_ops.codeInterpretFrame(
             editor,
-            allocator,
             session.current_frame,
             &session.special_frames,
             .lead_param_none,
@@ -601,7 +593,6 @@ fn executeLookupKey(
 
     const ok = try code_ops.executeSingle(
         editor,
-        allocator,
         &session.current_frame,
         &session.special_frames,
         binding.command,
@@ -679,7 +670,7 @@ pub fn run(
         var cmd_success = true;
 
         if (editor.edit_mode == .mode_command) {
-            cmd_success = try executeCompiledCommand(editor, allocator, session);
+            cmd_success = try executeCompiledCommand(editor, session);
         } else {
             const key_opt = try interactive_io.readInputKey();
             if (key_opt == null) {
@@ -695,7 +686,7 @@ pub fn run(
             if (key == 3) {
                 editor.tt_control_c = true;
             } else if (key == editor.command_introducer) {
-                cmd_success = try executeCompiledCommand(editor, allocator, session);
+                cmd_success = try executeCompiledCommand(editor, session);
             } else if (key >= 0 and key <= std.math.maxInt(u8) and chars.chIsPrintable(@intCast(key))) {
                 cmd_success = try insertPrintable(editor, allocator, session, @intCast(key));
                 trace("[rt:text] dot_col={} quit={}\n", .{
@@ -703,7 +694,7 @@ pub fn run(
                     editor.quit_requested,
                 });
             } else {
-                cmd_success = try executeLookupKey(editor, allocator, session, key);
+                cmd_success = try executeLookupKey(editor, session, key);
             }
         }
 
@@ -724,13 +715,17 @@ pub fn run(
         editor.tt_control_c = false;
     }
 
-    try windUp(editor, allocator, session);
+    try windUp(editor, session);
 }
 
 test "interactive testing snapshot paints startup file contents" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 20, .height = 4 };
@@ -752,7 +747,12 @@ test "interactive testing snapshot paints startup file contents" {
 }
 
 test "interactive terminal configuration applies screen-derived defaults" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
     interactive_io.testing.setDimensionsOverride(120, 24);
@@ -773,9 +773,13 @@ test "interactive terminal configuration applies screen-derived defaults" {
 }
 
 test "interactive testing snapshot paints top and bottom markers for clipped frame" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 20, .height = 6 };
@@ -802,9 +806,13 @@ test "interactive testing snapshot paints top and bottom markers for clipped fra
 }
 
 test "interactive quit confirmation repositions dot at modified mark" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 80, .height = 24 };
@@ -856,9 +864,13 @@ test "interactive quit confirmation repositions dot at modified mark" {
 }
 
 test "interactive quit confirmation accepts more-context replies without extra beep" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 80, .height = 10 };
@@ -913,15 +925,20 @@ test "interactive quit confirmation accepts more-context replies without extra b
 }
 
 test "interactive run beeps on command failure" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 80, .height = 24 };
 
-    const frame = (try frame_ops.frameEdit(&editor, allocator, null, types.default_frame_name)).?;
+    const frame = (try frame_ops.frameEdit(&editor, null, types.default_frame_name)).?;
     const command_span = try allocator.create(types.SpanObject);
+    defer allocator.destroy(command_span);
     command_span.* = .{ .name = command_span_name };
 
     var session = Session{

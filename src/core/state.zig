@@ -8,11 +8,13 @@ const types = @import("types.zig");
 pub const Editor = struct {
     base_allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
+    io: std.Io,
+    env: std.process.Environ.Map,
     program_directory: []const u8 = "",
     tt_control_c: bool = false,
     tt_win_changed: bool = false,
     num_key_names: isize = 0,
-    key_name_list: std.ArrayList(types.KeyNameRecord) = .{},
+    key_name_list: std.ArrayList(types.KeyNameRecord) = .empty,
     key_introducers: std.StaticBitSet(types.lookup_count) = std.StaticBitSet(types.lookup_count).initEmpty(),
     ludwig_aborted: bool = false,
     exit_abort: bool = false,
@@ -63,10 +65,12 @@ pub const Editor = struct {
         return self.arena.allocator();
     }
 
-    pub fn init(base_allocator: std.mem.Allocator) !Editor {
+    pub fn init(io: std.Io, base_allocator: std.mem.Allocator, env: std.process.Environ.Map) !Editor {
         var editor = Editor{
             .base_allocator = base_allocator,
             .arena = std.heap.ArenaAllocator.init(base_allocator),
+            .io = io,
+            .env = env,
         };
         defaults.setRegularTabStops(&editor, 8);
         try defaults.setupInitialValues(&editor);
@@ -110,7 +114,12 @@ pub const Editor = struct {
 };
 
 test "editor init ports value.go defaults and compiler state" {
-    var editor = try Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
     try std.testing.expectEqual(types.ModeType.mode_insert, editor.edit_mode);
@@ -143,7 +152,12 @@ test "editor init ports value.go defaults and compiler state" {
 }
 
 test "editor init recreates prefix and lookup table defaults" {
-    var editor = try Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
     try std.testing.expect(editor.prefixes.isSet(@intFromEnum(types.Commands.cmd_prefix_a)));
@@ -156,7 +170,12 @@ test "editor init recreates prefix and lookup table defaults" {
 }
 
 test "editor can switch to new command lookup tables" {
-    var editor = try Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
     editor.loadCommandTable(false);

@@ -61,7 +61,7 @@ fn collectLineContents(
     allocator: std.mem.Allocator,
     start: *types.LineHdrObject,
 ) ![]const []const u8 {
-    var results: std.ArrayList([]const u8) = .{};
+    var results: std.ArrayList([]const u8) = .empty;
     defer results.deinit(allocator);
     var line: ?*types.LineHdrObject = start;
     while (line != null and line.?.f_link != null) {

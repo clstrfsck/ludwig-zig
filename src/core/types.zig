@@ -350,7 +350,7 @@ pub const FileObject = struct {
     tnm: []const u8 = "",
     entab: bool = false,
     create: bool = false,
-    os_file: ?std.fs.File = null,
+    os_file: ?std.Io.File = null,
     reader: ?*anyopaque = null,
     mode: isize = 0,
     previous_file_id: i64 = 0,
@@ -507,12 +507,12 @@ pub const LineHdrObject = struct {
     b_link: ?*LineHdrObject = null,
     group: ?*GroupObject = null,
     offset_num: isize = 0,
-    marks: std.ArrayList(*MarkObject) = .{},
+    marks: std.ArrayList(*MarkObject) = .empty,
     str: ?*StrObject = null,
     used: isize = 0,
     scr_row_num: isize = 0,
     hl_state: HighlightState = null,
-    hl_match: HighlightMatchEntries = .{},
+    hl_match: HighlightMatchEntries = .empty,
 
     pub fn len(self: *const LineHdrObject) isize {
         if (self.str) |str| {

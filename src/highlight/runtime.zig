@@ -147,7 +147,7 @@ const Highlighter = struct {
         line.hl_match.clearRetainingCapacity();
         const text = if (line.str) |str| str.slice(1, line.used) else "";
 
-        var entries: std.ArrayList(types.HighlightMatchEntry) = .{};
+        var entries: std.ArrayList(types.HighlightMatchEntry) = .empty;
         if (self.last_region) |region| {
             try self.highlightRegion(temp_allocator, &entries, 0, text, region, true);
         } else {
@@ -367,13 +367,13 @@ fn compileRuleSet(
     rules: []const static_data.Rule,
     parent: ?*CompiledRegion,
 ) !CompiledRuleSet {
-    var patterns: std.ArrayList(CompiledPattern) = .{};
+    var patterns: std.ArrayList(CompiledPattern) = .empty;
     errdefer {
         for (patterns.items) |*pattern| pattern.deinit();
         patterns.deinit(allocator);
     }
 
-    var regions: std.ArrayList(*CompiledRegion) = .{};
+    var regions: std.ArrayList(*CompiledRegion) = .empty;
     errdefer {
         for (regions.items) |region| {
             region.deinit(allocator);
@@ -522,7 +522,7 @@ fn findAllIndices(
     regex: *const pcre2.Regex,
     subject: []const u8,
 ) ![]const pcre2.Match {
-    var matches: std.ArrayList(pcre2.Match) = .{};
+    var matches: std.ArrayList(pcre2.Match) = .empty;
     var offset: usize = 0;
     while (offset <= subject.len) {
         const match = try regex.find(subject, offset) orelse break;

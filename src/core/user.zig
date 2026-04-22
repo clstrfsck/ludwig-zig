@@ -275,7 +275,6 @@ pub fn userKeyInitialize(editor: *state.Editor, allocator: std.mem.Allocator) !v
 
 pub fn userCommandIntroducer(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
     if (editor.command_introducer < 0 or
@@ -286,21 +285,21 @@ pub fn userCommandIntroducer(
         return false;
     }
 
-    const temp = try str_object.newBlankStrObject(allocator, 1);
+    const temp = try str_object.newBlankStrObject(editor.allocator(), 1);
     temp.set(1, @intCast(editor.command_introducer));
 
     const cmd_success = switch (editor.edit_mode) {
-        .mode_insert => try text.textInsert(allocator, true, 1, temp, 1, frame.dot.?),
+        .mode_insert => try text.textInsert(editor.allocator(), true, 1, temp, 1, frame.dot.?),
         .mode_command => if (editor.previous_mode == .mode_insert)
-            try text.textInsert(allocator, true, 1, temp, 1, frame.dot.?)
+            try text.textInsert(editor.allocator(), true, 1, temp, 1, frame.dot.?)
         else
-            try text.textOvertype(allocator, true, 1, temp, 1, frame.dot.?),
-        .mode_overtype => try text.textOvertype(allocator, true, 1, temp, 1, frame.dot.?),
+            try text.textOvertype(editor.allocator(), true, 1, temp, 1, frame.dot.?),
+        .mode_overtype => try text.textOvertype(editor.allocator(), true, 1, temp, 1, frame.dot.?),
     };
 
     if (cmd_success) {
         frame.text_modified = true;
-        try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
+        try mark_ops.markCreate(editor.allocator(), frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
     return cmd_success;
 }
@@ -336,9 +335,13 @@ pub fn bindCompiledKey(
 }
 
 test "user key lookup uses editor key name list" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     try editor.key_name_list.append(allocator, .{
         .key_name = "TAB",
@@ -364,15 +367,19 @@ test "user key lookup uses editor key name list" {
 }
 
 test "user command introducer inserts in insert mode" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
     editor.command_introducer = '@';
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.dot);
 
-    try std.testing.expect(try userCommandIntroducer(&editor, allocator, fixture.frame));
+    try std.testing.expect(try userCommandIntroducer(&editor, fixture.frame));
     try std.testing.expectEqualStrings("a@b", line_ops.getLineContent(fixture.content_lines[0]));
     try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.col);
     try std.testing.expect(fixture.frame.text_modified);
@@ -380,9 +387,13 @@ test "user command introducer inserts in insert mode" {
 }
 
 test "user command introducer overtypes in command mode after overtype" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
     editor.command_introducer = '@';
@@ -390,23 +401,32 @@ test "user command introducer overtypes in command mode after overtype" {
     editor.previous_mode = .mode_overtype;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.dot);
 
-    try std.testing.expect(try userCommandIntroducer(&editor, allocator, fixture.frame));
+    try std.testing.expect(try userCommandIntroducer(&editor, fixture.frame));
     try std.testing.expectEqualStrings("a@", line_ops.getLineContent(fixture.content_lines[0]));
     try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.col);
 }
 
 test "user command introducer rejects non-printable introducer" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
     editor.command_introducer = 7;
-    try std.testing.expect(!(try userCommandIntroducer(&editor, allocator, fixture.frame)));
+    try std.testing.expect(!(try userCommandIntroducer(&editor, fixture.frame)));
 }
 
 test "user key initialize binds terminal navigation keys" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
     try userKeyInitialize(&editor, editor.allocator());

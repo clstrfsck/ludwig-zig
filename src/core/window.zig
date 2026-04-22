@@ -309,7 +309,6 @@ fn dotVisible(editor: *const state.Editor, frame: *const types.FrameObject) bool
 
 pub fn windowCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     command: types.Commands,
     rept: types.LeadParam,
@@ -327,9 +326,9 @@ pub fn windowCommand(
             const current_nr = line_ops.lineToNumber(frame.dot.?.line);
             const target_nr = if (current_nr <= step) @as(isize, 1) else current_nr - step;
             const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.first_group.?.first_line.?;
-            break :blk try moveDotTo(allocator, frame, target_line);
+            break :blk try moveDotTo(editor.allocator(), frame, target_line);
         },
-        .cmd_window_end => try moveDotTo(allocator, frame, frame.last_group.?.last_line.?),
+        .cmd_window_end => try moveDotTo(editor.allocator(), frame, frame.last_group.?.last_line.?),
         .cmd_window_forward => blk: {
             if (frame.dot == null or count < 0) break :blk false;
             const step = frame.scr_height * count;
@@ -337,7 +336,7 @@ pub fn windowCommand(
             const last_nr = line_ops.lineToNumber(frame.last_group.?.last_line.?);
             const target_nr = @min(last_nr, current_nr + step);
             const target_line = line_ops.lineFromNumber(frame, target_nr) orelse frame.last_group.?.last_line.?;
-            break :blk try moveDotTo(allocator, frame, target_line);
+            break :blk try moveDotTo(editor.allocator(), frame, target_line);
         },
         .cmd_window_left => blk: {
             if (frame.dot == null) break :blk false;
@@ -450,15 +449,19 @@ pub fn windowCommand(
             const target_height = if (rept == .lead_param_none) editor.terminal_info.height else count;
             break :blk frame_ops.frameSetHeight(editor, frame, target_height, false);
         },
-        .cmd_window_top => try moveDotTo(allocator, frame, frame.first_group.?.first_line.?),
+        .cmd_window_top => try moveDotTo(editor.allocator(), frame, frame.first_group.?.first_line.?),
         else => false,
     };
 }
 
 test "window command moves dot by screen height and clamps" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "one",
@@ -470,23 +473,27 @@ test "window command moves dot by screen height and clamps" {
     fixture.frame.scr_height = 2;
     try mark_ops.markCreate(allocator, fixture.content_lines[2], 1, &fixture.frame.dot);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_forward, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_forward, .lead_param_none, 1, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[4]);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_backward, .lead_param_p_int, 2, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_backward, .lead_param_p_int, 2, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_end, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_end, .lead_param_none, 1, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.sentinel_line);
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_top, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_top, .lead_param_none, 1, false));
     try std.testing.expect(fixture.frame.dot.?.line == fixture.content_lines[0]);
 }
 
 test "window command adjusts horizontal offset on active screen frame" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
     fixture.frame.scr_width = 10;
@@ -494,33 +501,41 @@ test "window command adjusts horizontal offset on active screen frame" {
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 20, &fixture.frame.dot);
     editor.screen.frame = fixture.frame;
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_left, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_left, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 0), fixture.frame.scr_offset);
     try std.testing.expectEqual(@as(isize, 10), fixture.frame.dot.?.col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 4, &fixture.frame.dot);
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_right, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_right, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 5), fixture.frame.scr_offset);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.dot.?.col);
 }
 
 test "window set height uses terminal height by default" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
     editor.terminal_info = .{ .width = 120, .height = 24 };
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"one"});
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_set_height, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_set_height, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 24), fixture.frame.scr_height);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.margin_top);
     try std.testing.expectEqual(@as(isize, 4), fixture.frame.margin_bottom);
 }
 
 test "window resize updates terminal dimensions and frame sizing" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     editor.terminal_info = .{ .width = 80, .height = 24 };
     editor.initial_scr_width = 80;
@@ -549,7 +564,7 @@ test "window resize updates terminal dimensions and frame sizing" {
     interactive_io.testing.setDimensionsOverride(100, 40);
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_resize_window, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_resize_window, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 100), editor.terminal_info.width);
     try std.testing.expectEqual(@as(isize, 40), editor.terminal_info.height);
     try std.testing.expectEqual(@as(isize, 100), fixture.frame.scr_width);
@@ -562,11 +577,15 @@ test "window resize updates terminal dimensions and frame sizing" {
 }
 
 test "window middle recenters the dot on the active screen" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 80, .height = 10 };
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
@@ -575,17 +594,21 @@ test "window middle recenters the dot on the active screen" {
     fixture.frame.scr_height = 10;
     setViewport(&editor, fixture.frame, 1, displayHeight(&editor, fixture.frame));
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_middle, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_middle, .lead_param_none, 1, false));
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.dot.?.line.scr_row_num);
     try std.testing.expectEqual(@as(isize, 6), fixture.frame.scr_dot_line);
 }
 
 test "window scroll supports stay-behind up and takeback" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
     editor.ludwig_mode = .ludwig_screen;
     editor.terminal_info = .{ .width = 80, .height = 5 };
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1", "2", "3", "4", "5", "6", "7",
@@ -597,7 +620,7 @@ test "window scroll supports stay-behind up and takeback" {
     interactive_io.testing.installInput("\x1b[AQ");
     defer interactive_io.testing.clearInput();
 
-    try std.testing.expect(try windowCommand(&editor, allocator, fixture.frame, .cmd_window_scroll, .lead_param_none, 1, false));
+    try std.testing.expect(try windowCommand(&editor, fixture.frame, .cmd_window_scroll, .lead_param_none, 1, false));
     try std.testing.expectEqualStrings("2", editor.screen.top_line.?.str.?.slice(1, 1));
     try std.testing.expectEqual(@as(isize, 2), fixture.frame.dot.?.line.scr_row_num);
     try std.testing.expectEqual(@as(?isize, 'Q'), interactive_io.testing.readInputKey());

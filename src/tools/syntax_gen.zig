@@ -105,7 +105,7 @@ const Parser = struct {
     }
 
     fn parseRules(self: *Parser, indent: usize) anyerror![]const data.Rule {
-        var list: std.ArrayList(data.Rule) = .{};
+        var list: std.ArrayList(data.Rule) = .empty;
         while (self.peek()) |line| {
             if (line.indent < indent) break;
             if (line.indent != indent) return error.InvalidIndentation;
@@ -189,7 +189,7 @@ fn buildParsedLines(
     allocator: std.mem.Allocator,
     input: []const u8,
 ) ![]const ParsedLine {
-    var lines: std.ArrayList(ParsedLine) = .{};
+    var lines: std.ArrayList(ParsedLine) = .empty;
 
     var start: usize = 0;
     var line_number: usize = 1;
@@ -243,7 +243,7 @@ fn parseScalar(allocator: std.mem.Allocator, raw_value: []const u8) ![]const u8 
 }
 
 fn parseDoubleQuotedScalar(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     var index: usize = 0;
     while (index < input.len) : (index += 1) {
         const ch = input[index];
@@ -301,13 +301,13 @@ fn appendCodepoint(
     try output.appendSlice(allocator, utf8[0..len]);
 }
 
-fn collectSyntaxFileNames(allocator: std.mem.Allocator, input_dir: []const u8) ![]const []const u8 {
-    var directory = try std.fs.cwd().openDir(input_dir, .{ .iterate = true });
-    defer directory.close();
+fn collectSyntaxFileNames(allocator: std.mem.Allocator, io: std.Io, input_dir: []const u8) ![]const []const u8 {
+    var directory = try std.Io.Dir.cwd().openDir(io, input_dir, .{ .iterate = true });
+    defer directory.close(io);
 
-    var names: std.ArrayList([]const u8) = .{};
+    var names: std.ArrayList([]const u8) = .empty;
     var iterator = directory.iterate();
-    while (try iterator.next()) |entry| {
+    while (try iterator.next(io)) |entry| {
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.name, ".yaml")) continue;
         try names.append(allocator, try allocator.dupe(u8, entry.name));
@@ -320,15 +320,15 @@ fn collectSyntaxFileNames(allocator: std.mem.Allocator, input_dir: []const u8) !
     return names.toOwnedSlice(allocator);
 }
 
-fn parseSyntaxDirectory(allocator: std.mem.Allocator, input_dir: []const u8) ![]const data.SyntaxFile {
-    const names = try collectSyntaxFileNames(allocator, input_dir);
+fn parseSyntaxDirectory(allocator: std.mem.Allocator, io: std.Io, input_dir: []const u8) ![]const data.SyntaxFile {
+    const names = try collectSyntaxFileNames(allocator, io, input_dir);
     var syntax_files = try allocator.alloc(data.SyntaxFile, names.len);
 
-    var directory = try std.fs.cwd().openDir(input_dir, .{});
-    defer directory.close();
+    var directory = try std.Io.Dir.cwd().openDir(io, input_dir, .{});
+    defer directory.close(io);
 
     for (names, 0..) |name, index| {
-        const source = try directory.readFileAlloc(allocator, name, max_file_size);
+        const source = try directory.readFileAlloc(io, name, allocator, .limited(max_file_size));
         const lines = try buildParsedLines(allocator, source);
         var parser = Parser{
             .allocator = allocator,
@@ -413,10 +413,10 @@ fn emitRuleList(writer: anytype, indent: []const u8, rules: []const data.Rule) !
     try writer.writeAll("}");
 }
 
-fn generateSyntaxData(allocator: std.mem.Allocator, input_dir: []const u8) ![]u8 {
-    const syntax_files = try parseSyntaxDirectory(allocator, input_dir);
+fn generateSyntaxData(allocator: std.mem.Allocator, io: std.Io, input_dir: []const u8) ![]u8 {
+    const syntax_files = try parseSyntaxDirectory(allocator, io, input_dir);
 
-    var output: std.ArrayList(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &output);
     const writer = &aw.writer;
 
@@ -451,7 +451,7 @@ fn generateSyntaxData(allocator: std.mem.Allocator, input_dir: []const u8) ![]u8
     return result.toOwnedSlice(allocator);
 }
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     const use_checked_allocator = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
     var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer if (use_checked_allocator) {
@@ -465,14 +465,16 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
+    const args = try init.minimal.args.toSlice(allocator);
+    defer allocator.free(args);
+
     if (args.len != 3) {
         std.debug.print("usage: ludwig-syntax-gen <syntax-dir> <output-zig>\n", .{});
         std.process.exit(2);
     }
 
-    const generated = try generateSyntaxData(allocator, args[1]);
-    try std.fs.cwd().writeFile(.{
+    const generated = try generateSyntaxData(allocator, init.io, args[1]);
+    try std.Io.Dir.cwd().writeFile(init.io, .{
         .sub_path = args[2],
         .data = generated,
     });

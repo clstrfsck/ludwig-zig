@@ -10,7 +10,6 @@ const types = @import("types.zig");
 
 pub fn spanFind(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     span_name: []const u8,
     ptr: *?*types.SpanObject,
     prev: *?*types.SpanObject,
@@ -27,8 +26,8 @@ pub fn spanFind(
     }
     if (ptr.* != null and std.mem.eql(u8, ptr.*.?.name, span_name)) {
         if (ptr.*.?.frame) |frame| {
-            try mark_ops.markCreate(allocator, frame.first_group.?.first_line.?, 1, &ptr.*.?.mark_one);
-            try mark_ops.markCreate(allocator, frame.last_group.?.last_line.?, 1, &ptr.*.?.mark_two);
+            try mark_ops.markCreate(editor.allocator(), frame.first_group.?.first_line.?, 1, &ptr.*.?.mark_one);
+            try mark_ops.markCreate(editor.allocator(), frame.last_group.?.last_line.?, 1, &ptr.*.?.mark_two);
         }
         return true;
     }
@@ -37,7 +36,6 @@ pub fn spanFind(
 
 pub fn spanCreate(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     span_name: []const u8,
     first_mark: *types.MarkObject,
     last_mark: *types.MarkObject,
@@ -47,7 +45,7 @@ pub fn spanCreate(
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
 
-    if (try spanFind(editor, allocator, span_name, &found, &prev)) {
+    if (try spanFind(editor, span_name, &found, &prev)) {
         if (found.?.frame != null) {
             return false;
         }
@@ -57,9 +55,9 @@ pub fn spanCreate(
         mark_one = found.?.mark_one;
         mark_two = found.?.mark_two;
     } else {
-        const span = try allocator.create(types.SpanObject);
+        const span = try editor.allocator().create(types.SpanObject);
         span.* = .{
-            .name = try allocator.dupe(u8, span_name),
+            .name = try editor.allocator().dupe(u8, span_name),
         };
         if (found) |next| {
             span.f_link = next;
@@ -74,8 +72,8 @@ pub fn spanCreate(
         found = span;
     }
 
-    try mark_ops.markCreate(allocator, first_mark.line, first_mark.col, &mark_one);
-    try mark_ops.markCreate(allocator, last_mark.line, last_mark.col, &mark_two);
+    try mark_ops.markCreate(editor.allocator(), first_mark.line, first_mark.col, &mark_one);
+    try mark_ops.markCreate(editor.allocator(), last_mark.line, last_mark.col, &mark_two);
 
     const line_nr_first = line_ops.lineToNumber(mark_one.?.line);
     const line_nr_last = line_ops.lineToNumber(mark_two.?.line);
@@ -92,7 +90,6 @@ pub fn spanCreate(
 
 pub fn spanDestroy(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     span_slot: *?*types.SpanObject,
 ) bool {
     if (span_slot.* == null) {
@@ -113,8 +110,8 @@ pub fn spanDestroy(
     if (span.f_link) |forward| {
         forward.b_link = span.b_link;
     }
-    mark_ops.markDestroy(allocator, &span.mark_one);
-    mark_ops.markDestroy(allocator, &span.mark_two);
+    mark_ops.markDestroy(editor.allocator(), &span.mark_one);
+    mark_ops.markDestroy(editor.allocator(), &span.mark_two);
     span_slot.* = null;
     return true;
 }
@@ -211,7 +208,7 @@ fn printBatchSpanIndex(
     allocator: std.mem.Allocator,
 ) !void {
     var stdout_buf: [4096]u8 = undefined;
-    var file_writer = std.fs.File.stdout().writerStreaming(&stdout_buf);
+    var file_writer = std.Io.File.stdout().writerStreaming(editor.io, &stdout_buf);
     var writer = &file_writer.interface;
     defer writer.flush() catch {};
 
@@ -321,7 +318,7 @@ fn showInteractiveSpanIndex(
     const spans_header = [_][]const u8{ "Spans", "=====" };
     const frames_header = [_][]const u8{ "", "Frames", "======" };
 
-    var page_lines: std.ArrayList([]const u8) = .{};
+    var page_lines: std.ArrayList([]const u8) = .empty;
     defer page_lines.deinit(allocator);
 
     try startInteractiveSpanSection(allocator, &page_lines, page_height, &spans_header);
@@ -364,14 +361,13 @@ fn showInteractiveSpanIndex(
 
 pub fn spanIndex(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     report_frame: *types.FrameObject,
 ) !bool {
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    var arena = std.heap.ArenaAllocator.init(editor.allocator());
     defer arena.deinit();
     const temp_allocator = arena.allocator();
 
-    var lines: std.ArrayList([]const u8) = .{};
+    var lines: std.ArrayList([]const u8) = .empty;
     try lines.append(temp_allocator, "Spans");
     try lines.append(temp_allocator, "=====");
 
@@ -403,7 +399,7 @@ pub fn spanIndex(
         }
     }
 
-    const ok = try replaceReportFrame(allocator, report_frame, lines.items);
+    const ok = try replaceReportFrame(editor.allocator(), report_frame, lines.items);
     if (!ok) {
         return false;
     }
@@ -429,9 +425,13 @@ fn expectFrameLines(frame: *types.FrameObject, expected: []const []const u8) !vo
 }
 
 test "span create find and destroy maintain ordering" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.setupLinkedLines(allocator, 3);
     var first_mark: ?*types.MarkObject = null;
@@ -439,28 +439,32 @@ test "span create find and destroy maintain ordering" {
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 1, &first_mark);
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 10, &last_mark);
 
-    try std.testing.expect(try spanCreate(&editor, allocator, "charlie", first_mark.?, last_mark.?));
-    try std.testing.expect(try spanCreate(&editor, allocator, "alpha", first_mark.?, last_mark.?));
-    try std.testing.expect(try spanCreate(&editor, allocator, "bravo", first_mark.?, last_mark.?));
+    try std.testing.expect(try spanCreate(&editor, "charlie", first_mark.?, last_mark.?));
+    try std.testing.expect(try spanCreate(&editor, "alpha", first_mark.?, last_mark.?));
+    try std.testing.expect(try spanCreate(&editor, "bravo", first_mark.?, last_mark.?));
     try std.testing.expectEqualStrings("alpha", editor.first_span.?.name);
     try std.testing.expectEqualStrings("bravo", editor.first_span.?.f_link.?.name);
     try std.testing.expectEqualStrings("charlie", editor.first_span.?.f_link.?.f_link.?.name);
 
     var found: ?*types.SpanObject = null;
     var prev: ?*types.SpanObject = null;
-    try std.testing.expect(try spanFind(&editor, allocator, "bravo", &found, &prev));
+    try std.testing.expect(try spanFind(&editor, "bravo", &found, &prev));
     try std.testing.expect(found == editor.first_span.?.f_link);
     try std.testing.expect(prev == editor.first_span);
 
-    try std.testing.expect(spanDestroy(&editor, allocator, &found));
+    try std.testing.expect(spanDestroy(&editor, &found));
     try std.testing.expect(editor.first_span.?.f_link != null);
     try std.testing.expectEqualStrings("charlie", editor.first_span.?.f_link.?.name);
 }
 
 test "span create normalizes reversed marks and supports redefine" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.setupLinkedLines(allocator, 2);
     var mark1: ?*types.MarkObject = null;
@@ -469,21 +473,25 @@ test "span create normalizes reversed marks and supports redefine" {
     var mark4: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 15, &mark1);
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 5, &mark2);
-    try std.testing.expect(try spanCreate(&editor, allocator, "ordered", mark1.?, mark2.?));
+    try std.testing.expect(try spanCreate(&editor, "ordered", mark1.?, mark2.?));
     try std.testing.expectEqual(@as(isize, 5), editor.first_span.?.mark_one.?.col);
     try std.testing.expectEqual(@as(isize, 15), editor.first_span.?.mark_two.?.col);
 
     try mark_ops.markCreate(allocator, fixture.content_lines[0], 7, &mark3);
     try mark_ops.markCreate(allocator, fixture.content_lines[1], 2, &mark4);
-    try std.testing.expect(try spanCreate(&editor, allocator, "ordered", mark3.?, mark4.?));
+    try std.testing.expect(try spanCreate(&editor, "ordered", mark3.?, mark4.?));
     try std.testing.expect(editor.first_span.?.mark_one.?.line == fixture.content_lines[0]);
     try std.testing.expect(editor.first_span.?.mark_two.?.line == fixture.content_lines[1]);
 }
 
 test "span find refreshes frame-backed spans" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.setupLinkedLines(allocator, 2);
     const frame_span = try allocator.create(types.SpanObject);
@@ -495,7 +503,7 @@ test "span find refreshes frame-backed spans" {
 
     var found: ?*types.SpanObject = null;
     var prev: ?*types.SpanObject = null;
-    try std.testing.expect(try spanFind(&editor, allocator, "frame", &found, &prev));
+    try std.testing.expect(try spanFind(&editor, "frame", &found, &prev));
     try std.testing.expect(found.?.mark_one != null);
     try std.testing.expect(found.?.mark_two != null);
     try std.testing.expect(found.?.mark_one.?.line == fixture.frame.first_group.?.first_line.?);
@@ -503,9 +511,13 @@ test "span find refreshes frame-backed spans" {
 }
 
 test "span index writes a non-interactive report into the target frame" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const source = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "abcdefghijklmnopqrstuvwxyz0123456789",
@@ -515,11 +527,11 @@ test "span index writes a non-interactive report into the target frame" {
     var mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, source.content_lines[0], 2, &mark_one);
     try mark_ops.markCreate(allocator, source.content_lines[1], 2, &mark_two);
-    try std.testing.expect(try spanCreate(&editor, allocator, "NOTE", mark_one.?, mark_two.?));
+    try std.testing.expect(try spanCreate(&editor, "NOTE", mark_one.?, mark_two.?));
 
-    const command = (try frame_ops.frameEdit(&editor, allocator, source.frame, "COMMAND")).?;
-    _ = (try frame_ops.frameEdit(&editor, allocator, source.frame, "HEAP")).?;
-    const oops = (try frame_ops.frameEdit(&editor, allocator, source.frame, "OOPS")).?;
+    const command = (try frame_ops.frameEdit(&editor, source.frame, "COMMAND")).?;
+    _ = (try frame_ops.frameEdit(&editor, source.frame, "HEAP")).?;
+    const oops = (try frame_ops.frameEdit(&editor, source.frame, "OOPS")).?;
 
     const input_file = try allocator.create(types.FileObject);
     input_file.* = .{ .filename = "input.txt" };
@@ -531,7 +543,7 @@ test "span index writes a non-interactive report into the target frame" {
     editor.files[2] = output_file;
     command.output_file = 2;
 
-    try std.testing.expect(try spanIndex(&editor, allocator, oops));
+    try std.testing.expect(try spanIndex(&editor, oops));
     try expectFrameLines(oops, &[_][]const u8{
         "Spans",
         "=====",

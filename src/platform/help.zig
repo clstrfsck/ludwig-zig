@@ -162,7 +162,7 @@ fn readEntryLines(
     data: []const u8,
     entry: Entry,
 ) !std.ArrayList([]const u8) {
-    var lines: std.ArrayList([]const u8) = .{};
+    var lines: std.ArrayList([]const u8) = .empty;
     var cursor = entry.start;
     while (cursor < entry.end) {
         const line = try readLine(data, cursor);
@@ -269,13 +269,12 @@ pub fn helpCommandForData(
 }
 
 pub fn helpCommand(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     report_frame: *types.FrameObject,
     selection: []const u8,
 ) !bool {
     const index_data = selectedIndexData(editor);
-    return helpCommandForData(allocator, report_frame, index_data, selection);
+    return helpCommandForData(editor.allocator(), report_frame, index_data, selection);
 }
 
 pub fn helpInteractiveForData(
@@ -295,7 +294,7 @@ pub fn helpInteractiveForData(
             continue;
         };
 
-        var page_lines: std.ArrayList([]const u8) = .{};
+        var page_lines: std.ArrayList([]const u8) = .empty;
         defer page_lines.deinit(allocator);
 
         var cursor = entry.start;
@@ -341,11 +340,10 @@ pub fn helpInteractiveForData(
 }
 
 pub fn helpInteractive(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     selection: []const u8,
 ) !bool {
-    return helpInteractiveForData(allocator, selectedIndexData(editor), selection);
+    return helpInteractiveForData(editor.allocator(), selectedIndexData(editor), selection);
 }
 
 fn makeReportFrame(allocator: std.mem.Allocator, name: []const u8) !line_ops.FrameFixture {
@@ -387,7 +385,7 @@ test "help command can render synthetic contents page" {
         \\
     ;
 
-    var diagnostics: std.ArrayList(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     const report = try makeReportFrame(allocator, "OOPS");
@@ -410,7 +408,7 @@ test "help command skips pagination markers and normalizes topic case" {
         \\
     ;
 
-    var diagnostics: std.ArrayList(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     const report = try makeReportFrame(allocator, "OOPS");
@@ -434,7 +432,7 @@ test "help command returns false for unknown topic" {
         \\
     ;
 
-    var diagnostics: std.ArrayList(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     const report = try makeReportFrame(allocator, "OOPS");
@@ -456,7 +454,7 @@ test "interactive help can paginate and exit through prompts" {
         \\
     ;
 
-    var diagnostics: std.ArrayList(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     const index_data = try help_builder.buildHelpIndex(allocator, input, &diagnostics);
 
     interactive_io.testing.installInput(" \r\r");

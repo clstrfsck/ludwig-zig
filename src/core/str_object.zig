@@ -313,7 +313,9 @@ pub fn newStrObjectCopy(
 }
 
 test "blank string object contains blanks" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const s = try newBlankStrObject(allocator, 8);
     defer s.destroy();
 
@@ -324,7 +326,9 @@ test "blank string object contains blanks" {
 }
 
 test "get set and 1-based indexing" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const s = try newBlankStrObject(allocator, 10);
     defer s.destroy();
 
@@ -335,7 +339,9 @@ test "get set and 1-based indexing" {
 }
 
 test "assign pads with spaces" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const s = try newBlankStrObject(allocator, 8);
     defer s.destroy();
 
@@ -345,7 +351,9 @@ test "assign pads with spaces" {
 }
 
 test "clone produces an independent copy" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const original = try newBlankStrObject(allocator, 8);
     defer original.destroy();
     original.set(2, 'B');
@@ -359,7 +367,9 @@ test "clone produces an independent copy" {
 }
 
 test "erase shifts and fills vacated space" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const s = try newStrObjectFrom(allocator, "ABCDEFGHIJ");
     defer s.destroy();
 
@@ -371,7 +381,9 @@ test "erase shifts and fills vacated space" {
 }
 
 test "fill copy bytes truncates and pads" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const s = try newBlankStrObject(allocator, 8);
     defer s.destroy();
 
@@ -380,7 +392,9 @@ test "fill copy bytes truncates and pads" {
 }
 
 test "trimmed length and slice preserve semantics" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const s = try newBlankStrObject(allocator, 12);
     defer s.destroy();
 
@@ -390,7 +404,9 @@ test "trimmed length and slice preserve semantics" {
 }
 
 test "compare and equal match byte ordering" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const a = try newStrObjectFrom(allocator, "AAAA");
     defer a.destroy();
     const b = try newStrObjectFrom(allocator, "BBBB");

@@ -96,26 +96,29 @@ pub fn validateCommand(
 
 fn makeSpecialFrame(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     current: *types.FrameObject,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.frameEdit(editor, allocator, current, name)).?;
+    const frame = (try frame_ops.frameEdit(editor, current, name)).?;
     frame.options.special_frame = true;
     return frame;
 }
 
 test "validate command accepts healthy special frames and spans" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
     editor.terminal_info = .{ .width = 160, .height = 48 };
-    const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
-    const cmd = try makeSpecialFrame(&editor, allocator, current, "COMMAND");
-    const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
-    const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
+    const current = (try frame_ops.frameEdit(&editor, root_fixture.frame, "MAIN")).?;
+    const cmd = try makeSpecialFrame(&editor, current, "COMMAND");
+    const oops = try makeSpecialFrame(&editor, current, "OOPS");
+    const heap = try makeSpecialFrame(&editor, current, "HEAP");
     var special_frames: types.SpecialFrames = .{
         .cmd = cmd,
         .oops = oops,
@@ -126,35 +129,43 @@ test "validate command accepts healthy special frames and spans" {
     var span_mark_two: ?*types.MarkObject = null;
     try mark_ops.markCreate(allocator, current.first_group.?.first_line.?, 1, &span_mark_one);
     try mark_ops.markCreate(allocator, current.last_group.?.last_line.?, 1, &span_mark_two);
-    try std.testing.expect(try span_ops.spanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
+    try std.testing.expect(try span_ops.spanCreate(&editor, "WORK", span_mark_one.?, span_mark_two.?));
 
     try std.testing.expect(validateCommand(&editor, current, &special_frames));
 }
 
 test "validate command rejects missing special frames" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
     editor.terminal_info = .{ .width = 160, .height = 48 };
-    const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
+    const current = (try frame_ops.frameEdit(&editor, root_fixture.frame, "MAIN")).?;
     var special_frames: types.SpecialFrames = .{};
     try std.testing.expect(!validateCommand(&editor, current, &special_frames));
 }
 
 test "validate command rejects spans with marks in different frames" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
     editor.terminal_info = .{ .width = 160, .height = 48 };
-    const allocator = editor.allocator();
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.frameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
-    const other = (try frame_ops.frameEdit(&editor, allocator, current, "OTHER")).?;
-    const cmd = try makeSpecialFrame(&editor, allocator, current, "COMMAND");
-    const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
-    const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
+    const current = (try frame_ops.frameEdit(&editor, root_fixture.frame, "MAIN")).?;
+    const other = (try frame_ops.frameEdit(&editor, current, "OTHER")).?;
+    const cmd = try makeSpecialFrame(&editor, current, "COMMAND");
+    const oops = try makeSpecialFrame(&editor, current, "OOPS");
+    const heap = try makeSpecialFrame(&editor, current, "HEAP");
     var special_frames: types.SpecialFrames = .{
         .cmd = cmd,
         .oops = oops,
