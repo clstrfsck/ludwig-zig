@@ -58,7 +58,9 @@ pub fn expandFilename(io: std.Io, allocator: std.mem.Allocator, env: std.process
         return expanded;
     }
 
+    defer allocator.free(expanded);
     const cwd = try std.process.currentPathAlloc(io, allocator);
+    defer allocator.free(cwd);
     const resolved: []const u8 = try std.fs.path.resolve(allocator, &.{ cwd, expanded });
     return resolved;
 }
