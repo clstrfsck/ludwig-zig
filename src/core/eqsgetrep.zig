@@ -15,7 +15,7 @@ fn absCount(value: isize) isize {
 
 fn nextSearchLine(line: ?*types.LineHdrObject, backwards: bool) ?*types.LineHdrObject {
     const candidate = if (backwards) line.?.b_link else line.?.f_link;
-    if (candidate == null or candidate.?.str == null) {
+    if (candidate == null) {
         return null;
     }
     return candidate;
