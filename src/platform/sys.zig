@@ -128,7 +128,7 @@ pub fn fileStatus(io: std.Io, path: []const u8) FileStatus {
     return .{
         .valid = true,
         .mode = @intCast(stat.permissions.toMode() & 0o777),
-        .m_time = stat.mtime.toSeconds(),
+        .m_time = stat.mtime.toNanoseconds(),
         .is_dir = stat.kind == .directory,
     };
 }
