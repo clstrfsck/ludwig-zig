@@ -1,7 +1,8 @@
 .claude/
 .task/
 .vscode/
+.zig-cache/
+.zig-global-cache/
 c_src/
 system-test/
-.zig-cache/
 zig-out/
