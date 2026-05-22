@@ -77,10 +77,17 @@ const Registry = struct {
 
     fn init(allocator: std.mem.Allocator) !Registry {
         var files = try allocator.alloc(CompiledSyntaxFile, generated.syntax_files.len);
-        errdefer allocator.free(files);
+        var initialized_count: usize = 0;
+        errdefer {
+            for (files[0..initialized_count]) |*syntax_file| {
+                syntax_file.deinit(allocator);
+            }
+            allocator.free(files);
+        }
 
         for (generated.syntax_files, 0..) |syntax_file, index| {
             files[index] = try compileSyntaxFile(allocator, syntax_file);
+            initialized_count = index + 1;
         }
 
         return .{
@@ -148,6 +155,7 @@ const Highlighter = struct {
         const text = if (line.str) |str| str.slice(1, line.used) else "";
 
         var entries: std.ArrayList(types.HighlightMatchEntry) = .empty;
+        defer entries.deinit(temp_allocator);
         if (self.last_region) |region| {
             try self.highlightRegion(temp_allocator, &entries, 0, text, region, true);
         } else {
@@ -221,6 +229,7 @@ const Highlighter = struct {
         }
 
         var full_highlights = try allocator.alloc(u16, line_len);
+        defer allocator.free(full_highlights);
         @memset(full_highlights, current_region.pair);
 
         if (search_nesting) {
@@ -231,6 +240,7 @@ const Highlighter = struct {
                     continue;
                 }
                 const matches = try findAllIndices(allocator, &pattern.regex, line);
+                defer allocator.free(matches);
                 for (matches) |match| {
                     if (end_loc == null or match.start < end_loc.?.start) {
                         const limit = if (match.end > line_len) line_len else match.end;
@@ -327,9 +337,11 @@ const Highlighter = struct {
         }
 
         var full_highlights = try allocator.alloc(u16, line_len);
+        defer allocator.free(full_highlights);
         @memset(full_highlights, 0);
         for (self.syntax_file.rules.patterns) |*pattern| {
             const matches = try findAllIndices(allocator, &pattern.regex, line);
+            defer allocator.free(matches);
             for (matches) |match| {
                 const limit = if (match.end > line_len) line_len else match.end;
                 var index = match.start;
@@ -353,20 +365,53 @@ const Highlighter = struct {
 var registry: ?Registry = null;
 
 fn compileSyntaxFile(allocator: std.mem.Allocator, syntax_file: static_data.SyntaxFile) !CompiledSyntaxFile {
-    return .{
+    var compiled = CompiledSyntaxFile{
         .filetype = syntax_file.filetype,
-        .filename_regex = if (syntax_file.detect.filename) |pattern| try pcre2.Regex.compile(allocator, pattern) else null,
-        .header_regex = if (syntax_file.detect.header) |pattern| try pcre2.Regex.compile(allocator, pattern) else null,
-        .signature_regex = if (syntax_file.detect.signature) |pattern| try pcre2.Regex.compile(allocator, pattern) else null,
-        .rules = try compileRuleSet(allocator, syntax_file.rules, null),
     };
+    errdefer compiled.deinit(allocator);
+
+    compiled.filename_regex = if (syntax_file.detect.filename) |pattern| try pcre2.Regex.compile(allocator, pattern) else null;
+    compiled.header_regex = if (syntax_file.detect.header) |pattern| try pcre2.Regex.compile(allocator, pattern) else null;
+    compiled.signature_regex = if (syntax_file.detect.signature) |pattern| try pcre2.Regex.compile(allocator, pattern) else null;
+    compiled.rules = try compileRuleSet(allocator, syntax_file.rules, null);
+
+    return compiled;
+}
+
+fn compileRegion(
+    allocator: std.mem.Allocator,
+    region_data: static_data.RegionRule,
+    parent: ?*CompiledRegion,
+) anyerror!*CompiledRegion {
+    var start = try pcre2.Regex.compile(allocator, region_data.start);
+    errdefer start.deinit();
+    var end = try pcre2.Regex.compile(allocator, region_data.end);
+    errdefer end.deinit();
+    var skip = if (region_data.skip) |skip_pattern| try pcre2.Regex.compile(allocator, skip_pattern) else null;
+    errdefer if (skip) |*skip_regex| skip_regex.deinit();
+
+    const region = try allocator.create(CompiledRegion);
+    errdefer allocator.destroy(region);
+    region.* = .{
+        .group = region_data.group,
+        .pair = syntax_colors.pairForGroup(region_data.group),
+        .limit_group = region_data.limit_group orelse region_data.group,
+        .limit_pair = syntax_colors.pairForGroup(region_data.limit_group orelse region_data.group),
+        .start = start,
+        .end = end,
+        .skip = skip,
+        .parent = parent,
+    };
+
+    region.rules = try compileRuleSet(allocator, region_data.rules, region);
+    return region;
 }
 
 fn compileRuleSet(
     allocator: std.mem.Allocator,
     rules: []const static_data.Rule,
     parent: ?*CompiledRegion,
-) !CompiledRuleSet {
+) anyerror!CompiledRuleSet {
     var patterns: std.ArrayList(CompiledPattern) = .empty;
     errdefer {
         for (patterns.items) |*pattern| pattern.deinit();
@@ -389,33 +434,39 @@ fn compileRuleSet(
                 return error.UnsupportedSyntaxInclude;
             },
             .pattern => |pattern| {
-                try patterns.append(allocator, .{
+                var compiled_pattern = CompiledPattern{
                     .group = pattern.group,
                     .pair = syntax_colors.pairForGroup(pattern.group),
                     .regex = try pcre2.Regex.compile(allocator, pattern.regex),
-                });
+                };
+                patterns.append(allocator, compiled_pattern) catch |err| {
+                    compiled_pattern.deinit();
+                    return err;
+                };
             },
             .region => |region_data| {
-                const region = try allocator.create(CompiledRegion);
-                region.* = .{
-                    .group = region_data.group,
-                    .pair = syntax_colors.pairForGroup(region_data.group),
-                    .limit_group = region_data.limit_group orelse region_data.group,
-                    .limit_pair = syntax_colors.pairForGroup(region_data.limit_group orelse region_data.group),
-                    .start = try pcre2.Regex.compile(allocator, region_data.start),
-                    .end = try pcre2.Regex.compile(allocator, region_data.end),
-                    .skip = if (region_data.skip) |skip| try pcre2.Regex.compile(allocator, skip) else null,
-                    .parent = parent,
+                const region = try compileRegion(allocator, region_data, parent);
+                var region_appended = false;
+                errdefer if (!region_appended) {
+                    region.deinit(allocator);
+                    allocator.destroy(region);
                 };
-                region.rules = try compileRuleSet(allocator, region_data.rules, region);
                 try regions.append(allocator, region);
+                region_appended = true;
             },
         }
     }
 
+    const owned_patterns = try patterns.toOwnedSlice(allocator);
+    errdefer {
+        for (owned_patterns) |*pattern| pattern.deinit();
+        allocator.free(owned_patterns);
+    }
+    const owned_regions = try regions.toOwnedSlice(allocator);
+
     return .{
-        .patterns = try patterns.toOwnedSlice(allocator),
-        .regions = try regions.toOwnedSlice(allocator),
+        .patterns = owned_patterns,
+        .regions = owned_regions,
     };
 }
 
@@ -500,6 +551,7 @@ fn findIndex(
 ) !?pcre2.Match {
     if (skip) |skip_regex| {
         const masked = try allocator.dupe(u8, subject);
+        defer allocator.free(masked);
         var offset: usize = 0;
         while (try skip_regex.find(masked, offset)) |match| {
             @memset(masked[match.start..match.end], ' ');
@@ -523,6 +575,7 @@ fn findAllIndices(
     subject: []const u8,
 ) ![]const pcre2.Match {
     var matches: std.ArrayList(pcre2.Match) = .empty;
+    errdefer matches.deinit(allocator);
     var offset: usize = 0;
     while (offset <= subject.len) {
         const match = try regex.find(subject, offset) orelse break;
@@ -533,7 +586,7 @@ fn findAllIndices(
             offset += 1;
         }
     }
-    return matches.items;
+    return matches.toOwnedSlice(allocator);
 }
 
 fn frameFirstLine(frame: *types.FrameObject) []const u8 {
