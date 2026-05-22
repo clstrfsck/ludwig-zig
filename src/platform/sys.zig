@@ -162,6 +162,7 @@ pub fn writeFilename(io: std.Io, path: []const u8, filename: []const u8) !bool {
 
 pub fn readFilename(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !?[]const u8 {
     const data = readFileAlloc(io, allocator, path, 4096) catch return null;
+    defer allocator.free(data);
     const line_end = std.mem.indexOfAny(u8, data, "\r\n") orelse data.len;
     const line = data[0..line_end];
     if (line.len == 0) {

@@ -106,6 +106,7 @@ const Parser = struct {
 
     fn parseRules(self: *Parser, indent: usize) anyerror![]const data.Rule {
         var list: std.ArrayList(data.Rule) = .empty;
+        errdefer list.deinit(self.allocator);
         while (self.peek()) |line| {
             if (line.indent < indent) break;
             if (line.indent != indent) return error.InvalidIndentation;
@@ -190,6 +191,7 @@ fn buildParsedLines(
     input: []const u8,
 ) ![]const ParsedLine {
     var lines: std.ArrayList(ParsedLine) = .empty;
+    errdefer lines.deinit(allocator);
 
     var start: usize = 0;
     var line_number: usize = 1;
@@ -244,6 +246,8 @@ fn parseScalar(allocator: std.mem.Allocator, raw_value: []const u8) ![]const u8 
 
 fn parseDoubleQuotedScalar(allocator: std.mem.Allocator, input: []const u8) ![]const u8 {
     var output: std.ArrayList(u8) = .empty;
+    errdefer output.deinit(allocator);
+
     var index: usize = 0;
     while (index < input.len) : (index += 1) {
         const ch = input[index];
