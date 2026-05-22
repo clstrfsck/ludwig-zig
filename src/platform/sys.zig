@@ -40,6 +40,7 @@ fn expandTilde(allocator: std.mem.Allocator, env: std.process.Environ.Map, filen
         }
         break :blk currentHomeDir(allocator, env) orelse return null;
     };
+    defer allocator.free(home);
 
     if (rest.len == 0) {
         const dup: []const u8 = try allocator.dupe(u8, home);
