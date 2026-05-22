@@ -439,16 +439,20 @@ fn compileRuleSet(
                     .pair = syntax_colors.pairForGroup(pattern.group),
                     .regex = try pcre2.Regex.compile(allocator, pattern.regex),
                 };
-                errdefer compiled_pattern.deinit();
-                try patterns.append(allocator, compiled_pattern);
+                patterns.append(allocator, compiled_pattern) catch |err| {
+                    compiled_pattern.deinit();
+                    return err;
+                };
             },
             .region => |region_data| {
                 const region = try compileRegion(allocator, region_data, parent);
-                errdefer {
+                var region_appended = false;
+                errdefer if (!region_appended) {
                     region.deinit(allocator);
                     allocator.destroy(region);
-                }
+                };
                 try regions.append(allocator, region);
+                region_appended = true;
             },
         }
     }
