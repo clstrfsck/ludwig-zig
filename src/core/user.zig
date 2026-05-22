@@ -15,41 +15,41 @@ const curses = terminal.c;
 
 fn specialCommand(cmd: types.Commands) bool {
     return switch (cmd) {
-        .CmdVerify,
-        .CmdExitAbort,
-        .CmdExitFail,
-        .CmdExitSuccess,
+        .cmd_verify,
+        .cmd_exit_abort,
+        .cmd_exit_fail,
+        .cmd_exit_success,
         => true,
         else => false,
     };
 }
 
-pub fn UserKeyCodeToName(editor: *const state.Editor, key_code: isize) ?[]const u8 {
-    for (editor.KeyNameList.items) |entry| {
-        if (entry.KeyCode == key_code) {
-            return entry.KeyName;
+pub fn userKeyCodeToName(editor: *const state.Editor, key_code: isize) ?[]const u8 {
+    for (editor.key_name_list.items) |entry| {
+        if (entry.key_code == key_code) {
+            return entry.key_name;
         }
     }
     return null;
 }
 
-pub fn UserKeyNameToCode(editor: *const state.Editor, key_name: []const u8) ?isize {
-    for (editor.KeyNameList.items) |entry| {
-        if (std.mem.eql(u8, entry.KeyName, key_name)) {
-            return entry.KeyCode;
+pub fn userKeyNameToCode(editor: *const state.Editor, key_name: []const u8) ?isize {
+    for (editor.key_name_list.items) |entry| {
+        if (std.mem.eql(u8, entry.key_name, key_name)) {
+            return entry.key_code;
         }
     }
     return null;
 }
 
-pub fn ResolveUserKeyCode(editor: *const state.Editor, key: *const types.TParObject) ?isize {
-    if (key.Str == null or key.Len <= 0) {
+pub fn resolveUserKeyCode(editor: *const state.Editor, key: *const types.TParObject) ?isize {
+    if (key.str == null or key.len <= 0) {
         return null;
     }
-    if (key.Len == 1) {
-        return key.Str.?.get(1);
+    if (key.len == 1) {
+        return key.str.?.get(1);
     }
-    return UserKeyNameToCode(editor, key.Str.?.slice(1, key.Len));
+    return userKeyNameToCode(editor, key.str.?.slice(1, key.len));
 }
 
 fn ensureKeyName(
@@ -58,14 +58,14 @@ fn ensureKeyName(
     key_name: []const u8,
     key_code: isize,
 ) !void {
-    for (editor.KeyNameList.items) |entry| {
-        if (std.mem.eql(u8, entry.KeyName, key_name)) {
+    for (editor.key_name_list.items) |entry| {
+        if (std.mem.eql(u8, entry.key_name, key_name)) {
             return;
         }
     }
-    try editor.KeyNameList.append(allocator, .{
-        .KeyName = key_name,
-        .KeyCode = key_code,
+    try editor.key_name_list.append(allocator, .{
+        .key_name = key_name,
+        .key_code = key_code,
     });
 }
 
@@ -77,16 +77,16 @@ fn registerKey(
     command: ?types.Commands,
     prompt: bool,
 ) !void {
-    if (key_code < 0 or key_code >= @as(isize, @intCast(types.LookupCount))) {
+    if (key_code < 0 or key_code >= @as(isize, @intCast(types.lookup_count))) {
         return;
     }
 
     try ensureKeyName(editor, allocator, key_name, key_code);
     if (command) |cmd| {
-        const binding = &editor.Lookup[@intCast(key_code)];
-        binding.Command = cmd;
-        if (prompt and binding.Tpar == null) {
-            binding.Tpar = try newPromptTpar(allocator);
+        const binding = &editor.lookup[@intCast(key_code)];
+        binding.command = cmd;
+        if (prompt and binding.tpar == null) {
+            binding.tpar = try newPromptTpar(allocator);
         }
     }
 }
@@ -94,14 +94,14 @@ fn registerKey(
 fn newPromptTpar(allocator: std.mem.Allocator) !*types.TParObject {
     const tpar = try allocator.create(types.TParObject);
     tpar.* = .{
-        .Str = try str_object.newBlankStrObject(allocator, 0),
-        .Dlm = types.TpdPrompt,
+        .str = try str_object.newBlankStrObject(allocator, 0),
+        .dlm = types.tpd_prompt,
     };
     return tpar;
 }
 
 fn emitMessage(editor: *const state.Editor, message: []const u8) void {
-    if (editor.LudwigMode == .LudwigScreen) {
+    if (editor.ludwig_mode == .ludwig_screen) {
         interactive_io.queueStatusMessage(message);
     }
 }
@@ -238,30 +238,30 @@ fn registerCursesAliases(editor: *state.Editor, allocator: std.mem.Allocator) !v
     }
 }
 
-pub fn UserKeyInitialize(editor: *state.Editor, allocator: std.mem.Allocator) !void {
+pub fn userKeyInitialize(editor: *state.Editor, allocator: std.mem.Allocator) !void {
     const terminal_keys = [_]struct {
         name: []const u8,
         code: isize,
         command: types.Commands,
         prompt: bool = false,
     }{
-        .{ .name = "UP-ARROW", .code = types.TerminalKeyCodes.UpArrow, .command = .CmdUp },
-        .{ .name = "DOWN-ARROW", .code = types.TerminalKeyCodes.DownArrow, .command = .CmdDown },
-        .{ .name = "LEFT-ARROW", .code = types.TerminalKeyCodes.LeftArrow, .command = .CmdLeft },
-        .{ .name = "RIGHT-ARROW", .code = types.TerminalKeyCodes.RightArrow, .command = .CmdRight },
-        .{ .name = "HOME", .code = types.TerminalKeyCodes.Home, .command = .CmdHome },
-        .{ .name = "BACK-TAB", .code = types.TerminalKeyCodes.BackTab, .command = .CmdBacktab },
-        .{ .name = "INSERT-LINE", .code = types.TerminalKeyCodes.InsertLine, .command = .CmdInsertLine },
-        .{ .name = "DELETE-LINE", .code = types.TerminalKeyCodes.DeleteLine, .command = .CmdDeleteLine },
-        .{ .name = "INSERT-CHAR", .code = types.TerminalKeyCodes.InsertChar, .command = .CmdInsertChar },
-        .{ .name = "DELETE-CHAR", .code = types.TerminalKeyCodes.DeleteChar, .command = .CmdDeleteChar },
-        .{ .name = "PAGE-UP", .code = types.TerminalKeyCodes.PageUp, .command = .CmdWindowBackward },
-        .{ .name = "PREV-SCREEN", .code = types.TerminalKeyCodes.PageUp, .command = .CmdWindowBackward },
-        .{ .name = "PAGE-DOWN", .code = types.TerminalKeyCodes.PageDown, .command = .CmdWindowForward },
-        .{ .name = "NEXT-SCREEN", .code = types.TerminalKeyCodes.PageDown, .command = .CmdWindowForward },
-        .{ .name = "FIND", .code = types.TerminalKeyCodes.Find, .command = .CmdGet, .prompt = true },
-        .{ .name = "HELP", .code = types.TerminalKeyCodes.Help, .command = .CmdHelp, .prompt = true },
-        .{ .name = "WINDOW-RESIZE-EVENT", .code = types.TerminalKeyCodes.WindowResize, .command = .CmdResizeWindow },
+        .{ .name = "UP-ARROW", .code = types.terminal_key_codes.up_arrow, .command = .cmd_up },
+        .{ .name = "DOWN-ARROW", .code = types.terminal_key_codes.down_arrow, .command = .cmd_down },
+        .{ .name = "LEFT-ARROW", .code = types.terminal_key_codes.left_arrow, .command = .cmd_left },
+        .{ .name = "RIGHT-ARROW", .code = types.terminal_key_codes.right_arrow, .command = .cmd_right },
+        .{ .name = "HOME", .code = types.terminal_key_codes.home, .command = .cmd_home },
+        .{ .name = "BACK-TAB", .code = types.terminal_key_codes.back_tab, .command = .cmd_backtab },
+        .{ .name = "INSERT-LINE", .code = types.terminal_key_codes.insert_line, .command = .cmd_insert_line },
+        .{ .name = "DELETE-LINE", .code = types.terminal_key_codes.delete_line, .command = .cmd_delete_line },
+        .{ .name = "INSERT-CHAR", .code = types.terminal_key_codes.insert_char, .command = .cmd_insert_char },
+        .{ .name = "DELETE-CHAR", .code = types.terminal_key_codes.delete_char, .command = .cmd_delete_char },
+        .{ .name = "PAGE-UP", .code = types.terminal_key_codes.page_up, .command = .cmd_window_backward },
+        .{ .name = "PREV-SCREEN", .code = types.terminal_key_codes.page_up, .command = .cmd_window_backward },
+        .{ .name = "PAGE-DOWN", .code = types.terminal_key_codes.page_down, .command = .cmd_window_forward },
+        .{ .name = "NEXT-SCREEN", .code = types.terminal_key_codes.page_down, .command = .cmd_window_forward },
+        .{ .name = "FIND", .code = types.terminal_key_codes.find, .command = .cmd_get, .prompt = true },
+        .{ .name = "HELP", .code = types.terminal_key_codes.help, .command = .cmd_help, .prompt = true },
+        .{ .name = "WINDOW-RESIZE-EVENT", .code = types.terminal_key_codes.window_resize, .command = .cmd_resize_window },
     };
 
     try registerControlKeyNames(editor, allocator);
@@ -270,178 +270,194 @@ pub fn UserKeyInitialize(editor: *state.Editor, allocator: std.mem.Allocator) !v
     }
     try registerFunctionKeyNames(editor, allocator);
     try registerCursesAliases(editor, allocator);
-    editor.NrKeyNames = @intCast(editor.KeyNameList.items.len);
+    editor.num_key_names = @intCast(editor.key_name_list.items.len);
 }
 
-pub fn UserCommandIntroducer(
+pub fn userCommandIntroducer(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !bool {
-    if (editor.CommandIntroducer < 0 or
-        editor.CommandIntroducer > types.MaxSetRange or
-        !chars.chIsPrintable(@intCast(editor.CommandIntroducer)))
+    if (editor.command_introducer < 0 or
+        editor.command_introducer > types.max_set_range or
+        !chars.chIsPrintable(@intCast(editor.command_introducer)))
     {
         emitMessage(editor, nonprintable_introducer_message);
         return false;
     }
 
-    const temp = try str_object.newBlankStrObject(allocator, 1);
-    temp.set(1, @intCast(editor.CommandIntroducer));
+    const temp = try str_object.newBlankStrObject(editor.allocator(), 1);
+    temp.set(1, @intCast(editor.command_introducer));
 
-    const cmd_success = switch (editor.EditMode) {
-        .ModeInsert => try text.TextInsert(allocator, true, 1, temp, 1, frame.Dot.?),
-        .ModeCommand => if (editor.PreviousMode == .ModeInsert)
-            try text.TextInsert(allocator, true, 1, temp, 1, frame.Dot.?)
+    const cmd_success = switch (editor.edit_mode) {
+        .mode_insert => try text.textInsert(editor.allocator(), true, 1, temp, 1, frame.dot.?),
+        .mode_command => if (editor.previous_mode == .mode_insert)
+            try text.textInsert(editor.allocator(), true, 1, temp, 1, frame.dot.?)
         else
-            try text.TextOvertype(allocator, true, 1, temp, 1, frame.Dot.?),
-        .ModeOvertype => try text.TextOvertype(allocator, true, 1, temp, 1, frame.Dot.?),
+            try text.textOvertype(editor.allocator(), true, 1, temp, 1, frame.dot.?),
+        .mode_overtype => try text.textOvertype(editor.allocator(), true, 1, temp, 1, frame.dot.?),
     };
 
     if (cmd_success) {
-        frame.TextModified = true;
-        try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
+        frame.text_modified = true;
+        try mark_ops.markCreate(editor.allocator(), frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
     }
     return cmd_success;
 }
 
-pub fn BindCompiledKey(
+pub fn bindCompiledKey(
     editor: *state.Editor,
     key_code: isize,
     key_span: *types.SpanObject,
 ) bool {
-    if (key_code < 0 or key_code >= @as(isize, @intCast(types.LookupCount))) {
+    if (key_code < 0 or key_code >= @as(isize, @intCast(types.lookup_count))) {
         return false;
     }
 
-    const binding = &editor.Lookup[@intCast(key_code)];
-    if (binding.Code != null) {
-        code_store.codeDiscard(editor, &binding.Code);
+    const binding = &editor.lookup[@intCast(key_code)];
+    if (binding.code != null) {
+        code_store.codeDiscard(editor, &binding.code);
     }
-    binding.Code = null;
-    binding.Tpar = null;
+    binding.code = null;
+    binding.tpar = null;
 
-    const code = key_span.Code orelse return false;
-    const first = &editor.CompilerCode[@intCast(code.Code)];
-    if (code.Len == 2 and first.Rep == .LeadParamNone and !specialCommand(first.Op)) {
-        binding.Command = first.Op;
-        binding.Tpar = first.Tpar;
-        first.Tpar = null;
+    const code = key_span.code orelse return false;
+    const first = &editor.compiler_code[@intCast(code.code)];
+    if (code.len == 2 and first.rep == .lead_param_none and !specialCommand(first.op)) {
+        binding.command = first.op;
+        binding.tpar = first.tpar;
+        first.tpar = null;
     } else {
-        binding.Command = .CmdExtended;
-        binding.Code = code;
-        key_span.Code = null;
+        binding.command = .cmd_extended;
+        binding.code = code;
+        key_span.code = null;
     }
     return true;
 }
 
-pub fn UserUndo() bool {
-    return false;
-}
-
 test "user key lookup uses editor key name list" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    try editor.KeyNameList.append(allocator, .{
-        .KeyName = "TAB",
-        .KeyCode = 9,
+    try editor.key_name_list.append(allocator, .{
+        .key_name = "TAB",
+        .key_code = 9,
     });
 
-    try std.testing.expectEqualStrings("TAB", UserKeyCodeToName(&editor, 9).?);
-    try std.testing.expectEqual(@as(?isize, 9), UserKeyNameToCode(&editor, "TAB"));
+    try std.testing.expectEqualStrings("TAB", userKeyCodeToName(&editor, 9).?);
+    try std.testing.expectEqual(@as(?isize, 9), userKeyNameToCode(&editor, "TAB"));
 
     const named = try str_object.newStrObjectFrom(allocator, "TAB");
     var named_tpar = types.TParObject{
-        .Str = named,
-        .Len = 3,
+        .str = named,
+        .len = 3,
     };
-    try std.testing.expectEqual(@as(?isize, 9), ResolveUserKeyCode(&editor, &named_tpar));
+    try std.testing.expectEqual(@as(?isize, 9), resolveUserKeyCode(&editor, &named_tpar));
 
     const literal = try str_object.newStrObjectFrom(allocator, "A");
     var literal_tpar = types.TParObject{
-        .Str = literal,
-        .Len = 1,
+        .str = literal,
+        .len = 1,
     };
-    try std.testing.expectEqual(@as(?isize, 'A'), ResolveUserKeyCode(&editor, &literal_tpar));
+    try std.testing.expectEqual(@as(?isize, 'A'), resolveUserKeyCode(&editor, &literal_tpar));
 }
 
 test "user command introducer inserts in insert mode" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
-    editor.CommandIntroducer = '@';
-    try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.Dot);
+    editor.command_introducer = '@';
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.dot);
 
-    try std.testing.expect(try UserCommandIntroducer(&editor, allocator, fixture.frame));
+    try std.testing.expect(try userCommandIntroducer(&editor, fixture.frame));
     try std.testing.expectEqualStrings("a@b", line_ops.getLineContent(fixture.content_lines[0]));
-    try std.testing.expectEqual(@as(isize, 3), fixture.frame.Dot.?.Col);
-    try std.testing.expect(fixture.frame.TextModified);
-    try std.testing.expect(fixture.frame.Marks[types.MarkModified] != null);
+    try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.col);
+    try std.testing.expect(fixture.frame.text_modified);
+    try std.testing.expect(fixture.frame.marks[types.mark_modified] != null);
 }
 
 test "user command introducer overtypes in command mode after overtype" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
-    editor.CommandIntroducer = '@';
-    editor.EditMode = .ModeCommand;
-    editor.PreviousMode = .ModeOvertype;
-    try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.Dot);
+    editor.command_introducer = '@';
+    editor.edit_mode = .mode_command;
+    editor.previous_mode = .mode_overtype;
+    try mark_ops.markCreate(allocator, fixture.content_lines[0], 2, &fixture.frame.dot);
 
-    try std.testing.expect(try UserCommandIntroducer(&editor, allocator, fixture.frame));
+    try std.testing.expect(try userCommandIntroducer(&editor, fixture.frame));
     try std.testing.expectEqualStrings("a@", line_ops.getLineContent(fixture.content_lines[0]));
-    try std.testing.expectEqual(@as(isize, 3), fixture.frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 3), fixture.frame.dot.?.col);
 }
 
 test "user command introducer rejects non-printable introducer" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"ab"});
-    editor.CommandIntroducer = 7;
-    try std.testing.expect(!(try UserCommandIntroducer(&editor, allocator, fixture.frame)));
+    editor.command_introducer = 7;
+    try std.testing.expect(!(try userCommandIntroducer(&editor, fixture.frame)));
 }
 
 test "user key initialize binds terminal navigation keys" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
-    try UserKeyInitialize(&editor, editor.allocator());
+    try userKeyInitialize(&editor, editor.allocator());
 
-    try std.testing.expectEqual(types.Commands.CmdUp, editor.Lookup[@intCast(types.TerminalKeyCodes.UpArrow)].Command);
-    try std.testing.expectEqual(types.Commands.CmdDown, editor.Lookup[@intCast(types.TerminalKeyCodes.DownArrow)].Command);
-    try std.testing.expectEqual(types.Commands.CmdLeft, editor.Lookup[@intCast(types.TerminalKeyCodes.LeftArrow)].Command);
-    try std.testing.expectEqual(types.Commands.CmdRight, editor.Lookup[@intCast(types.TerminalKeyCodes.RightArrow)].Command);
-    try std.testing.expectEqual(types.Commands.CmdHome, editor.Lookup[@intCast(types.TerminalKeyCodes.Home)].Command);
-    try std.testing.expectEqual(types.Commands.CmdBacktab, editor.Lookup[@intCast(types.TerminalKeyCodes.BackTab)].Command);
-    try std.testing.expectEqual(types.Commands.CmdInsertLine, editor.Lookup[@intCast(types.TerminalKeyCodes.InsertLine)].Command);
-    try std.testing.expectEqual(types.Commands.CmdDeleteLine, editor.Lookup[@intCast(types.TerminalKeyCodes.DeleteLine)].Command);
-    try std.testing.expectEqual(types.Commands.CmdWindowBackward, editor.Lookup[@intCast(types.TerminalKeyCodes.PageUp)].Command);
-    try std.testing.expectEqual(types.Commands.CmdWindowForward, editor.Lookup[@intCast(types.TerminalKeyCodes.PageDown)].Command);
-    try std.testing.expectEqual(types.Commands.CmdGet, editor.Lookup[@intCast(types.TerminalKeyCodes.Find)].Command);
-    try std.testing.expectEqual(types.Commands.CmdHelp, editor.Lookup[@intCast(types.TerminalKeyCodes.Help)].Command);
-    try std.testing.expectEqual(types.Commands.CmdResizeWindow, editor.Lookup[@intCast(types.TerminalKeyCodes.WindowResize)].Command);
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.UpArrow), UserKeyNameToCode(&editor, "UP-ARROW"));
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.PageUp), UserKeyNameToCode(&editor, "PREV-SCREEN"));
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.PageDown), UserKeyNameToCode(&editor, "NEXT-SCREEN"));
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.Find), UserKeyNameToCode(&editor, "FIND"));
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.Help), UserKeyNameToCode(&editor, "HELP"));
-    try std.testing.expect(editor.Lookup[@intCast(types.TerminalKeyCodes.Find)].Tpar != null);
-    try std.testing.expect(editor.Lookup[@intCast(types.TerminalKeyCodes.Help)].Tpar != null);
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.WindowResize), UserKeyNameToCode(&editor, "WINDOW-RESIZE-EVENT"));
-    try std.testing.expectEqual(@as(?isize, 1), UserKeyNameToCode(&editor, "CONTROL-A"));
-    try std.testing.expectEqual(@as(?isize, 127), UserKeyNameToCode(&editor, "DELETE"));
-    try std.testing.expectEqual(@as(?isize, curses.KEY_F0 + 1), UserKeyNameToCode(&editor, "FUNCTION-1"));
-    try std.testing.expectEqual(@as(?isize, curses.KEY_F0 + 13), UserKeyNameToCode(&editor, "SHIFT-FUNCTION-1"));
-    try std.testing.expect(types.TerminalKeyCodes.PageDown != curses.KEY_F0 + 1);
-    try std.testing.expectEqualStrings("FUNCTION-1", UserKeyCodeToName(&editor, curses.KEY_F0 + 1).?);
-    try std.testing.expectEqualStrings("PAGE-DOWN", UserKeyCodeToName(&editor, types.TerminalKeyCodes.PageDown).?);
-    try std.testing.expect(editor.NrKeyNames > 0);
+    try std.testing.expectEqual(types.Commands.cmd_up, editor.lookup[@intCast(types.terminal_key_codes.up_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_down, editor.lookup[@intCast(types.terminal_key_codes.down_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_left, editor.lookup[@intCast(types.terminal_key_codes.left_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_right, editor.lookup[@intCast(types.terminal_key_codes.right_arrow)].command);
+    try std.testing.expectEqual(types.Commands.cmd_home, editor.lookup[@intCast(types.terminal_key_codes.home)].command);
+    try std.testing.expectEqual(types.Commands.cmd_backtab, editor.lookup[@intCast(types.terminal_key_codes.back_tab)].command);
+    try std.testing.expectEqual(types.Commands.cmd_insert_line, editor.lookup[@intCast(types.terminal_key_codes.insert_line)].command);
+    try std.testing.expectEqual(types.Commands.cmd_delete_line, editor.lookup[@intCast(types.terminal_key_codes.delete_line)].command);
+    try std.testing.expectEqual(types.Commands.cmd_window_backward, editor.lookup[@intCast(types.terminal_key_codes.page_up)].command);
+    try std.testing.expectEqual(types.Commands.cmd_window_forward, editor.lookup[@intCast(types.terminal_key_codes.page_down)].command);
+    try std.testing.expectEqual(types.Commands.cmd_get, editor.lookup[@intCast(types.terminal_key_codes.find)].command);
+    try std.testing.expectEqual(types.Commands.cmd_help, editor.lookup[@intCast(types.terminal_key_codes.help)].command);
+    try std.testing.expectEqual(types.Commands.cmd_resize_window, editor.lookup[@intCast(types.terminal_key_codes.window_resize)].command);
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.up_arrow), userKeyNameToCode(&editor, "UP-ARROW"));
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.page_up), userKeyNameToCode(&editor, "PREV-SCREEN"));
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.page_down), userKeyNameToCode(&editor, "NEXT-SCREEN"));
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.find), userKeyNameToCode(&editor, "FIND"));
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.help), userKeyNameToCode(&editor, "HELP"));
+    try std.testing.expect(editor.lookup[@intCast(types.terminal_key_codes.find)].tpar != null);
+    try std.testing.expect(editor.lookup[@intCast(types.terminal_key_codes.help)].tpar != null);
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.window_resize), userKeyNameToCode(&editor, "WINDOW-RESIZE-EVENT"));
+    try std.testing.expectEqual(@as(?isize, 1), userKeyNameToCode(&editor, "CONTROL-A"));
+    try std.testing.expectEqual(@as(?isize, 127), userKeyNameToCode(&editor, "DELETE"));
+    try std.testing.expectEqual(@as(?isize, curses.KEY_F0 + 1), userKeyNameToCode(&editor, "FUNCTION-1"));
+    try std.testing.expectEqual(@as(?isize, curses.KEY_F0 + 13), userKeyNameToCode(&editor, "SHIFT-FUNCTION-1"));
+    try std.testing.expect(types.terminal_key_codes.page_down != curses.KEY_F0 + 1);
+    try std.testing.expectEqualStrings("FUNCTION-1", userKeyCodeToName(&editor, curses.KEY_F0 + 1).?);
+    try std.testing.expectEqualStrings("PAGE-DOWN", userKeyCodeToName(&editor, types.terminal_key_codes.page_down).?);
+    try std.testing.expect(editor.num_key_names > 0);
 }

@@ -9,9 +9,9 @@ fn configureLudwigExecutable(
     exe.root_module.addImport("generated_help_assets", help_assets_module);
     exe.root_module.addImport("generated_syntax_data", syntax_data_module);
     exe.root_module.addImport("syntax_data_types", syntax_data_types_module);
-    exe.linkLibC();
-    exe.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
-    exe.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
+    exe.root_module.link_libc = true;
+    exe.root_module.linkSystemLibrary("ncurses", .{ .preferred_link_mode = .static });
+    exe.root_module.linkSystemLibrary("pcre2-8", .{ .preferred_link_mode = .static });
 }
 
 pub fn build(b: *std.Build) void {
@@ -187,9 +187,9 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    unit_tests.linkLibC();
-    unit_tests.linkSystemLibrary2("ncurses", .{ .preferred_link_mode = .static });
-    unit_tests.linkSystemLibrary2("pcre2-8", .{ .preferred_link_mode = .static });
+    unit_tests.root_module.link_libc = true;
+    unit_tests.root_module.linkSystemLibrary("ncurses", .{ .preferred_link_mode = .static });
+    unit_tests.root_module.linkSystemLibrary("pcre2-8", .{ .preferred_link_mode = .static });
     unit_tests.root_module.addImport("generated_help_assets", host_help_assets_module);
     unit_tests.root_module.addImport("generated_syntax_data", host_syntax_data_module);
     unit_tests.root_module.addImport("syntax_data_types", host_syntax_data_types_module);
@@ -228,7 +228,7 @@ pub fn build(b: *std.Build) void {
     });
     system_test_run.step.dependOn(build_release_step);
     system_test_run.setCwd(b.path("."));
-    system_test_run.setEnvironmentVariable("LUDWIG_EXE", b.getInstallPath(.bin, "ludwig"));
+    system_test_run.setEnvironmentVariable("LUDWIG_EXE", b.fmt("{s}/{s}", .{ b.install_path, "bin/ludwig" }));
     const system_test_step = b.step("system-test", "Run system tests if present");
     system_test_step.dependOn(&system_test_run.step);
 

@@ -5,12 +5,12 @@ const sys_ops = @import("sys.zig");
 const types = @import("../core/types.zig");
 
 pub const ParseType = enum {
-    ParseCommand,
-    ParseInput,
-    ParseOutput,
-    ParseEdit,
-    ParseStdin,
-    ParseExecute,
+    parse_command,
+    parse_input,
+    parse_output,
+    parse_edit,
+    parse_stdin,
+    parse_execute,
 };
 
 pub const ParseResult = struct {
@@ -25,11 +25,11 @@ pub const file_usage =
     "usage: [-m file] [-t] [-T] [-b value] [-B value] [file [file]]";
 
 fn usageFor(parse_type: ParseType) []const u8 {
-    return if (parse_type == .ParseCommand) command_usage else file_usage;
+    return if (parse_type == .parse_command) command_usage else file_usage;
 }
 
-fn defaultHomePath(allocator: std.mem.Allocator, suffix: []const u8) ![]const u8 {
-    const home = sys_ops.getEnv(allocator, "HOME") orelse ".";
+fn defaultHomePath(allocator: std.mem.Allocator, env: std.process.Environ.Map, suffix: []const u8) ![]const u8 {
+    const home = sys_ops.getEnv(allocator, env, "HOME") orelse ".";
     return std.fs.path.join(allocator, &.{ home, suffix });
 }
 
@@ -40,24 +40,22 @@ fn parseIntArg(arg: []const u8) ?isize {
 fn makeStdinFile(allocator: std.mem.Allocator) !*types.FileObject {
     const input = try allocator.create(types.FileObject);
     input.* = .{
-        .Valid = true,
-        .OutputFlag = false,
-        .Filename = "<stdin>",
+        .valid = true,
+        .output_flag = false,
+        .filename = "<stdin>",
     };
     return input;
 }
 
 fn openInputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     file_name: []const u8,
 ) !?*types.FileObject {
-    return file_ops.openDiskInputFile(editor, allocator, file_name);
+    return file_ops.openDiskInputFile(editor, file_name);
 }
 
 fn openOutputFile(
-    editor: *const state.Editor,
-    allocator: std.mem.Allocator,
+    editor: *state.Editor,
     file_name: []const u8,
     related_name: ?[]const u8,
     create: bool,
@@ -67,19 +65,19 @@ fn openOutputFile(
     versions: isize,
 ) !?*types.FileObject {
     const expanded_memory = if (memory.len > 0)
-        (try sys_ops.expandFilename(allocator, memory)) orelse return null
+        (try sys_ops.expandFilename(editor.io, editor.allocator(), editor.env, memory)) orelse return null
     else
         null;
-    const output = (try file_ops.openDiskOutputFile(editor, allocator, file_name, .{
+    const output = (try file_ops.openDiskOutputFile(editor, file_name, .{
         .related_name = related_name,
         .create = create,
         .memory = expanded_memory,
     })) orelse return null;
-    output.Memory = if (expanded_memory) |path| path else "";
-    output.Entab = entab;
-    output.Purge = purge;
-    output.Versions = versions;
-    output.Create = create;
+    output.memory = if (expanded_memory) |path| path else "";
+    output.entab = entab;
+    output.purge = purge;
+    output.versions = versions;
+    output.create = create;
     return output;
 }
 
@@ -92,7 +90,6 @@ fn fail(message: []const u8) ParseResult {
 
 pub fn fileCreateOpen(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     argv: []const []const u8,
     parse_type: ParseType,
     input_out: *?*types.FileObject,
@@ -101,17 +98,17 @@ pub fn fileCreateOpen(
     input_out.* = null;
     output_out.* = null;
 
-    if (parse_type == .ParseStdin) {
-        input_out.* = try makeStdinFile(allocator);
+    if (parse_type == .parse_stdin) {
+        input_out.* = try makeStdinFile(editor.allocator());
         return .{ .ok = true };
     }
 
-    var entab = editor.FileData.Entab;
-    var highlighting = editor.FileData.Highlighting;
-    var space = editor.FileData.Space;
-    var purge = editor.FileData.Purge;
-    var versions = editor.FileData.Versions;
-    var tab_width = editor.FileData.TabWidth;
+    var entab = editor.file_data.entab;
+    var highlighting = editor.file_data.highlighting;
+    var space = editor.file_data.space;
+    var purge = editor.file_data.purge;
+    var versions = editor.file_data.versions;
+    var tab_width = editor.file_data.tab_width;
 
     var create_flag = false;
     var read_only_flag = false;
@@ -123,9 +120,9 @@ pub fn fileCreateOpen(
 
     var initialize: []const u8 = "";
     var memory: []const u8 = "";
-    if (parse_type == .ParseCommand) {
-        initialize = try defaultHomePath(allocator, ".ludwigrc");
-        memory = try defaultHomePath(allocator, ".lud_memory");
+    if (parse_type == .parse_command) {
+        initialize = try defaultHomePath(editor.allocator(), editor.env, ".ludwigrc");
+        memory = try defaultHomePath(editor.allocator(), editor.env, ".lud_memory");
     }
 
     var optind: usize = 0;
@@ -181,11 +178,11 @@ pub fn fileCreateOpen(
                 'M' => memory = "",
                 'o' => {
                     version_flag = true;
-                    editor.FileData.OldCmds = true;
+                    editor.file_data.old_cmds = true;
                 },
                 'O' => {
                     version_flag = true;
-                    editor.FileData.OldCmds = false;
+                    editor.file_data.old_cmds = false;
                 },
                 'r' => {
                     if (create_flag) {
@@ -231,15 +228,15 @@ pub fn fileCreateOpen(
         };
     }
 
-    if (parse_type == .ParseCommand) {
-        editor.FileData.Highlighting = highlighting;
-        editor.FileData.Entab = entab;
-        editor.FileData.Space = space;
-        editor.FileData.Initial = initialize;
-        editor.FileData.Purge = purge;
-        editor.FileData.Versions = versions;
-        editor.FileData.TabWidth = tab_width;
-        editor.loadCommandTable(editor.FileData.OldCmds);
+    if (parse_type == .parse_command) {
+        editor.file_data.highlighting = highlighting;
+        editor.file_data.entab = entab;
+        editor.file_data.space = space;
+        editor.file_data.initial = initialize;
+        editor.file_data.purge = purge;
+        editor.file_data.versions = versions;
+        editor.file_data.tab_width = tab_width;
+        editor.loadCommandTable(editor.file_data.old_cmds);
     } else if (create_flag or read_only_flag or initialize.len != 0 or space_flag or version_flag) {
         return .{
             .ok = false,
@@ -260,31 +257,31 @@ pub fn fileCreateOpen(
 
     if (file_count == 2) {
         check_input = true;
-        if (parse_type == .ParseInput or parse_type == .ParseOutput or parse_type == .ParseExecute or create_flag or read_only_flag) {
+        if (parse_type == .parse_input or parse_type == .parse_output or parse_type == .parse_execute or create_flag or read_only_flag) {
             return fail("Only one file name can be specified");
         }
     }
 
     switch (parse_type) {
-        .ParseCommand, .ParseEdit => {
+        .parse_command, .parse_edit => {
             var input_name: []const u8 = "";
             if (file_count > 0) {
                 input_name = files[0];
             } else if (memory.len > 0) {
-                if (try sys_ops.readFilename(allocator, memory)) |remembered| {
-                    if (sys_ops.fileExists(remembered)) {
+                if (try sys_ops.readFilename(editor.io, editor.allocator(), memory)) |remembered| {
+                    if (sys_ops.fileExists(editor.io, remembered)) {
                         input_name = remembered;
                         check_input = true;
-                    } else if (parse_type == .ParseEdit) {
-                        return fail(try std.fmt.allocPrint(allocator, "Error opening memory file ({s})", .{memory}));
+                    } else if (parse_type == .parse_edit) {
+                        return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening memory file ({s})", .{memory}));
                     }
-                } else if (parse_type == .ParseEdit) {
-                    return fail(try std.fmt.allocPrint(allocator, "Error opening memory file ({s})", .{memory}));
+                } else if (parse_type == .parse_edit) {
+                    return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening memory file ({s})", .{memory}));
                 }
             }
 
             if (input_name.len == 0) {
-                if (parse_type == .ParseCommand) {
+                if (parse_type == .parse_command) {
                     return .{ .ok = true };
                 }
                 return fail("No input file specified");
@@ -292,54 +289,54 @@ pub fn fileCreateOpen(
 
             const output_name = if (file_count > 1) files[1] else input_name;
             if (read_only_flag) {
-                input_out.* = (try openInputFile(editor, allocator, input_name)) orelse
-                    return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{input_name}));
+                input_out.* = (try openInputFile(editor, input_name)) orelse
+                    return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as input", .{input_name}));
             } else if (create_flag) {
-                output_out.* = (try openOutputFile(editor, allocator, output_name, null, true, memory, entab, purge, versions)) orelse
-                    return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
+                output_out.* = (try openOutputFile(editor, output_name, null, true, memory, entab, purge, versions)) orelse
+                    return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as output", .{output_name}));
             } else {
-                input_out.* = try openInputFile(editor, allocator, input_name);
-                if (input_out.* == null and (check_input or parse_type == .ParseEdit)) {
-                    return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{input_name}));
+                input_out.* = try openInputFile(editor, input_name);
+                if (input_out.* == null and (check_input or parse_type == .parse_edit)) {
+                    return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as input", .{input_name}));
                 }
-                const related_name = if (input_out.*) |input| input.Filename else input_name;
-                output_out.* = (try openOutputFile(editor, allocator, output_name, related_name, false, memory, entab, purge, versions)) orelse
-                    return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
+                const related_name = if (input_out.*) |input| input.filename else input_name;
+                output_out.* = (try openOutputFile(editor, output_name, related_name, false, memory, entab, purge, versions)) orelse
+                    return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as output", .{output_name}));
             }
         },
-        .ParseInput => {
+        .parse_input => {
             const input_name = if (file_count == 1)
                 files[0]
             else if (memory.len > 0)
-                (try sys_ops.readFilename(allocator, memory)) orelse
-                    return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{memory}))
+                (try sys_ops.readFilename(editor.io, editor.allocator(), memory)) orelse
+                    return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as input", .{memory}))
             else
                 return fail("No input file specified");
-            input_out.* = (try openInputFile(editor, allocator, input_name)) orelse
-                return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{input_name}));
+            input_out.* = (try openInputFile(editor, input_name)) orelse
+                return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as input", .{input_name}));
         },
-        .ParseExecute => {
+        .parse_execute => {
             if (file_count != 1) {
                 return fail("No input file specified");
             }
-            input_out.* = (try openInputFile(editor, allocator, files[0])) orelse
-                return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as input", .{files[0]}));
+            input_out.* = (try openInputFile(editor, files[0])) orelse
+                return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as input", .{files[0]}));
         },
-        .ParseOutput => {
+        .parse_output => {
             const output_name = if (file_count == 1)
                 files[0]
             else if (input_out.*) |input|
-                input.Filename
+                input.filename
             else
                 "";
             if (output_name.len == 0) {
                 return fail("No output file specified");
             }
-            const related_name = if (input_out.*) |input| input.Filename else null;
-            output_out.* = (try openOutputFile(editor, allocator, output_name, related_name, false, memory, entab, purge, versions)) orelse
-                return fail(try std.fmt.allocPrint(allocator, "Error opening ({s}) as output", .{output_name}));
+            const related_name = if (input_out.*) |input| input.filename else null;
+            output_out.* = (try openOutputFile(editor, output_name, related_name, false, memory, entab, purge, versions)) orelse
+                return fail(try std.fmt.allocPrint(editor.allocator(), "Error opening ({s}) as output", .{output_name}));
         },
-        .ParseStdin => unreachable,
+        .parse_stdin => unreachable,
     }
 
     return .{ .ok = true };
@@ -350,66 +347,72 @@ fn tmpPath(allocator: std.mem.Allocator, tmp_dir: *std.testing.TmpDir, name: []c
 }
 
 test "filesys parser applies command flags and opens command/edit files" {
-    var editor = try state.Editor.init(std.testing.allocator);
-    defer editor.deinit();
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
+    defer editor.deinit();
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
     const input_path = try tmpPath(allocator, &tmp_dir, "input.txt");
     const output_path = try tmpPath(allocator, &tmp_dir, "output.txt");
-    try tmp_dir.dir.writeFile(.{ .sub_path = "input.txt", .data = "alpha\n" });
+    try tmp_dir.dir.writeFile(editor.io, .{ .sub_path = "input.txt", .data = "alpha\n" });
 
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-B", "3", "-t", "-w", "4", "-O", input_path, output_path };
-    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, &argv, .parse_command, &input, &output);
     try std.testing.expect(result.ok);
-    try std.testing.expect(!editor.FileData.OldCmds);
-    try std.testing.expect(editor.FileData.Entab);
-    try std.testing.expect(editor.FileData.Purge);
-    try std.testing.expectEqual(@as(isize, 3), editor.FileData.Versions);
-    try std.testing.expectEqual(@as(isize, 4), editor.FileData.TabWidth);
+    try std.testing.expect(!editor.file_data.old_cmds);
+    try std.testing.expect(editor.file_data.entab);
+    try std.testing.expect(editor.file_data.purge);
+    try std.testing.expectEqual(@as(isize, 3), editor.file_data.versions);
+    try std.testing.expectEqual(@as(isize, 4), editor.file_data.tab_width);
     try std.testing.expect(input != null);
     try std.testing.expect(output != null);
 }
 
 test "filesys parser can use a memory file for command input" {
-    var editor = try state.Editor.init(std.testing.allocator);
-    defer editor.deinit();
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
+    defer editor.deinit();
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
     const input_path = try tmpPath(allocator, &tmp_dir, "input.txt");
     const memory_path = try tmpPath(allocator, &tmp_dir, "memory.txt");
-    try tmp_dir.dir.writeFile(.{ .sub_path = "input.txt", .data = "alpha\n" });
-    try std.testing.expect(try sys_ops.writeFilename(memory_path, input_path));
+    try tmp_dir.dir.writeFile(editor.io, .{ .sub_path = "input.txt", .data = "alpha\n" });
+    try std.testing.expect(try sys_ops.writeFilename(editor.io, memory_path, input_path));
 
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-m", memory_path };
-    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, &argv, .parse_command, &input, &output);
     try std.testing.expect(result.ok);
     try std.testing.expect(input != null);
     try std.testing.expect(output != null);
 }
 
 test "filesys parser reports usage for conflicting create and readonly flags" {
-    var editor = try state.Editor.init(std.testing.allocator);
-    defer editor.deinit();
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
+    defer editor.deinit();
 
     var input: ?*types.FileObject = null;
     var output: ?*types.FileObject = null;
     const argv = [_][]const u8{ "-c", "-r" };
-    const result = try fileCreateOpen(&editor, allocator, &argv, .ParseCommand, &input, &output);
+    const result = try fileCreateOpen(&editor, &argv, .parse_command, &input, &output);
     try std.testing.expect(!result.ok);
     try std.testing.expect(result.show_usage);
 }

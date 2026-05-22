@@ -1,86 +1,86 @@
 const builtin = @import("builtin");
 const std = @import("std");
+const state = @import("state.zig");
 const types = @import("types.zig");
 const str_object = @import("str_object.zig");
 
-pub const phase_label = "phase2-foundation-layer";
-pub const PromptCount = @as(usize, @intFromEnum(types.PromptType.PatternSetPrompt)) + 1;
+pub const prompt_count = @as(usize, @intFromEnum(types.PromptType.pattern_set_prompt)) + 1;
 
-pub fn setRegularTabStops(editor: anytype, width: isize) void {
+pub fn setRegularTabStops(editor: *state.Editor, width: isize) void {
     const clamped_width = @max(@as(isize, 2), @min(@as(isize, 8), width));
-    for (&editor.DefaultTabStops, 0..) |*slot, index| {
+    for (&editor.default_tab_stops, 0..) |*slot, index| {
         slot.* = @mod(@as(isize, @intCast(index)), clamped_width) == 1;
     }
-    editor.InitialTabStops = editor.DefaultTabStops;
+    editor.initial_tab_stops = editor.default_tab_stops;
 }
 
-pub fn setupInitialValues(editor: anytype) !void {
-    editor.LudwigAborted = false;
-    editor.ExitAbort = false;
-    editor.Hangup = false;
-    editor.QuitRequested = false;
-    editor.BatchOutputEnabled = !builtin.is_test;
-    editor.EditMode = .ModeInsert;
-    editor.PreviousMode = .ModeInsert;
+pub fn setupInitialValues(editor: *state.Editor) !void {
+    editor.ludwig_aborted = false;
+    editor.exit_abort = false;
+    editor.hangup = false;
+    editor.quit_requested = false;
+    editor.batch_output_enabled = !builtin.is_test;
+    editor.edit_mode = .mode_insert;
+    editor.previous_mode = .mode_insert;
 
-    editor.FgiFile = 0;
-    editor.FgoFile = 0;
-    editor.FirstSpan = null;
-    editor.LudwigMode = .LudwigBatch;
-    editor.CommandIntroducer = '\\';
-    editor.Screen = .{
-        .StdinReaderInitialized = true,
+    editor.fgi_file = 0;
+    editor.fgo_file = 0;
+    editor.first_span = null;
+    editor.ludwig_mode = .ludwig_batch;
+    editor.command_introducer = '\\';
+    editor.screen = .{
+        .stdin_reader_initialized = true,
     };
-    editor.Screen.MsgRow = types.MaxInt;
-    editor.VduFreeFlag = false;
-    editor.ExecLevel = 0;
+    editor.screen.msg_row = types.max_int;
+    editor.vdu_free_flag = false;
+    editor.exec_level = 0;
 
-    editor.InitialMarks = [_]?*types.MarkObject{null} ** (types.MaxMarkNumber + 1);
-    editor.InitialScrHeight = 1;
-    editor.InitialScrWidth = 132;
-    editor.InitialScrOffset = 0;
-    editor.InitialMarginLeft = 1;
-    editor.InitialMarginRight = 132;
-    editor.InitialMarginTop = 0;
-    editor.InitialMarginBottom = 0;
-    editor.InitialOptions = .{};
+    editor.initial_marks = [_]?*types.MarkObject{null} ** (types.max_mark_number + 1);
+    editor.initial_scr_height = 1;
+    editor.initial_scr_width = 132;
+    editor.initial_scr_offset = 0;
+    editor.initial_margin_left = 1;
+    editor.initial_margin_right = 132;
+    editor.initial_margin_top = 0;
+    editor.initial_margin_bottom = 0;
+    editor.initial_options = .{};
 
-    editor.Prefixes = std.StaticBitSet(types.CommandCount).initEmpty();
-    var cmd = @as(usize, @intFromEnum(types.Commands.CmdPrefixAst));
-    while (cmd <= @as(usize, @intFromEnum(types.Commands.CmdPrefixTilde))) : (cmd += 1) {
-        editor.Prefixes.set(cmd);
+    editor.prefixes = std.StaticBitSet(types.command_count).initEmpty();
+    var cmd = @as(usize, @intFromEnum(types.Commands.cmd_prefix_ast));
+    while (cmd <= @as(usize, @intFromEnum(types.Commands.cmd_prefix_tilde))) : (cmd += 1) {
+        editor.prefixes.set(cmd);
     }
 
-    editor.DfltPrompts[@intFromEnum(types.PromptType.NoPrompt)] = "        ";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.CharPrompt)] = "Charset:";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.GetPrompt)] = "Get    :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.EqualPrompt)] = "Equal  :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.KeyPrompt)] = "Key    :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.CmdPrompt)] = "Command:";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.SpanPrompt)] = "Span   :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.TextPrompt)] = "Text   :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.FramePrompt)] = "Frame  :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.FilePrompt)] = "File   :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.ColumnPrompt)] = "Column :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.MarkPrompt)] = "Mark   :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.ParamPrompt)] = "Param  :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.TopicPrompt)] = "Topic  :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.ReplacePrompt)] = "Replace:";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.ByPrompt)] = "By     :";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.VerifyPrompt)] = "Verify ?";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.PatternPrompt)] = "Pattern:";
-    editor.DfltPrompts[@intFromEnum(types.PromptType.PatternSetPrompt)] = "Pat Set:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.no_prompt)] = "        ";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.char_prompt)] = "Charset:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.get_prompt)] = "Get    :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.equal_prompt)] = "Equal  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.key_prompt)] = "Key    :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.cmd_prompt)] = "Command:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.span_prompt)] = "Span   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.text_prompt)] = "Text   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.frame_prompt)] = "Frame  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.file_prompt)] = "File   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.column_prompt)] = "Column :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.mark_prompt)] = "Mark   :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.param_prompt)] = "Param  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.topic_prompt)] = "Topic  :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.replace_prompt)] = "Replace:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.by_prompt)] = "By     :";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.verify_prompt)] = "Verify ?";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.pattern_prompt)] = "Pattern:";
+    editor.dflt_prompts[@intFromEnum(types.PromptType.pattern_set_prompt)] = "Pat Set:";
 
-    editor.FileData = .{
-        .OldCmds = true,
-        .Highlighting = false,
-        .Entab = false,
-        .Space = 500_000,
-        .Initial = "",
-        .Purge = false,
-        .Versions = 1,
-        .TabWidth = 8,
+    editor.file_data = .{
+        .old_cmds = true,
+        .highlighting = false,
+        .entab = false,
+        .space = 500_000,
+        .initial = "",
+        .purge = false,
+        .versions = 1,
+        .tab_width = 8,
     };
 
-    editor.BlankString = try str_object.newBlankStrObject(editor.allocator(), types.MaxStrLen);
+    editor.blank_string = try str_object.newBlankStrObject(editor.allocator(), types.max_str_len);
 }

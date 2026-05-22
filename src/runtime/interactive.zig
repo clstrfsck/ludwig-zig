@@ -40,27 +40,26 @@ pub const Session = struct {
 fn configureInteractiveTerminal(editor: *state.Editor) void {
     const info = interactive_io.detectDimensions();
     const band = @divTrunc(info.height, 6);
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{
-        .Name = info.name,
-        .Width = info.width,
-        .Height = info.height,
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{
+        .name = info.name,
+        .width = info.width,
+        .height = info.height,
     };
-    editor.InitialScrWidth = info.width;
-    editor.InitialScrHeight = info.height;
-    editor.InitialMarginRight = info.width;
-    editor.InitialMarginTop = band;
-    editor.InitialMarginBottom = band;
-    editor.Screen.MsgRow = info.height + 1;
+    editor.initial_scr_width = info.width;
+    editor.initial_scr_height = info.height;
+    editor.initial_margin_right = info.width;
+    editor.initial_margin_top = band;
+    editor.initial_margin_bottom = band;
+    editor.screen.msg_row = info.height + 1;
 }
 
 fn makeSpecialFrame(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.FrameEdit(editor, allocator, null, name)).?;
-    frame.Options.specialFrame = true;
+    const frame = (try frame_ops.frameEdit(editor, null, name)).?;
+    frame.options.special_frame = true;
     return frame;
 }
 
@@ -71,40 +70,38 @@ fn attachStartupFiles(
     output: ?*types.FileObject,
 ) void {
     if (input) |input_file| {
-        editor.Files[1] = input_file;
-        editor.FilesFrames[1] = current_frame;
-        current_frame.InputFile = 1;
+        editor.files[1] = input_file;
+        editor.files_frames[1] = current_frame;
+        current_frame.input_file = 1;
     }
     if (output) |output_file| {
-        editor.Files[2] = output_file;
-        editor.FilesFrames[2] = current_frame;
-        current_frame.OutputFile = 2;
+        editor.files[2] = output_file;
+        editor.files_frames[2] = current_frame;
+        current_frame.output_file = 2;
     }
 }
 
 fn executeCommandFrameFile(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     current_frame: *types.FrameObject,
     special_frames: *types.SpecialFrames,
     file_name: []const u8,
 ) !code_ops.InterpretResult {
-    const cmd_frame = special_frames.Cmd orelse return error.MissingCommandFrame;
-    const cmd_span = cmd_frame.Span orelse return error.MissingCommandSpan;
-    if (!try file_ops.loadBufferedFileIntoFrameByName(editor, allocator, cmd_frame, file_name)) {
+    const cmd_frame = special_frames.cmd orelse return error.MissingCommandFrame;
+    const cmd_span = cmd_frame.span orelse return error.MissingCommandSpan;
+    if (!try file_ops.loadBufferedFileIntoFrameByName(editor, cmd_frame, file_name)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    if (!try code_ops.CodeCompile(editor, allocator, current_frame, cmd_span, true)) {
+    if (!try code_ops.codeCompile(editor, current_frame, cmd_span, true)) {
         return .{ .frame = current_frame, .ok = false };
     }
-    return code_ops.CodeInterpretFrame(
+    return code_ops.codeInterpretFrame(
         editor,
-        allocator,
         current_frame,
         special_frames,
-        .LeadParamNone,
+        .lead_param_none,
         1,
-        cmd_span.Code.?,
+        cmd_span.code.?,
         true,
     );
 }
@@ -115,7 +112,7 @@ pub fn startUp(
     input: ?*types.FileObject,
     output: ?*types.FileObject,
 ) !*Session {
-    defaults.setRegularTabStops(editor, editor.FileData.TabWidth);
+    defaults.setRegularTabStops(editor, editor.file_data.tab_width);
 
     const session = try allocator.create(Session);
     session.* = .{
@@ -128,44 +125,43 @@ pub fn startUp(
     errdefer interactive_io.deactivate(&session.terminal);
     configureInteractiveTerminal(editor);
 
-    session.special_frames.Oops = try makeSpecialFrame(editor, allocator, "OOPS");
-    session.special_frames.Oops.?.SpaceLimit = types.MaxSpace;
-    session.special_frames.Oops.?.SpaceLeft = types.MaxSpace - 50;
-    session.special_frames.Cmd = try makeSpecialFrame(editor, allocator, "COMMAND");
-    session.special_frames.Heap = try makeSpecialFrame(editor, allocator, "HEAP");
+    session.special_frames.oops = try makeSpecialFrame(editor, "OOPS");
+    session.special_frames.oops.?.space_limit = types.max_space;
+    session.special_frames.oops.?.space_left = types.max_space - 50;
+    session.special_frames.cmd = try makeSpecialFrame(editor, "COMMAND");
+    session.special_frames.heap = try makeSpecialFrame(editor, "HEAP");
 
-    session.current_frame = (try frame_ops.FrameEdit(editor, allocator, null, types.DefaultFrameName)).?;
-    editor.Screen.Frame = session.current_frame;
-    editor.Screen.TopLine = session.current_frame.FirstGroup.?.FirstLine.?;
-    editor.Screen.BotLine = session.current_frame.LastGroup.?.LastLine.?;
-    try user_ops.UserKeyInitialize(editor, allocator);
+    session.current_frame = (try frame_ops.frameEdit(editor, null, types.default_frame_name)).?;
+    editor.screen.frame = session.current_frame;
+    editor.screen.top_line = session.current_frame.first_group.?.first_line.?;
+    editor.screen.bot_line = session.current_frame.last_group.?.last_line.?;
+    try user_ops.userKeyInitialize(editor, allocator);
 
     attachStartupFiles(editor, session.current_frame, input, output);
 
-    if (session.current_frame.InputFile != 0) {
+    if (session.current_frame.input_file != 0) {
         interactive_io.queueStatusMessage(startup_loading_message);
     }
-    if (session.current_frame.InputFile != 0 and !try file_ops.filePage(editor, allocator, session.current_frame)) {
+    if (session.current_frame.input_file != 0 and !try file_ops.filePage(editor, session.current_frame)) {
         return error.InteractiveStartupFailed;
     }
 
-    if (editor.FileData.Initial.len > 0) {
+    if (editor.file_data.initial.len > 0) {
         const init_outcome = try executeCommandFrameFile(
             editor,
-            allocator,
             session.current_frame,
             &session.special_frames,
-            editor.FileData.Initial,
+            editor.file_data.initial,
         );
         session.current_frame = init_outcome.frame;
-        editor.ExitAbort = false;
+        editor.exit_abort = false;
     }
 
     session.command_span = try allocator.create(types.SpanObject);
     session.command_span.* = .{
-        .Name = command_span_name,
+        .name = command_span_name,
     };
-    interactive_io.showBanner(types.DefaultFrameName);
+    interactive_io.showBanner(types.default_frame_name);
     return session;
 }
 
@@ -183,26 +179,26 @@ fn displayHeight(editor: *const state.Editor, frame: *const types.FrameObject) i
 
 fn displayWidth(editor: *const state.Editor, frame: *const types.FrameObject) isize {
     var width = terminalWidth(editor);
-    if (frame.ScrWidth > 0 and frame.ScrWidth < width) {
-        width = frame.ScrWidth;
+    if (frame.scr_width > 0 and frame.scr_width < width) {
+        width = frame.scr_width;
     }
     return if (width > 0) width else 1;
 }
 
 fn clearVisibleRows(editor: *state.Editor) void {
-    var line = editor.Screen.TopLine;
-    const bot_line = editor.Screen.BotLine;
+    var line = editor.screen.top_line;
+    const bot_line = editor.screen.bot_line;
     while (line) |current| {
-        current.ScrRowNr = 0;
+        current.scr_row_num = 0;
         if (bot_line != null and current == bot_line.?) {
             break;
         }
-        line = current.FLink;
+        line = current.f_link;
     }
 }
 
 fn clampTopLine(frame: *types.FrameObject, top_number: isize, height: isize) isize {
-    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.last_group.?.last_line.?);
     const max_top = @max(@as(isize, 1), last_number - height + 1);
     return @min(@max(top_number, 1), max_top);
 }
@@ -215,32 +211,32 @@ fn setViewport(
 ) void {
     clearVisibleRows(editor);
 
-    const top_line = line_ops.lineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
+    const top_line = line_ops.lineFromNumber(frame, top_number) orelse frame.first_group.?.first_line.?;
     var current = top_line;
     var row: isize = 1;
     var bot_line = top_line;
     while (true) {
-        current.ScrRowNr = row;
+        current.scr_row_num = row;
         bot_line = current;
-        if (row >= height or current.FLink == null) {
+        if (row >= height or current.f_link == null) {
             break;
         }
-        current = current.FLink.?;
+        current = current.f_link.?;
         row += 1;
     }
 
-    editor.Screen.Frame = frame;
-    editor.Screen.TopLine = top_line;
-    editor.Screen.BotLine = bot_line;
-    frame.ScrDotLine = frame.Dot.?.Line.ScrRowNr;
+    editor.screen.frame = frame;
+    editor.screen.top_line = top_line;
+    editor.screen.bot_line = bot_line;
+    frame.scr_dot_line = frame.dot.?.line.scr_row_num;
 }
 
 fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
-    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.line);
+    const last_number = line_ops.lineToNumber(frame.last_group.?.last_line.?);
 
-    var desired_row = frame.ScrDotLine;
+    var desired_row = frame.scr_dot_line;
     if (desired_row < 1) {
         desired_row = 1;
     }
@@ -261,14 +257,14 @@ fn loadViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn positionViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     const height = displayHeight(editor, frame);
-    var top_number = if (editor.Screen.TopLine) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
-    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
-    const bottom_limit = @max(@as(isize, 1), height - frame.MarginBottom);
+    var top_number = if (editor.screen.top_line) |top_line| line_ops.lineToNumber(top_line) else @as(isize, 1);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.line);
+    const bottom_limit = @max(@as(isize, 1), height - frame.margin_bottom);
 
     top_number = clampTopLine(frame, top_number, height);
     const dot_row = dot_number - top_number + 1;
-    if (dot_row <= frame.MarginTop and top_number > 1) {
-        top_number = dot_number - frame.MarginTop;
+    if (dot_row <= frame.margin_top and top_number > 1) {
+        top_number = dot_number - frame.margin_top;
     } else if (dot_row > bottom_limit) {
         top_number = dot_number - bottom_limit + 1;
     }
@@ -278,28 +274,28 @@ fn positionViewport(editor: *state.Editor, frame: *types.FrameObject) void {
 
 fn ensureHorizontalVisibility(editor: *const state.Editor, frame: *types.FrameObject) void {
     const width = displayWidth(editor, frame);
-    const max_offset = @max(@as(isize, 0), types.MaxStrLenP - width);
+    const max_offset = @max(@as(isize, 0), types.max_str_len_p1 - width);
 
-    if (frame.ScrOffset < 0) {
-        frame.ScrOffset = 0;
+    if (frame.scr_offset < 0) {
+        frame.scr_offset = 0;
     }
-    if (frame.Dot.?.Col <= frame.ScrOffset) {
-        frame.ScrOffset = frame.Dot.?.Col - 1;
-    } else if (frame.Dot.?.Col > frame.ScrOffset + width) {
-        frame.ScrOffset = frame.Dot.?.Col - width;
+    if (frame.dot.?.col <= frame.scr_offset) {
+        frame.scr_offset = frame.dot.?.col - 1;
+    } else if (frame.dot.?.col > frame.scr_offset + width) {
+        frame.scr_offset = frame.dot.?.col - width;
     }
-    if (frame.ScrOffset < 0) {
-        frame.ScrOffset = 0;
+    if (frame.scr_offset < 0) {
+        frame.scr_offset = 0;
     }
-    if (frame.ScrOffset > max_offset) {
-        frame.ScrOffset = max_offset;
+    if (frame.scr_offset > max_offset) {
+        frame.scr_offset = max_offset;
     }
 }
 
 fn visibleLineSlice(frame: *const types.FrameObject, line: *const types.LineHdrObject, width: isize) []const u8 {
-    const eop_line = line.FLink == null;
+    const eop_line = line.f_link == null;
     const content = line_ops.getDisplayLineContent(line);
-    const offset: usize = if (eop_line) 0 else @intCast(@max(@as(isize, 0), frame.ScrOffset));
+    const offset: usize = if (eop_line) 0 else @intCast(@max(@as(isize, 0), frame.scr_offset));
     if (offset >= content.len) {
         return "";
     }
@@ -310,7 +306,7 @@ fn visibleLineSlice(frame: *const types.FrameObject, line: *const types.LineHdrO
 
 fn syncViewport(editor: *state.Editor, frame: *types.FrameObject) void {
     ensureHorizontalVisibility(editor, frame);
-    if (editor.Screen.Frame != frame or editor.Screen.TopLine == null or editor.Screen.BotLine == null) {
+    if (editor.screen.frame != frame or editor.screen.top_line == null or editor.screen.bot_line == null) {
         loadViewport(editor, frame);
     } else {
         positionViewport(editor, frame);
@@ -325,8 +321,8 @@ const CursorPosition = struct {
 fn visibleCursorPosition(editor: *const state.Editor, frame: *const types.FrameObject) CursorPosition {
     const height = terminalHeight(editor);
     const width = displayWidth(editor, frame);
-    var cursor_row = interactive_io.absoluteScreenRow(editor, frame, frame.Dot.?.Line.ScrRowNr);
-    var cursor_col = frame.Dot.?.Col - frame.ScrOffset;
+    var cursor_row = interactive_io.absoluteScreenRow(editor, frame, frame.dot.?.line.scr_row_num);
+    var cursor_col = frame.dot.?.col - frame.scr_offset;
     if (cursor_row < 1) {
         cursor_row = 1;
     }
@@ -353,20 +349,20 @@ fn redrawScreen(editor: *state.Editor, frame: *types.FrameObject) !void {
     interactive_io.clearScreen();
 
     var row: isize = 1;
-    var line = editor.Screen.TopLine;
+    var line = editor.screen.top_line;
     while (row <= height) : (row += 1) {
         if (row == top_marker_row) {
             interactive_io.drawStyledLine(row, "<TOP>", .bold);
         } else if (row == bottom_marker_row) {
             interactive_io.drawStyledLine(row, "<BOTTOM>", .bold);
         } else if (line) |current| {
-            const line_row = interactive_io.absoluteScreenRow(editor, frame, current.ScrRowNr);
+            const line_row = interactive_io.absoluteScreenRow(editor, frame, current.scr_row_num);
             if (line_row == row) {
                 interactive_io.drawFrameLine(editor, frame, row, current);
-                if (editor.Screen.BotLine != null and current == editor.Screen.BotLine.?) {
+                if (editor.screen.bot_line != null and current == editor.screen.bot_line.?) {
                     line = null;
                 } else {
-                    line = current.FLink;
+                    line = current.f_link;
                 }
             } else {
                 interactive_io.drawLine(row, "");
@@ -377,9 +373,9 @@ fn redrawScreen(editor: *state.Editor, frame: *types.FrameObject) !void {
     }
 
     if (interactive_io.takeStatusMessage()) |message| {
-        editor.Screen.MsgRow = interactive_io.drawStatusMessage(height, status_width, message);
+        editor.screen.msg_row = interactive_io.drawStatusMessage(height, status_width, message);
     } else {
-        editor.Screen.MsgRow = height + 1;
+        editor.screen.msg_row = height + 1;
     }
 
     const cursor = visibleCursorPosition(editor, frame);
@@ -398,20 +394,20 @@ const testing = struct {
         try writer.writeAll("\x1b[2J\x1b[H");
 
         var row: isize = 1;
-        var line = editor.Screen.TopLine;
+        var line = editor.screen.top_line;
         while (row <= height) : (row += 1) {
             if (row == top_marker_row) {
                 try writer.writeAll("<TOP>");
             } else if (row == bottom_marker_row) {
                 try writer.writeAll("<BOTTOM>");
             } else if (line) |current| {
-                const line_row = interactive_io.absoluteScreenRow(editor, frame, current.ScrRowNr);
+                const line_row = interactive_io.absoluteScreenRow(editor, frame, current.scr_row_num);
                 if (line_row == row) {
                     try writer.writeAll(visibleLineSlice(frame, current, width));
-                    if (editor.Screen.BotLine != null and current == editor.Screen.BotLine.?) {
+                    if (editor.screen.bot_line != null and current == editor.screen.bot_line.?) {
                         line = null;
                     } else {
-                        line = current.FLink;
+                        line = current.f_link;
                     }
                 } else {
                     // Leave the row blank.
@@ -427,7 +423,7 @@ const testing = struct {
     }
 };
 
-fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session) !void {
+fn windUp(editor: *state.Editor, session: *Session) !void {
     interactive_io.moveCursor(1, terminalHeight(editor));
     interactive_io.clearLine();
     interactive_io.refresh();
@@ -435,55 +431,53 @@ fn windUp(editor: *state.Editor, allocator: std.mem.Allocator, session: *Session
     if (session.terminal.active) {
         interactive_io.deactivate(&session.terminal);
     }
-    interactive_io.printLine("");
+    interactive_io.printLine(editor.io, "");
 
-    editor.LudwigMode = .LudwigBatch;
-    editor.Screen.Frame = null;
-    editor.Screen.TopLine = null;
-    editor.Screen.BotLine = null;
-    editor.TtControlC = false;
-    editor.ExitAbort = false;
+    editor.ludwig_mode = .ludwig_batch;
+    editor.screen.frame = null;
+    editor.screen.top_line = null;
+    editor.screen.bot_line = null;
+    editor.tt_control_c = false;
+    editor.exit_abort = false;
 
-    if (editor.QuitRequested) {
-        editor.QuitRequested = false;
+    if (editor.quit_requested) {
+        editor.quit_requested = false;
     }
-    _ = try file_ops.quitCloseFiles(editor, allocator);
+    _ = try file_ops.quitCloseFiles(editor);
 }
 
 fn executeCompiledCommand(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     session: *Session,
 ) !bool {
     trace("[rt:compile] start mode={s} introducer={c}\n", .{
-        @tagName(editor.EditMode),
-        if (editor.CommandIntroducer >= 32 and editor.CommandIntroducer <= 126)
-            @as(u8, @intCast(editor.CommandIntroducer))
+        @tagName(editor.edit_mode),
+        if (editor.command_introducer >= 32 and editor.command_introducer <= 126)
+            @as(u8, @intCast(editor.command_introducer))
         else
             '.',
     });
-    if (!try code_ops.CodeCompile(editor, allocator, session.current_frame, session.command_span, false)) {
+    if (!try code_ops.codeCompile(editor, session.current_frame, session.command_span, false)) {
         trace("[rt:compile] compile failed\n", .{});
         return false;
     }
-    const compiled = &editor.CompilerCode[@intCast(session.command_span.Code.?.Code)];
-    trace("[rt:compile] op={s}\n", .{@tagName(compiled.Op)});
-    const outcome = try code_ops.CodeInterpretFrame(
+    const compiled = &editor.compiler_code[@intCast(session.command_span.code.?.code)];
+    trace("[rt:compile] op={s}\n", .{@tagName(compiled.op)});
+    const outcome = try code_ops.codeInterpretFrame(
         editor,
-        allocator,
         session.current_frame,
         &session.special_frames,
-        .LeadParamNone,
+        .lead_param_none,
         1,
-        session.command_span.Code.?,
+        session.command_span.code.?,
         false,
     );
     session.current_frame = outcome.frame;
-    editor.Screen.Frame = session.current_frame;
+    editor.screen.frame = session.current_frame;
     trace("[rt:compile] done ok={} quit={} introducer={d}\n", .{
         outcome.ok,
-        editor.QuitRequested,
-        editor.CommandIntroducer,
+        editor.quit_requested,
+        editor.command_introducer,
     });
     return outcome.ok;
 }
@@ -492,9 +486,9 @@ fn markTextChange(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    frame.TextModified = true;
-    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col, &frame.Marks[types.MarkModified]);
-    try mark_ops.markCreate(allocator, frame.Dot.?.Line, frame.Dot.?.Col - 1, &frame.Marks[types.MarkEquals]);
+    frame.text_modified = true;
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col, &frame.marks[types.mark_modified]);
+    try mark_ops.markCreate(allocator, frame.dot.?.line, frame.dot.?.col - 1, &frame.marks[types.mark_equals]);
 }
 
 fn autoWrapIfNeeded(
@@ -502,10 +496,10 @@ fn autoWrapIfNeeded(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    if (frame.Dot == null or frame.Dot.?.Col != frame.MarginRight + 1) {
+    if (frame.dot == null or frame.dot.?.col != frame.margin_right + 1) {
         return;
     }
-    if (!frame.Options.autoWrap) {
+    if (!frame.options.auto_wrap) {
         return;
     }
 
@@ -513,31 +507,31 @@ fn autoWrapIfNeeded(
     const next_key = next_key_opt orelse return;
     if (next_key < 0 or next_key > std.math.maxInt(u8) or
         !chars.chIsPrintable(@intCast(next_key)) or
-        next_key == editor.CommandIntroducer)
+        next_key == editor.command_introducer)
     {
         interactive_io.takeBackInputKey(next_key);
         return;
     }
     const next_byte: u8 = @intCast(next_key);
 
-    var split_col = frame.MarginRight;
+    var split_col = frame.margin_right;
     if (next_byte != ' ') {
-        while (frame.Dot.?.Line.Str.?.get(split_col) != ' ' and split_col > frame.MarginLeft) {
+        while (frame.dot.?.line.str.?.get(split_col) != ' ' and split_col > frame.margin_left) {
             split_col -= 1;
         }
         var last_non_space = split_col;
-        while (frame.Dot.?.Line.Str.?.get(last_non_space) == ' ' and last_non_space > frame.MarginLeft) {
+        while (frame.dot.?.line.str.?.get(last_non_space) == ' ' and last_non_space > frame.margin_left) {
             last_non_space -= 1;
         }
-        if (last_non_space == frame.MarginLeft) {
-            split_col = frame.MarginRight;
+        if (last_non_space == frame.margin_left) {
+            split_col = frame.margin_right;
         }
         interactive_io.takeBackInputKey(next_key);
     }
 
-    frame.Dot.?.Col = split_col + 1;
-    _ = try text.TextSplitLine(allocator, frame.Dot.?, 0, &frame.Marks[types.MarkEquals]);
-    frame.Dot.?.Col += frame.MarginRight - split_col;
+    frame.dot.?.col = split_col + 1;
+    _ = try text.textSplitLine(allocator, frame.dot.?, 0, &frame.marks[types.mark_equals]);
+    frame.dot.?.col += frame.margin_right - split_col;
 }
 
 fn insertPrintable(
@@ -550,10 +544,10 @@ fn insertPrintable(
     const temp = try str_object.newBlankStrObject(allocator, 1);
     temp.set(1, key);
 
-    const ok = switch (editor.EditMode) {
-        .ModeInsert => try text.TextInsert(allocator, false, 1, temp, 1, frame.Dot.?),
-        .ModeOvertype => try text.TextOvertype(allocator, false, 1, temp, 1, frame.Dot.?),
-        .ModeCommand => false,
+    const ok = switch (editor.edit_mode) {
+        .mode_insert => try text.textInsert(allocator, false, 1, temp, 1, frame.dot.?),
+        .mode_overtype => try text.textOvertype(allocator, false, 1, temp, 1, frame.dot.?),
+        .mode_command => false,
     };
     if (!ok) {
         return false;
@@ -566,55 +560,52 @@ fn insertPrintable(
 
 fn executeLookupKey(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     session: *Session,
     key: isize,
 ) !bool {
     trace("[rt:lookup] key={d} '{c}' introducer={d}\n", .{
         key,
         if (key >= 32 and key <= 126) @as(u8, @intCast(key)) else '.',
-        editor.CommandIntroducer,
+        editor.command_introducer,
     });
-    if (key < 0 or key >= types.LookupCount) {
+    if (key < 0 or key >= types.lookup_count) {
         return false;
     }
-    const binding = editor.Lookup[@intCast(key)];
-    if (binding.Command == .CmdNoop) {
+    const binding = editor.lookup[@intCast(key)];
+    if (binding.command == .cmd_noop) {
         return false;
     }
-    if (binding.Command == .CmdExtended) {
-        const code = binding.Code orelse return false;
-        const outcome = try code_ops.CodeInterpretFrame(
+    if (binding.command == .cmd_extended) {
+        const code = binding.code orelse return false;
+        const outcome = try code_ops.codeInterpretFrame(
             editor,
-            allocator,
             session.current_frame,
             &session.special_frames,
-            .LeadParamNone,
+            .lead_param_none,
             1,
             code,
             true,
         );
         session.current_frame = outcome.frame;
-        editor.Screen.Frame = session.current_frame;
+        editor.screen.frame = session.current_frame;
         return outcome.ok;
     }
 
-    const ok = try code_ops.ExecuteSingle(
+    const ok = try code_ops.executeSingle(
         editor,
-        allocator,
         &session.current_frame,
         &session.special_frames,
-        binding.Command,
-        .LeadParamNone,
+        binding.command,
+        .lead_param_none,
         1,
-        binding.Tpar,
+        binding.tpar,
         false,
     );
-    editor.Screen.Frame = session.current_frame;
+    editor.screen.frame = session.current_frame;
     trace("[rt:lookup] op={s} ok={} quit={}\n", .{
-        @tagName(binding.Command),
+        @tagName(binding.command),
         ok,
-        editor.QuitRequested,
+        editor.quit_requested,
     });
     return ok;
 }
@@ -623,8 +614,8 @@ fn positionDotAtModifiedMark(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
 ) !void {
-    const modified = frame.Marks[types.MarkModified] orelse return;
-    try mark_ops.markCreate(allocator, modified.Line, modified.Col, &frame.Dot);
+    const modified = frame.marks[types.mark_modified] orelse return;
+    try mark_ops.markCreate(allocator, modified.line, modified.col, &frame.dot);
 }
 
 fn confirmQuitRequest(
@@ -632,29 +623,29 @@ fn confirmQuitRequest(
     allocator: std.mem.Allocator,
     session: *Session,
 ) !bool {
-    var span = editor.FirstSpan;
-    while (span) |current_span| : (span = current_span.FLink) {
-        const frame = current_span.Frame orelse continue;
-        if (!frame.TextModified or frame.OutputFile != 0 or frame.InputFile == 0) {
+    var span = editor.first_span;
+    while (span) |current_span| : (span = current_span.f_link) {
+        const frame = current_span.frame orelse continue;
+        if (!frame.text_modified or frame.output_file != 0 or frame.input_file == 0) {
             continue;
         }
 
         try positionDotAtModifiedMark(allocator, frame);
         session.current_frame = frame;
-        editor.Screen.Frame = frame;
+        editor.screen.frame = frame;
         try redrawScreen(editor, frame);
         interactive_io.beep();
 
         while (true) {
             const reply = (try interactive_io.readVerifyReply(editor, frame, no_output_file_quit_message)) orelse {
-                editor.ExitAbort = true;
+                editor.exit_abort = true;
                 return false;
             };
             switch (reply) {
                 ' ', 'Y' => break,
                 'A' => return true,
                 'N', 'Q' => {
-                    editor.ExitAbort = true;
+                    editor.exit_abort = true;
                     return false;
                 },
                 else => interactive_io.beep(),
@@ -678,8 +669,8 @@ pub fn run(
         try redrawScreen(editor, session.current_frame);
         var cmd_success = true;
 
-        if (editor.EditMode == .ModeCommand) {
-            cmd_success = try executeCompiledCommand(editor, allocator, session);
+        if (editor.edit_mode == .mode_command) {
+            cmd_success = try executeCompiledCommand(editor, session);
         } else {
             const key_opt = try interactive_io.readInputKey();
             if (key_opt == null) {
@@ -690,50 +681,54 @@ pub fn run(
             trace("[rt:key] raw={d} '{c}' introducer={d}\n", .{
                 key,
                 if (key >= 32 and key <= 126) @as(u8, @intCast(key)) else '.',
-                editor.CommandIntroducer,
+                editor.command_introducer,
             });
             if (key == 3) {
-                editor.TtControlC = true;
-            } else if (key == editor.CommandIntroducer) {
-                cmd_success = try executeCompiledCommand(editor, allocator, session);
+                editor.tt_control_c = true;
+            } else if (key == editor.command_introducer) {
+                cmd_success = try executeCompiledCommand(editor, session);
             } else if (key >= 0 and key <= std.math.maxInt(u8) and chars.chIsPrintable(@intCast(key))) {
                 cmd_success = try insertPrintable(editor, allocator, session, @intCast(key));
                 trace("[rt:text] dot_col={} quit={}\n", .{
-                    session.current_frame.Dot.?.Col,
-                    editor.QuitRequested,
+                    session.current_frame.dot.?.col,
+                    editor.quit_requested,
                 });
             } else {
-                cmd_success = try executeLookupKey(editor, allocator, session, key);
+                cmd_success = try executeLookupKey(editor, session, key);
             }
         }
 
-        if (!editor.TtControlC and !cmd_success) {
+        if (!editor.tt_control_c and !cmd_success) {
             interactive_io.beep();
         }
 
-        if (editor.QuitRequested) {
+        if (editor.quit_requested) {
             if (!try confirmQuitRequest(editor, allocator, session)) {
-                editor.QuitRequested = false;
-                editor.ExitAbort = false;
-                editor.TtControlC = false;
+                editor.quit_requested = false;
+                editor.exit_abort = false;
+                editor.tt_control_c = false;
                 continue;
             }
             break;
         }
-        editor.ExitAbort = false;
-        editor.TtControlC = false;
+        editor.exit_abort = false;
+        editor.tt_control_c = false;
     }
 
-    try windUp(editor, allocator, session);
+    try windUp(editor, session);
 }
 
 test "interactive testing snapshot paints startup file contents" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 20, .Height = 4 };
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{ .width = 20, .height = 4 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "alpha",
@@ -742,16 +737,22 @@ test "interactive testing snapshot paints startup file contents" {
     });
 
     var storage: [2048]u8 = undefined;
-    var buffer = std.ArrayList(u8).initBuffer(storage[0..]);
-    try testing.renderSnapshot(&editor, fixture.frame, buffer.fixedWriter());
+    var writer: std.Io.Writer = .fixed(&storage);
+    try testing.renderSnapshot(&editor, fixture.frame, &writer);
 
-    try std.testing.expect(std.mem.indexOf(u8, buffer.items, "alpha\r\nbeta\r\ngamma") != null);
-    try std.testing.expect(editor.Screen.TopLine == fixture.content_lines[0]);
-    try std.testing.expectEqual(@as(isize, 1), fixture.frame.Dot.?.Line.ScrRowNr);
+    const snapshot = storage[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, snapshot, "alpha\r\nbeta\r\ngamma") != null);
+    try std.testing.expect(editor.screen.top_line == fixture.content_lines[0]);
+    try std.testing.expectEqual(@as(isize, 1), fixture.frame.dot.?.line.scr_row_num);
 }
 
 test "interactive terminal configuration applies screen-derived defaults" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
 
     interactive_io.testing.setDimensionsOverride(120, 24);
@@ -759,25 +760,29 @@ test "interactive terminal configuration applies screen-derived defaults" {
 
     configureInteractiveTerminal(&editor);
 
-    try std.testing.expectEqual(types.LudwigModeType.LudwigScreen, editor.LudwigMode);
-    try std.testing.expectEqual(@as(isize, 120), editor.TerminalInfo.Width);
-    try std.testing.expectEqual(@as(isize, 24), editor.TerminalInfo.Height);
-    try std.testing.expectEqual(@as(isize, 120), editor.InitialScrWidth);
-    try std.testing.expectEqual(@as(isize, 24), editor.InitialScrHeight);
-    try std.testing.expectEqual(@as(isize, 1), editor.InitialMarginLeft);
-    try std.testing.expectEqual(@as(isize, 120), editor.InitialMarginRight);
-    try std.testing.expectEqual(@as(isize, 4), editor.InitialMarginTop);
-    try std.testing.expectEqual(@as(isize, 4), editor.InitialMarginBottom);
-    try std.testing.expectEqual(@as(isize, 25), editor.Screen.MsgRow);
+    try std.testing.expectEqual(types.LudwigModeType.ludwig_screen, editor.ludwig_mode);
+    try std.testing.expectEqual(@as(isize, 120), editor.terminal_info.width);
+    try std.testing.expectEqual(@as(isize, 24), editor.terminal_info.height);
+    try std.testing.expectEqual(@as(isize, 120), editor.initial_scr_width);
+    try std.testing.expectEqual(@as(isize, 24), editor.initial_scr_height);
+    try std.testing.expectEqual(@as(isize, 1), editor.initial_margin_left);
+    try std.testing.expectEqual(@as(isize, 120), editor.initial_margin_right);
+    try std.testing.expectEqual(@as(isize, 4), editor.initial_margin_top);
+    try std.testing.expectEqual(@as(isize, 4), editor.initial_margin_bottom);
+    try std.testing.expectEqual(@as(isize, 25), editor.screen.msg_row);
 }
 
 test "interactive testing snapshot paints top and bottom markers for clipped frame" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 20, .Height = 6 };
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{ .width = 20, .height = 6 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1",
@@ -787,24 +792,30 @@ test "interactive testing snapshot paints top and bottom markers for clipped fra
         "5",
         "6",
     });
-    fixture.frame.ScrHeight = 4;
-    try mark_ops.markCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.Dot);
+    fixture.frame.scr_height = 4;
+    try mark_ops.markCreate(allocator, fixture.content_lines[3], 1, &fixture.frame.dot);
     setViewport(&editor, fixture.frame, 2, displayHeight(&editor, fixture.frame));
 
     var storage: [2048]u8 = undefined;
-    var buffer = std.ArrayList(u8).initBuffer(storage[0..]);
-    try testing.renderSnapshot(&editor, fixture.frame, buffer.fixedWriter());
+    var writer: std.Io.Writer = .fixed(&storage);
 
-    try std.testing.expect(std.mem.indexOf(u8, buffer.items, "<TOP>\r\n2\r\n3\r\n4\r\n5\r\n<BOTTOM>") != null);
+    try testing.renderSnapshot(&editor, fixture.frame, &writer);
+
+    const snapshot = storage[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, snapshot, "<TOP>\r\n2\r\n3\r\n4\r\n5\r\n<BOTTOM>") != null);
 }
 
 test "interactive quit confirmation repositions dot at modified mark" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 80, .Height = 24 };
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{ .width = 80, .height = 24 };
 
     const current_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"current"});
     const modified_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"edited"});
@@ -812,53 +823,57 @@ test "interactive quit confirmation repositions dot at modified mark" {
     const current_span = try allocator.create(types.SpanObject);
     const modified_span = try allocator.create(types.SpanObject);
     current_span.* = .{
-        .Name = "CURRENT",
-        .Frame = current_fixture.frame,
-        .FLink = modified_span,
+        .name = "CURRENT",
+        .frame = current_fixture.frame,
+        .f_link = modified_span,
     };
     modified_span.* = .{
-        .Name = "WORK",
-        .Frame = modified_fixture.frame,
-        .BLink = current_span,
+        .name = "WORK",
+        .frame = modified_fixture.frame,
+        .b_link = current_span,
     };
-    editor.FirstSpan = current_span;
-    current_fixture.frame.Span = current_span;
-    modified_fixture.frame.Span = modified_span;
+    editor.first_span = current_span;
+    current_fixture.frame.span = current_span;
+    modified_fixture.frame.span = modified_span;
 
     const input_file = try allocator.create(types.FileObject);
-    input_file.* = .{ .Filename = "input.txt" };
-    editor.Files[1] = input_file;
-    editor.FilesFrames[1] = modified_fixture.frame;
-    modified_fixture.frame.InputFile = 1;
-    modified_fixture.frame.TextModified = true;
-    try mark_ops.markCreate(allocator, modified_fixture.content_lines[0], 3, &modified_fixture.frame.Marks[types.MarkModified]);
+    input_file.* = .{ .filename = "input.txt" };
+    editor.files[1] = input_file;
+    editor.files_frames[1] = modified_fixture.frame;
+    modified_fixture.frame.input_file = 1;
+    modified_fixture.frame.text_modified = true;
+    try mark_ops.markCreate(allocator, modified_fixture.content_lines[0], 3, &modified_fixture.frame.marks[types.mark_modified]);
 
     var session = Session{
         .current_frame = current_fixture.frame,
         .special_frames = .{},
         .command_span = undefined,
     };
-    editor.Screen.Frame = current_fixture.frame;
+    editor.screen.frame = current_fixture.frame;
 
     interactive_io.testing.installInput("N");
     defer interactive_io.testing.clearInput();
 
     try std.testing.expect(!try confirmQuitRequest(&editor, allocator, &session));
     try std.testing.expect(session.current_frame == modified_fixture.frame);
-    try std.testing.expect(editor.Screen.Frame == modified_fixture.frame);
-    try std.testing.expect(modified_fixture.frame.Dot != null);
-    try std.testing.expect(modified_fixture.frame.Marks[types.MarkModified] != null);
-    try std.testing.expect(modified_fixture.frame.Dot.?.Line == modified_fixture.frame.Marks[types.MarkModified].?.Line);
-    try std.testing.expectEqual(modified_fixture.frame.Marks[types.MarkModified].?.Col, modified_fixture.frame.Dot.?.Col);
+    try std.testing.expect(editor.screen.frame == modified_fixture.frame);
+    try std.testing.expect(modified_fixture.frame.dot != null);
+    try std.testing.expect(modified_fixture.frame.marks[types.mark_modified] != null);
+    try std.testing.expect(modified_fixture.frame.dot.?.line == modified_fixture.frame.marks[types.mark_modified].?.line);
+    try std.testing.expectEqual(modified_fixture.frame.marks[types.mark_modified].?.col, modified_fixture.frame.dot.?.col);
 }
 
 test "interactive quit confirmation accepts more-context replies without extra beep" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 80, .Height = 10 };
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{ .width = 80, .height = 10 };
 
     const current_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"current"});
     const modified_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
@@ -873,33 +888,33 @@ test "interactive quit confirmation accepts more-context replies without extra b
     const current_span = try allocator.create(types.SpanObject);
     const modified_span = try allocator.create(types.SpanObject);
     current_span.* = .{
-        .Name = "CURRENT",
-        .Frame = current_fixture.frame,
-        .FLink = modified_span,
+        .name = "CURRENT",
+        .frame = current_fixture.frame,
+        .f_link = modified_span,
     };
     modified_span.* = .{
-        .Name = "WORK",
-        .Frame = modified_fixture.frame,
-        .BLink = current_span,
+        .name = "WORK",
+        .frame = modified_fixture.frame,
+        .b_link = current_span,
     };
-    editor.FirstSpan = current_span;
-    current_fixture.frame.Span = current_span;
-    modified_fixture.frame.Span = modified_span;
+    editor.first_span = current_span;
+    current_fixture.frame.span = current_span;
+    modified_fixture.frame.span = modified_span;
 
     const input_file = try allocator.create(types.FileObject);
-    input_file.* = .{ .Filename = "input.txt" };
-    editor.Files[1] = input_file;
-    editor.FilesFrames[1] = modified_fixture.frame;
-    modified_fixture.frame.InputFile = 1;
-    modified_fixture.frame.TextModified = true;
-    try mark_ops.markCreate(allocator, modified_fixture.content_lines[0], 2, &modified_fixture.frame.Marks[types.MarkModified]);
+    input_file.* = .{ .filename = "input.txt" };
+    editor.files[1] = input_file;
+    editor.files_frames[1] = modified_fixture.frame;
+    modified_fixture.frame.input_file = 1;
+    modified_fixture.frame.text_modified = true;
+    try mark_ops.markCreate(allocator, modified_fixture.content_lines[0], 2, &modified_fixture.frame.marks[types.mark_modified]);
 
     var session = Session{
         .current_frame = current_fixture.frame,
         .special_frames = .{},
         .command_span = undefined,
     };
-    editor.Screen.Frame = current_fixture.frame;
+    editor.screen.frame = current_fixture.frame;
 
     interactive_io.testing.installInput("MQ");
     defer interactive_io.testing.clearInput();
@@ -910,16 +925,21 @@ test "interactive quit confirmation accepts more-context replies without extra b
 }
 
 test "interactive run beeps on command failure" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
 
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 80, .Height = 24 };
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{ .width = 80, .height = 24 };
 
-    const frame = (try frame_ops.FrameEdit(&editor, allocator, null, types.DefaultFrameName)).?;
+    const frame = (try frame_ops.frameEdit(&editor, null, types.default_frame_name)).?;
     const command_span = try allocator.create(types.SpanObject);
-    command_span.* = .{ .Name = command_span_name };
+    defer allocator.destroy(command_span);
+    command_span.* = .{ .name = command_span_name };
 
     var session = Session{
         .current_frame = frame,

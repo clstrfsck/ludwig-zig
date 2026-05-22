@@ -6,16 +6,16 @@ const state = @import("state.zig");
 const span_ops = @import("span.zig");
 const types = @import("types.zig");
 
-pub fn ValidateCommand(
+pub fn validateCommand(
     editor: *state.Editor,
     current_frame: *types.FrameObject,
     special_frames: *types.SpecialFrames,
 ) bool {
     _ = current_frame;
-    if (special_frames.Oops == null or special_frames.Cmd == null or special_frames.Heap == null) {
+    if (special_frames.oops == null or special_frames.cmd == null or special_frames.heap == null) {
         return false;
     }
-    if (editor.FirstSpan == null) {
+    if (editor.first_span == null) {
         return false;
     }
 
@@ -23,72 +23,72 @@ pub fn ValidateCommand(
     var saw_cmd = false;
     var saw_heap = false;
     var prev_span: ?*types.SpanObject = null;
-    var span = editor.FirstSpan;
+    var span = editor.first_span;
     while (span) |this_span| {
-        if (this_span.BLink != prev_span) {
+        if (this_span.b_link != prev_span) {
             return false;
         }
-        if (this_span.MarkOne == null or this_span.MarkTwo == null) {
+        if (this_span.mark_one == null or this_span.mark_two == null) {
             return false;
         }
-        if (this_span.Code != null and this_span.Code.?.Ref == 0) {
+        if (this_span.code != null and this_span.code.?.ref == 0) {
             return false;
         }
 
-        if (this_span.Frame) |this_frame| {
-            if (this_frame == special_frames.Cmd.?) saw_cmd = true;
-            if (this_frame == special_frames.Oops.?) saw_oops = true;
-            if (this_frame == special_frames.Heap.?) saw_heap = true;
+        if (this_span.frame) |this_frame| {
+            if (this_frame == special_frames.cmd.?) saw_cmd = true;
+            if (this_frame == special_frames.oops.?) saw_oops = true;
+            if (this_frame == special_frames.heap.?) saw_heap = true;
 
             line_ops.validateFrameShape(this_frame) catch return false;
-            if (this_frame.Dot == null) {
+            if (this_frame.dot == null) {
                 return false;
             }
-            if (this_frame.Dot.?.Line.Group == null or this_frame.Dot.?.Line.Group.?.Frame != this_frame) {
+            if (this_frame.dot.?.line.group == null or this_frame.dot.?.line.group.?.frame != this_frame) {
                 return false;
             }
-            for (this_frame.Marks) |maybe_mark| {
+            for (this_frame.marks) |maybe_mark| {
                 if (maybe_mark) |mark| {
-                    if (mark.Line.Group == null or mark.Line.Group.?.Frame != this_frame) {
+                    if (mark.line.group == null or mark.line.group.?.frame != this_frame) {
                         return false;
                     }
                 }
             }
-            if (this_frame.ScrHeight <= 0) {
+            if (this_frame.scr_height <= 0) {
                 return false;
             }
-            if (editor.TerminalInfo.Height > 0 and this_frame.ScrHeight > editor.TerminalInfo.Height) {
+            if (editor.terminal_info.height > 0 and this_frame.scr_height > editor.terminal_info.height) {
                 return false;
             }
-            if (this_frame.ScrWidth <= 0) {
+            if (this_frame.scr_width <= 0) {
                 return false;
             }
-            if (editor.TerminalInfo.Width > 0 and this_frame.ScrWidth > editor.TerminalInfo.Width) {
+            if (editor.terminal_info.width > 0 and this_frame.scr_width > editor.terminal_info.width) {
                 return false;
             }
-            if (this_frame.Span != this_span) {
+            if (this_frame.span != this_span) {
                 return false;
             }
-            if (this_frame.MarginLeft >= this_frame.MarginRight) {
+            if (this_frame.margin_left >= this_frame.margin_right) {
                 return false;
             }
-            if (this_span.MarkOne.?.Line.Group == null or this_span.MarkTwo.?.Line.Group == null) {
+            if (this_span.mark_one.?.line.group == null or this_span.mark_two.?.line.group == null) {
                 return false;
             }
-            if (this_span.MarkOne.?.Line.Group.?.Frame != this_frame or this_span.MarkTwo.?.Line.Group.?.Frame != this_frame) {
+            if (this_span.mark_one.?.line.group.?.frame != this_frame or this_span.mark_two.?.line.group.?.frame != this_frame) {
                 return false;
             }
         } else {
-            if (this_span.MarkOne.?.Line.Group == null or this_span.MarkTwo.?.Line.Group == null) {
+            if (this_span.mark_one.?.line.group == null or this_span.mark_two.?.line.group == null) {
                 return false;
             }
-            if (this_span.MarkOne.?.Line.Group.?.Frame != this_span.MarkTwo.?.Line.Group.?.Frame) {
+            if (this_span.mark_one.?.line.group.?.frame != this_span.mark_two.?.line.group.?.frame) {
                 return false;
             }
         }
 
         prev_span = this_span;
-        span = this_span.FLink;
+        span = this_span.f_link;
     }
 
     return saw_cmd and saw_oops and saw_heap;
@@ -96,87 +96,98 @@ pub fn ValidateCommand(
 
 fn makeSpecialFrame(
     editor: *state.Editor,
-    allocator: std.mem.Allocator,
     current: *types.FrameObject,
     name: []const u8,
 ) !*types.FrameObject {
-    const frame = (try frame_ops.FrameEdit(editor, allocator, current, name)).?;
-    frame.Options.specialFrame = true;
+    const frame = (try frame_ops.frameEdit(editor, current, name)).?;
+    frame.options.special_frame = true;
     return frame;
 }
 
 test "validate command accepts healthy special frames and spans" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
-    const allocator = editor.allocator();
+    editor.terminal_info = .{ .width = 160, .height = 48 };
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
-    const cmd = try makeSpecialFrame(&editor, allocator, current, "COMMAND");
-    const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
-    const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
+    const current = (try frame_ops.frameEdit(&editor, root_fixture.frame, "MAIN")).?;
+    const cmd = try makeSpecialFrame(&editor, current, "COMMAND");
+    const oops = try makeSpecialFrame(&editor, current, "OOPS");
+    const heap = try makeSpecialFrame(&editor, current, "HEAP");
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd,
-        .Oops = oops,
-        .Heap = heap,
+        .cmd = cmd,
+        .oops = oops,
+        .heap = heap,
     };
 
     var span_mark_one: ?*types.MarkObject = null;
     var span_mark_two: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &span_mark_one);
-    try mark_ops.markCreate(allocator, current.LastGroup.?.LastLine.?, 1, &span_mark_two);
-    try std.testing.expect(try span_ops.SpanCreate(&editor, allocator, "WORK", span_mark_one.?, span_mark_two.?));
+    try mark_ops.markCreate(allocator, current.first_group.?.first_line.?, 1, &span_mark_one);
+    try mark_ops.markCreate(allocator, current.last_group.?.last_line.?, 1, &span_mark_two);
+    try std.testing.expect(try span_ops.spanCreate(&editor, "WORK", span_mark_one.?, span_mark_two.?));
 
-    try std.testing.expect(ValidateCommand(&editor, current, &special_frames));
+    try std.testing.expect(validateCommand(&editor, current, &special_frames));
 }
 
 test "validate command rejects missing special frames" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
-    const allocator = editor.allocator();
+    editor.terminal_info = .{ .width = 160, .height = 48 };
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
+    const current = (try frame_ops.frameEdit(&editor, root_fixture.frame, "MAIN")).?;
     var special_frames: types.SpecialFrames = .{};
-    try std.testing.expect(!ValidateCommand(&editor, current, &special_frames));
+    try std.testing.expect(!validateCommand(&editor, current, &special_frames));
 }
 
 test "validate command rejects spans with marks in different frames" {
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    editor.TerminalInfo = .{ .Width = 160, .Height = 48 };
-    const allocator = editor.allocator();
+    editor.terminal_info = .{ .width = 160, .height = 48 };
 
     const root_fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"root"});
-    const current = (try frame_ops.FrameEdit(&editor, allocator, root_fixture.frame, "MAIN")).?;
-    const other = (try frame_ops.FrameEdit(&editor, allocator, current, "OTHER")).?;
-    const cmd = try makeSpecialFrame(&editor, allocator, current, "COMMAND");
-    const oops = try makeSpecialFrame(&editor, allocator, current, "OOPS");
-    const heap = try makeSpecialFrame(&editor, allocator, current, "HEAP");
+    const current = (try frame_ops.frameEdit(&editor, root_fixture.frame, "MAIN")).?;
+    const other = (try frame_ops.frameEdit(&editor, current, "OTHER")).?;
+    const cmd = try makeSpecialFrame(&editor, current, "COMMAND");
+    const oops = try makeSpecialFrame(&editor, current, "OOPS");
+    const heap = try makeSpecialFrame(&editor, current, "HEAP");
     var special_frames: types.SpecialFrames = .{
-        .Cmd = cmd,
-        .Oops = oops,
-        .Heap = heap,
+        .cmd = cmd,
+        .oops = oops,
+        .heap = heap,
     };
 
     const span = try allocator.create(types.SpanObject);
     var mark_one: ?*types.MarkObject = null;
     var mark_two: ?*types.MarkObject = null;
-    try mark_ops.markCreate(allocator, current.FirstGroup.?.FirstLine.?, 1, &mark_one);
-    try mark_ops.markCreate(allocator, other.FirstGroup.?.FirstLine.?, 1, &mark_two);
+    try mark_ops.markCreate(allocator, current.first_group.?.first_line.?, 1, &mark_one);
+    try mark_ops.markCreate(allocator, other.first_group.?.first_line.?, 1, &mark_two);
     span.* = .{
-        .Name = "BROKEN",
-        .MarkOne = mark_one,
-        .MarkTwo = mark_two,
-        .BLink = editor.FirstSpan,
+        .name = "BROKEN",
+        .mark_one = mark_one,
+        .mark_two = mark_two,
+        .b_link = editor.first_span,
     };
-    if (editor.FirstSpan) |first| {
-        first.FLink = span;
+    if (editor.first_span) |first| {
+        first.f_link = span;
     } else {
-        editor.FirstSpan = span;
+        editor.first_span = span;
     }
 
-    try std.testing.expect(!ValidateCommand(&editor, current, &special_frames));
+    try std.testing.expect(!validateCommand(&editor, current, &special_frames));
 }

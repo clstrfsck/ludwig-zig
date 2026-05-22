@@ -34,7 +34,7 @@ pub fn chIsWordElement(set: usize, ch: u8) bool {
 }
 
 pub fn chKeyToUpper(key: isize) isize {
-    if (key >= 0 and key <= types.MaxSetRange) {
+    if (key >= 0 and key <= types.max_set_range) {
         return @intCast(chToUpper(@intCast(key)));
     }
     return key;
@@ -78,7 +78,7 @@ pub fn chCompareStr(
     return if (len1 < len2) -1 else if (len1 > len2) 1 else 0;
 }
 
-pub fn ChReverseStr(
+pub fn chReverseStr(
     src: *const str_object.StrObject,
     dst: *str_object.StrObject,
     len: isize,
@@ -110,7 +110,7 @@ pub fn chSearchStr(
     defer s.destroy();
 
     if (backwards) {
-        ChReverseStr(s, s, len2);
+        chReverseStr(s, s, len2);
         found_loc.* = len2;
     } else {
         found_loc.* = 0;
@@ -170,7 +170,7 @@ test "character reverse and search utilities operate on StrObject" {
     const dst = try str_object.newBlankStrObject(allocator, 5);
     var found_loc: isize = 0;
 
-    ChReverseStr(world, dst, 5);
+    chReverseStr(world, dst, 5);
     try std.testing.expectEqualStrings("DLROW", dst.slice(1, 5));
     try std.testing.expect(try chSearchStr(allocator, world, 1, 5, hello, 1, 16, true, false, &found_loc));
     try std.testing.expectEqual(@as(isize, 6), found_loc);

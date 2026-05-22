@@ -6,31 +6,31 @@ const line_ops = @import("line.zig");
 
 fn isArrowCommand(command: types.Commands) bool {
     return switch (command) {
-        .CmdReturn,
-        .CmdHome,
-        .CmdTab,
-        .CmdBacktab,
-        .CmdLeft,
-        .CmdRight,
-        .CmdDown,
-        .CmdUp,
+        .cmd_return,
+        .cmd_home,
+        .cmd_tab,
+        .cmd_backtab,
+        .cmd_left,
+        .cmd_right,
+        .cmd_down,
+        .cmd_up,
         => true,
         else => false,
     };
 }
 
 pub fn doCmdLeft(frame: *types.FrameObject, rept: types.LeadParam, count: isize, new_eql: *types.MarkObject) bool {
-    new_eql.* = frame.Dot.?.*;
+    new_eql.* = frame.dot.?.*;
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
-            if (frame.Dot.?.Col - count >= 1) {
-                frame.Dot.?.Col -= count;
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
+            if (frame.dot.?.col - count >= 1) {
+                frame.dot.?.col -= count;
                 return true;
             }
         },
-        .LeadParamPIndef => {
-            if (frame.Dot.?.Col >= frame.MarginLeft) {
-                frame.Dot.?.Col = frame.MarginLeft;
+        .lead_param_p_indef => {
+            if (frame.dot.?.col >= frame.margin_left) {
+                frame.dot.?.col = frame.margin_left;
                 return true;
             }
         },
@@ -40,17 +40,17 @@ pub fn doCmdLeft(frame: *types.FrameObject, rept: types.LeadParam, count: isize,
 }
 
 pub fn doCmdRight(frame: *types.FrameObject, rept: types.LeadParam, count: isize, new_eql: *types.MarkObject) bool {
-    new_eql.* = frame.Dot.?.*;
+    new_eql.* = frame.dot.?.*;
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
-            if (frame.Dot.?.Col + count <= types.MaxStrLenP) {
-                frame.Dot.?.Col += count;
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
+            if (frame.dot.?.col + count <= types.max_str_len_p1) {
+                frame.dot.?.col += count;
                 return true;
             }
         },
-        .LeadParamPIndef => {
-            if (frame.Dot.?.Col <= frame.MarginRight) {
-                frame.Dot.?.Col = frame.MarginRight;
+        .lead_param_p_indef => {
+            if (frame.dot.?.col <= frame.margin_right) {
+                frame.dot.?.col = frame.margin_right;
                 return true;
             }
         },
@@ -60,30 +60,30 @@ pub fn doCmdRight(frame: *types.FrameObject, rept: types.LeadParam, count: isize
 }
 
 pub fn doCmdTabBacktab(frame: *types.FrameObject, step: isize, count: isize, new_eql: *types.MarkObject) bool {
-    new_eql.* = frame.Dot.?.*;
-    var new_col = frame.Dot.?.Col;
+    new_eql.* = frame.dot.?.*;
+    var new_col = frame.dot.?.col;
     var counter: isize = 1;
     while (counter <= count) : (counter += 1) {
         while (true) {
             new_col += step;
-            if (new_col <= 0 or new_col >= types.MaxStrLenP or frame.TabStops[@intCast(new_col)] or new_col == frame.MarginLeft or new_col == frame.MarginRight) {
+            if (new_col <= 0 or new_col >= types.max_str_len_p1 or frame.tab_stops[@intCast(new_col)] or new_col == frame.margin_left or new_col == frame.margin_right) {
                 break;
             }
         }
-        if (new_col <= 0 or new_col >= types.MaxStrLenP) {
+        if (new_col <= 0 or new_col >= types.max_str_len_p1) {
             return false;
         }
     }
-    frame.Dot.?.Col = new_col;
+    frame.dot.?.col = new_col;
     return true;
 }
 
 pub fn doCmdHome(screen: *const types.ScreenState, frame: *types.FrameObject, new_eql: *types.MarkObject) bool {
-    new_eql.* = frame.Dot.?.*;
-    if (frame == screen.Frame) {
-        const top_line = screen.TopLine orelse return true;
-        frame.Dot.?.Line = top_line;
-        frame.Dot.?.Col = frame.ScrOffset + 1;
+    new_eql.* = frame.dot.?.*;
+    if (frame == screen.frame) {
+        const top_line = screen.top_line orelse return true;
+        frame.dot.?.line = top_line;
+        frame.dot.?.col = frame.scr_offset + 1;
     }
     return true;
 }
@@ -95,15 +95,15 @@ pub fn doCmdUp(
     count: isize,
     new_eql: *types.MarkObject,
 ) !bool {
-    var dot_line = frame.Dot.?.Line;
+    var dot_line = frame.dot.?.line;
     const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (line_nr - count > 0) {
-                if (count < types.MaxGroupLines / 2) {
+                if (count < types.max_group_lines / 2) {
                     var counter: isize = 1;
                     while (counter <= count) : (counter += 1) {
-                        dot_line = dot_line.BLink.?;
+                        dot_line = dot_line.b_link.?;
                     }
                 } else {
                     dot_line = line_ops.lineFromNumber(frame, line_nr - count) orelse return false;
@@ -112,11 +112,11 @@ pub fn doCmdUp(
                 return false;
             }
         },
-        .LeadParamPIndef => dot_line = frame.FirstGroup.?.FirstLine.?,
+        .lead_param_p_indef => dot_line = frame.first_group.?.first_line.?,
         else => {},
     }
-    new_eql.* = frame.Dot.?.*;
-    try mark_ops.markCreate(allocator, dot_line, frame.Dot.?.Col, &frame.Dot);
+    new_eql.* = frame.dot.?.*;
+    try mark_ops.markCreate(allocator, dot_line, frame.dot.?.col, &frame.dot);
     return true;
 }
 
@@ -128,26 +128,26 @@ pub fn doCmdDown(
     new_eql: *types.MarkObject,
     eop_line_nr: isize,
 ) !bool {
-    var dot_line = frame.Dot.?.Line;
+    var dot_line = frame.dot.?.line;
     const line_nr = line_ops.lineToNumber(dot_line);
     switch (rept) {
-        .LeadParamNone, .LeadParamPlus, .LeadParamPInt => {
+        .lead_param_none, .lead_param_plus, .lead_param_p_int => {
             if (line_nr + count <= eop_line_nr) {
-                if (count < types.MaxGroupLines / 2) {
+                if (count < types.max_group_lines / 2) {
                     var counter: isize = 1;
-                    while (counter <= count and dot_line.FLink != null) : (counter += 1) {
-                        dot_line = dot_line.FLink.?;
+                    while (counter <= count and dot_line.f_link != null) : (counter += 1) {
+                        dot_line = dot_line.f_link.?;
                     }
                 } else {
                     dot_line = line_ops.lineFromNumber(frame, line_nr + count) orelse return false;
                 }
             }
         },
-        .LeadParamPIndef => dot_line = frame.LastGroup.?.LastLine.?,
+        .lead_param_p_indef => dot_line = frame.last_group.?.last_line.?,
         else => {},
     }
-    new_eql.* = frame.Dot.?.*;
-    try mark_ops.markCreate(allocator, dot_line, frame.Dot.?.Col, &frame.Dot);
+    new_eql.* = frame.dot.?.*;
+    try mark_ops.markCreate(allocator, dot_line, frame.dot.?.col, &frame.dot);
     return true;
 }
 
@@ -158,77 +158,77 @@ pub fn doCmdReturn(
     new_eql: *types.MarkObject,
     eop_line_nr: *isize,
 ) !bool {
-    new_eql.* = frame.Dot.?.*;
-    var dot_line = frame.Dot.?.Line;
-    var dot_col = frame.Dot.?.Col;
+    new_eql.* = frame.dot.?.*;
+    var dot_line = frame.dot.?.line;
+    var dot_col = frame.dot.?.col;
     var counter: isize = 1;
     while (counter <= count) : (counter += 1) {
-        if (dot_line.FLink == null) {
-            try text.TextRealizeNull(allocator, dot_line);
+        if (dot_line.f_link == null) {
+            try text.textRealizeNull(allocator, dot_line);
             eop_line_nr.* += 1;
-            dot_line = dot_line.BLink.?;
+            dot_line = dot_line.b_link.?;
             if (counter == 1) {
-                new_eql.Line = dot_line;
+                new_eql.line = dot_line;
             }
         }
-        dot_col = text.TextReturnCol(dot_line, dot_col, false);
-        dot_line = dot_line.FLink.?;
+        dot_col = text.textReturnCol(dot_line, dot_col, false);
+        dot_line = dot_line.f_link.?;
     }
-    try mark_ops.markCreate(allocator, dot_line, dot_col, &frame.Dot);
+    try mark_ops.markCreate(allocator, dot_line, dot_col, &frame.dot);
     return true;
 }
 
 test "isArrowCommand identifies supported movement commands" {
-    try std.testing.expect(isArrowCommand(.CmdReturn));
-    try std.testing.expect(isArrowCommand(.CmdLeft));
-    try std.testing.expect(!isArrowCommand(.CmdDeleteLine));
+    try std.testing.expect(isArrowCommand(.cmd_return));
+    try std.testing.expect(isArrowCommand(.cmd_left));
+    try std.testing.expect(!isArrowCommand(.cmd_delete_line));
 }
 
 test "left and right commands obey bounds and margins" {
     var frame = types.FrameObject{
-        .Dot = undefined,
-        .MarginLeft = 5,
-        .MarginRight = 80,
+        .dot = undefined,
+        .margin_left = 5,
+        .margin_right = 80,
     };
     var dot_line = types.LineHdrObject{};
-    var dot = types.MarkObject{ .Line = &dot_line, .Col = 10 };
-    frame.Dot = &dot;
+    var dot = types.MarkObject{ .line = &dot_line, .col = 10 };
+    frame.dot = &dot;
 
-    var eql = types.MarkObject{ .Line = &dot_line, .Col = 0 };
-    try std.testing.expect(doCmdLeft(&frame, .LeadParamNone, 1, &eql));
-    try std.testing.expectEqual(@as(isize, 9), frame.Dot.?.Col);
-    try std.testing.expect(doCmdRight(&frame, .LeadParamPIndef, 0, &eql));
-    try std.testing.expectEqual(@as(isize, 80), frame.Dot.?.Col);
+    var eql = types.MarkObject{ .line = &dot_line, .col = 0 };
+    try std.testing.expect(doCmdLeft(&frame, .lead_param_none, 1, &eql));
+    try std.testing.expectEqual(@as(isize, 9), frame.dot.?.col);
+    try std.testing.expect(doCmdRight(&frame, .lead_param_p_indef, 0, &eql));
+    try std.testing.expectEqual(@as(isize, 80), frame.dot.?.col);
 }
 
 test "tab and backtab follow tab stops and margins" {
     var frame = types.FrameObject{
-        .Dot = undefined,
-        .MarginLeft = 1,
-        .MarginRight = 80,
+        .dot = undefined,
+        .margin_left = 1,
+        .margin_right = 80,
     };
-    frame.TabStops[10] = true;
-    frame.TabStops[20] = true;
-    frame.TabStops[30] = true;
+    frame.tab_stops[10] = true;
+    frame.tab_stops[20] = true;
+    frame.tab_stops[30] = true;
     var dot_line = types.LineHdrObject{};
-    var dot = types.MarkObject{ .Line = &dot_line, .Col = 5 };
-    frame.Dot = &dot;
-    var eql = types.MarkObject{ .Line = &dot_line, .Col = 0 };
+    var dot = types.MarkObject{ .line = &dot_line, .col = 5 };
+    frame.dot = &dot;
+    var eql = types.MarkObject{ .line = &dot_line, .col = 0 };
     try std.testing.expect(doCmdTabBacktab(&frame, 1, 2, &eql));
-    try std.testing.expectEqual(@as(isize, 20), frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 20), frame.dot.?.col);
     try std.testing.expect(doCmdTabBacktab(&frame, -1, 1, &eql));
-    try std.testing.expectEqual(@as(isize, 10), frame.Dot.?.Col);
+    try std.testing.expectEqual(@as(isize, 10), frame.dot.?.col);
 }
 
 test "home command uses screen top line when frame is visible" {
     var top_line = types.LineHdrObject{};
     var current_line = types.LineHdrObject{};
-    var frame = types.FrameObject{ .Dot = undefined, .ScrOffset = 10 };
-    var dot = types.MarkObject{ .Line = &current_line, .Col = 50 };
-    frame.Dot = &dot;
-    const screen = types.ScreenState{ .Frame = &frame, .TopLine = &top_line };
-    var eql = types.MarkObject{ .Line = &current_line, .Col = 0 };
+    var frame = types.FrameObject{ .dot = undefined, .scr_offset = 10 };
+    var dot = types.MarkObject{ .line = &current_line, .col = 50 };
+    frame.dot = &dot;
+    const screen = types.ScreenState{ .frame = &frame, .top_line = &top_line };
+    var eql = types.MarkObject{ .line = &current_line, .col = 0 };
     _ = doCmdHome(&screen, &frame, &eql);
-    try std.testing.expect(frame.Dot.?.Line == &top_line);
-    try std.testing.expectEqual(@as(isize, 11), frame.Dot.?.Col);
+    try std.testing.expect(frame.dot.?.line == &top_line);
+    try std.testing.expectEqual(@as(isize, 11), frame.dot.?.col);
 }

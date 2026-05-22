@@ -34,7 +34,7 @@ pub const PromptReadOptions = struct {
     frame: ?*types.FrameObject = null,
     max_tp: isize = 1,
     this_tp: isize = 1,
-    max_len: usize = types.MaxStrLen,
+    max_len: usize = types.max_str_len,
     terminate_on_space: bool = false,
 };
 
@@ -48,29 +48,29 @@ var last_drawn_status_bottom_row: isize = 0;
 var last_drawn_status_rows: usize = 0;
 
 pub fn terminalWidthForEditor(editor: *const state.Editor) isize {
-    const width = @min(editor.TerminalInfo.Width, @as(isize, types.MaxScrCols));
+    const width = @min(editor.terminal_info.width, @as(isize, types.max_scr_cols));
     return if (width > 0) width else 1;
 }
 
 pub fn terminalHeightForEditor(editor: *const state.Editor) isize {
-    const height = @min(editor.TerminalInfo.Height, @as(isize, types.MaxScrRows));
+    const height = @min(editor.terminal_info.height, @as(isize, types.max_scr_rows));
     return if (height > 0) height else 1;
 }
 
 pub fn frameDisplayHeight(editor: *const state.Editor, frame: *const types.FrameObject) isize {
     var height = terminalHeightForEditor(editor);
-    if (frame.ScrHeight > 0 and frame.ScrHeight < height) {
-        height = frame.ScrHeight;
+    if (frame.scr_height > 0 and frame.scr_height < height) {
+        height = frame.scr_height;
     }
     return if (height > 0) height else 1;
 }
 
 fn frameHiddenAbove(editor: *const state.Editor, frame: *const types.FrameObject) bool {
-    return editor.Screen.Frame == frame and editor.Screen.TopLine != null and editor.Screen.TopLine.?.BLink != null;
+    return editor.screen.frame == frame and editor.screen.top_line != null and editor.screen.top_line.?.b_link != null;
 }
 
 fn frameHiddenBelow(editor: *const state.Editor, frame: *const types.FrameObject) bool {
-    return editor.Screen.Frame == frame and editor.Screen.BotLine != null and editor.Screen.BotLine.?.FLink != null;
+    return editor.screen.frame == frame and editor.screen.bot_line != null and editor.screen.bot_line.?.f_link != null;
 }
 
 pub fn visibleContentTopRow(editor: *const state.Editor, frame: *const types.FrameObject) isize {
@@ -99,8 +99,8 @@ pub fn topMarkerRow(editor: *const state.Editor, frame: *const types.FrameObject
     if (!frameHiddenAbove(editor, frame)) {
         return 0;
     }
-    const top_line = editor.Screen.TopLine orelse return 0;
-    const row = absoluteScreenRow(editor, frame, top_line.ScrRowNr);
+    const top_line = editor.screen.top_line orelse return 0;
+    const row = absoluteScreenRow(editor, frame, top_line.scr_row_num);
     return if (row > 1) row - 1 else 0;
 }
 
@@ -108,14 +108,14 @@ pub fn bottomMarkerRow(editor: *const state.Editor, frame: *const types.FrameObj
     if (!frameHiddenBelow(editor, frame)) {
         return 0;
     }
-    const bot_line = editor.Screen.BotLine orelse return 0;
-    const row = absoluteScreenRow(editor, frame, bot_line.ScrRowNr);
+    const bot_line = editor.screen.bot_line orelse return 0;
+    const row = absoluteScreenRow(editor, frame, bot_line.scr_row_num);
     const terminal_height = terminalHeightForEditor(editor);
     return if (row < terminal_height) row + 1 else 0;
 }
 
 pub fn frameLineStyle(line: *const types.LineHdrObject) LineStyle {
-    if (line.FLink == null) {
+    if (line.f_link == null) {
         return .dim;
     }
     return .normal;
@@ -227,7 +227,7 @@ pub fn readKey() !?u8 {
 
     while (true) {
         const input = terminal.readKey() orelse return null;
-        if (input == types.TerminalKeyCodes.DeleteChar) {
+        if (input == types.terminal_key_codes.delete_char) {
             traceKey("live", 127);
             return 127;
         }
@@ -254,11 +254,15 @@ pub fn readInputKey() !?isize {
     return error.NoActiveSession;
 }
 
-pub fn printLine(message: []const u8) void {
+pub fn printLine(io: std.Io, message: []const u8) void {
     if (builtin.is_test) {
         return;
     }
-    std.fs.File.stdout().deprecatedWriter().print("{s}\r\n", .{message}) catch {};
+    var buf: [1024]u8 = undefined;
+    var file_writer = std.Io.File.stdout().writerStreaming(io, &buf);
+    const stdout = &file_writer.interface;
+    defer stdout.flush() catch {};
+    stdout.print("{s}\r\n", .{message}) catch {};
 }
 
 pub fn queueStatusMessage(message: []const u8) void {
@@ -475,14 +479,14 @@ fn truncateToWidth(text: []const u8, width: usize) []const u8 {
 
 fn frameDisplayWidth(editor: *const state.Editor, frame: *const types.FrameObject) isize {
     var width = terminalWidthForEditor(editor);
-    if (frame.ScrWidth > 0 and frame.ScrWidth < width) {
-        width = frame.ScrWidth;
+    if (frame.scr_width > 0 and frame.scr_width < width) {
+        width = frame.scr_width;
     }
     return if (width > 0) width else 1;
 }
 
 fn clampTopLine(frame: *const types.FrameObject, top_number: isize, height: isize) isize {
-    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.last_group.?.last_line.?);
     const max_top = @max(@as(isize, 1), last_number - height + 1);
     return @min(@max(top_number, 1), max_top);
 }
@@ -494,20 +498,15 @@ const VisibleLineRange = struct {
 };
 
 fn visibleLineRange(frame: *const types.FrameObject, line: *const types.LineHdrObject, width: isize) VisibleLineRange {
-    const eop_line = line.FLink == null;
+    const eop_line = line.f_link == null;
     const content = line_ops.getDisplayLineContent(line);
-    const offset: usize = if (eop_line) 0 else @intCast(@max(@as(isize, 0), frame.ScrOffset));
+    const offset: usize = if (eop_line) 0 else @intCast(@max(@as(isize, 0), frame.scr_offset));
     if (offset >= content.len) {
         return .{ .content = content, .start = content.len, .end = content.len };
     }
     const width_usize: usize = @intCast(width);
     const end = @min(content.len, offset + width_usize);
     return .{ .content = content, .start = offset, .end = end };
-}
-
-fn visibleLineSlice(frame: *const types.FrameObject, line: *const types.LineHdrObject, width: isize) []const u8 {
-    const range = visibleLineRange(frame, line, width);
-    return range.content[range.start..range.end];
 }
 
 fn drawHighlightedLine(
@@ -524,21 +523,21 @@ fn drawHighlightedLine(
         return;
     }
 
-    var segments: [types.MaxStrLenP + 1]terminal.TextSegment = undefined;
+    var segments: [types.max_str_len_p1 + 1]terminal.TextSegment = undefined;
     var segment_count: usize = 0;
     var current_pair: u16 = 0;
     var current_offset: usize = 0;
     const visible_end = visible_start + visible_text.len;
 
     for (entries) |entry| {
-        if (entry.Position <= visible_start) {
-            current_pair = entry.Pair;
+        if (entry.position <= visible_start) {
+            current_pair = entry.pair;
             continue;
         }
-        if (entry.Position >= visible_end) {
+        if (entry.position >= visible_end) {
             break;
         }
-        const segment_end = entry.Position - visible_start;
+        const segment_end = entry.position - visible_start;
         if (segment_end > current_offset) {
             segments[segment_count] = .{
                 .text = visible_text[current_offset..segment_end],
@@ -546,7 +545,7 @@ fn drawHighlightedLine(
             };
             segment_count += 1;
         }
-        current_pair = entry.Pair;
+        current_pair = entry.pair;
         current_offset = segment_end;
     }
 
@@ -565,11 +564,11 @@ pub fn drawFrameLine(editor: *const state.Editor, frame: *const types.FrameObjec
     const width = frameDisplayWidth(editor, frame);
     const range = visibleLineRange(frame, line, width);
     const visible_text = range.content[range.start..range.end];
-    if (line.FLink == null or line.HlMatch.items.len == 0) {
+    if (line.f_link == null or line.hl_match.items.len == 0) {
         drawStyledLine(row, visible_text, frameLineStyle(line));
         return;
     }
-    drawHighlightedLine(row, visible_text, range.start, line.HlMatch.items);
+    drawHighlightedLine(row, visible_text, range.start, line.hl_match.items);
 }
 
 fn lineAtVisibleRow(
@@ -580,14 +579,14 @@ fn lineAtVisibleRow(
     row: isize,
 ) ?*types.LineHdrObject {
     const relative_row = row - visibleContentTopRow(editor, frame) + 1;
-    if (relative_row < top_line.ScrRowNr or relative_row > bot_line.ScrRowNr) {
+    if (relative_row < top_line.scr_row_num or relative_row > bot_line.scr_row_num) {
         return null;
     }
     var current = top_line;
-    while (current.ScrRowNr < relative_row) {
-        current = current.FLink orelse return null;
+    while (current.scr_row_num < relative_row) {
+        current = current.f_link orelse return null;
     }
-    return if (current.ScrRowNr == relative_row) current else null;
+    return if (current.scr_row_num == relative_row) current else null;
 }
 
 fn computePromptPosition(editor: *state.Editor, frame: *types.FrameObject, max_tp: isize, this_tp: isize) isize {
@@ -595,68 +594,68 @@ fn computePromptPosition(editor: *state.Editor, frame: *types.FrameObject, max_t
     const height = @max(dims.height, 1);
     const max_tp_clamped = @max(max_tp, 1);
     const this_tp_clamped = @max(this_tp, 1);
-    const region = &editor.PromptRegion[@intCast(this_tp_clamped)];
+    const region = &editor.prompt_region[@intCast(this_tp_clamped)];
     region.* = .{};
 
     const top_row = this_tp_clamped;
     const bottom_row = @max(@as(isize, 1), height - max_tp_clamped + this_tp_clamped);
-    region.LineNr = bottom_row;
+    region.line_num = bottom_row;
 
-    if (editor.Screen.Frame != frame or editor.Screen.TopLine == null or editor.Screen.BotLine == null) {
-        return region.LineNr;
+    if (editor.screen.frame != frame or editor.screen.top_line == null or editor.screen.bot_line == null) {
+        return region.line_num;
     }
 
-    const top_line = editor.Screen.TopLine.?;
-    const bot_line = editor.Screen.BotLine.?;
-    const top_line_row = absoluteScreenRow(editor, frame, top_line.ScrRowNr);
-    const bot_line_row = absoluteScreenRow(editor, frame, bot_line.ScrRowNr);
-    const msg_row = if (editor.Screen.MsgRow > 0 and editor.Screen.MsgRow < types.MaxInt)
-        editor.Screen.MsgRow
+    const top_line = editor.screen.top_line.?;
+    const bot_line = editor.screen.bot_line.?;
+    const top_line_row = absoluteScreenRow(editor, frame, top_line.scr_row_num);
+    const bot_line_row = absoluteScreenRow(editor, frame, bot_line.scr_row_num);
+    const msg_row = if (editor.screen.msg_row > 0 and editor.screen.msg_row < types.max_int)
+        editor.screen.msg_row
     else
         height + 1;
 
-    region.LineNr = top_row;
+    region.line_num = top_row;
     if (top_line_row > max_tp_clamped) {
-        return region.LineNr;
+        return region.line_num;
     }
     if (bot_line_row < msg_row - max_tp_clamped) {
-        region.LineNr = bottom_row;
-        return region.LineNr;
+        region.line_num = bottom_row;
+        return region.line_num;
     }
 
-    if (frame.Dot != null and absoluteScreenRow(editor, frame, frame.Dot.?.Line.ScrRowNr) <= 2) {
-        region.LineNr = bottom_row;
-        region.Redraw = lineAtVisibleRow(editor, frame, top_line, bot_line, bottom_row);
-        return region.LineNr;
+    if (frame.dot != null and absoluteScreenRow(editor, frame, frame.dot.?.line.scr_row_num) <= 2) {
+        region.line_num = bottom_row;
+        region.redraw = lineAtVisibleRow(editor, frame, top_line, bot_line, bottom_row);
+        return region.line_num;
     }
 
-    region.Redraw = lineAtVisibleRow(editor, frame, top_line, bot_line, top_row);
-    return region.LineNr;
+    region.redraw = lineAtVisibleRow(editor, frame, top_line, bot_line, top_row);
+    return region.line_num;
 }
 
 fn restorePromptLines(editor: *state.Editor, frame: *types.FrameObject, max_tp: isize) void {
     var index: isize = 1;
     const count = @max(max_tp, 1);
     while (index <= count) : (index += 1) {
-        const region = &editor.PromptRegion[@intCast(index)];
-        if (region.Redraw) |line| {
-            drawFrameLine(editor, frame, region.LineNr, line);
-        } else if (region.LineNr != 0) {
-            drawLine(region.LineNr, "");
+        const region = &editor.prompt_region[@intCast(index)];
+        if (region.redraw) |line| {
+            drawFrameLine(editor, frame, region.line_num, line);
+        } else if (region.line_num != 0) {
+            drawLine(region.line_num, "");
         }
         region.* = .{};
     }
 
-    if (frame.Dot != null and frame.Dot.?.Line.ScrRowNr > 0) {
+    if (frame.dot != null and frame.dot.?.line.scr_row_num > 0) {
         const width = frameDisplayWidth(editor, frame);
-        const cursor_col = @min(@max(frame.Dot.?.Col - frame.ScrOffset, 1), width);
-        moveCursor(cursor_col, absoluteScreenRow(editor, frame, frame.Dot.?.Line.ScrRowNr));
+        const cursor_col = @min(@max(frame.dot.?.col - frame.scr_offset, 1), width);
+        moveCursor(cursor_col, absoluteScreenRow(editor, frame, frame.dot.?.line.scr_row_num));
     }
     refresh();
 }
 
 fn initialVerifyTopLine(frame: *const types.FrameObject, height: isize) isize {
-    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.line);
     const desired_row = if (height > 1) @as(isize, 2) else 1;
     return clampTopLine(frame, dot_number - desired_row + 1, height);
 }
@@ -668,7 +667,7 @@ fn expandVerifyViewport(
     delta: isize,
     max_height: isize,
 ) void {
-    const last_number = line_ops.lineToNumber(frame.LastGroup.?.LastLine.?);
+    const last_number = line_ops.lineToNumber(frame.last_group.?.last_line.?);
     const target_height = @min(max_height, height.* + delta);
     var top = top_number.*;
     var current_height = height.*;
@@ -711,11 +710,11 @@ fn drawVerifyViewport(
 
     clearScreen();
     var row: isize = 1;
-    var line: ?*types.LineHdrObject = line_ops.lineFromNumber(frame, top_number) orelse frame.FirstGroup.?.FirstLine.?;
+    var line: ?*types.LineHdrObject = line_ops.lineFromNumber(frame, top_number) orelse frame.first_group.?.first_line.?;
     while (row <= height and row < terminal_height) : (row += 1) {
         if (line) |current| {
             drawFrameLine(editor, frame, row, current);
-            line = current.FLink;
+            line = current.f_link;
         } else {
             drawLine(row, "");
         }
@@ -726,9 +725,9 @@ fn drawVerifyViewport(
 
     drawLine(terminal_height, prompt);
 
-    const dot_number = line_ops.lineToNumber(frame.Dot.?.Line);
+    const dot_number = line_ops.lineToNumber(frame.dot.?.line);
     const cursor_row = @min(@max(dot_number - top_number + 1, 1), @min(height, terminal_height));
-    const cursor_col = @min(@max(frame.Dot.?.Col - frame.ScrOffset, 1), width);
+    const cursor_col = @min(@max(frame.dot.?.col - frame.scr_offset, 1), width);
     moveCursor(cursor_col, cursor_row);
     refresh();
 }
@@ -784,7 +783,7 @@ pub fn readPromptLineWithOptions(
         std.debug.print("[io:prompt-line] prompt={s}\n", .{prompt});
     }
 
-    var buffer: std.ArrayListUnmanaged(u8) = .{};
+    var buffer: std.ArrayList(u8) = .empty;
     errdefer buffer.deinit(allocator);
     const max_len = @min(options.max_len, width - @min(prompt_len, width));
 
@@ -818,7 +817,7 @@ pub fn readPromptLineWithOptions(
         if (buffer.items.len == 0) {
             var index = options.this_tp + 1;
             while (index <= options.max_tp) : (index += 1) {
-                options.editor.?.PromptRegion[@intCast(index)] = .{};
+                options.editor.?.prompt_region[@intCast(index)] = .{};
             }
         }
         if (options.this_tp >= options.max_tp or buffer.items.len == 0) {
@@ -857,8 +856,8 @@ pub fn readVerifyReply(
     prompt: []const u8,
 ) !?u8 {
     const dims = detectDimensions();
-    const max_height = @max(@min(dims.height, editor.TerminalInfo.Height), 1);
-    var view_height = @min(if (frame.ScrHeight > verify_start_height) verify_start_height else frame.ScrHeight, max_height);
+    const max_height = @max(@min(dims.height, editor.terminal_info.height), 1);
+    var view_height = @min(if (frame.scr_height > verify_start_height) verify_start_height else frame.scr_height, max_height);
     if (view_height < 1) {
         view_height = @min(verify_start_height, max_height);
     }
@@ -869,7 +868,7 @@ pub fn readVerifyReply(
         drawVerifyViewport(editor, frame, top_number, view_height, if (use_prompt) prompt else verify_choices_message);
         const raw_key = (try readInputKey()) orelse return null;
         if (raw_key == 3) {
-            editor.TtControlC = true;
+            editor.tt_control_c = true;
             return null;
         }
         if (raw_key < 0 or raw_key > std.math.maxInt(u8)) {
@@ -927,7 +926,7 @@ test "interactive io prompt reader ignores control keys and respects help option
 
     resetTestBeepCount();
     const line = try readPromptLineWithOptions(allocator, "Topic:", .{
-        .max_len = types.KeyLen,
+        .max_len = types.key_len,
         .terminate_on_space = true,
     });
     try std.testing.expectEqualStrings("ab ", line);
@@ -938,11 +937,15 @@ test "interactive io verify reply handles invalid keys and more context" {
     testing.installInput("\x01MQ");
     defer testing.clearInput();
 
-    var editor = try state.Editor.init(std.testing.allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
+    var editor = try state.Editor.init(std.testing.io, allocator, env);
     defer editor.deinit();
-    const allocator = editor.allocator();
-    editor.LudwigMode = .LudwigScreen;
-    editor.TerminalInfo = .{ .Width = 40, .Height = 6 };
+    editor.ludwig_mode = .ludwig_screen;
+    editor.terminal_info = .{ .width = 40, .height = 6 };
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{
         "1",
@@ -975,8 +978,8 @@ test "interactive io frame line styles keep eof dimmed" {
     const allocator = arena.allocator();
 
     const fixture = try line_ops.createContentFrame(allocator, &[_][]const u8{"alpha"});
-    try fixture.content_lines[0].HlMatch.append(std.testing.allocator, .{ .Position = 0, .Pair = 1 });
-    defer fixture.content_lines[0].HlMatch.deinit(std.testing.allocator);
+    try fixture.content_lines[0].hl_match.append(std.testing.allocator, .{ .position = 0, .pair = 1 });
+    defer fixture.content_lines[0].hl_match.deinit(std.testing.allocator);
 
     try std.testing.expectEqual(LineStyle.normal, frameLineStyle(fixture.content_lines[0]));
     try std.testing.expectEqual(LineStyle.dim, frameLineStyle(fixture.sentinel_line));

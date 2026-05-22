@@ -70,7 +70,7 @@ const Parser = struct {
     index: usize = 0,
 
     fn parse(self: *Parser) ParseError!CompiledPattern {
-        var segments = std.ArrayListUnmanaged(*Node){};
+        var segments: std.ArrayList(*Node) = .empty;
         defer segments.deinit(self.allocator);
 
         try segments.append(self.allocator, try self.parseExpression(false));
@@ -107,7 +107,7 @@ const Parser = struct {
     }
 
     fn parseExpression(self: *Parser, stop_at_rparen: bool) ParseError!*Node {
-        var alternatives = std.ArrayListUnmanaged(*Node){};
+        var alternatives: std.ArrayList(*Node) = .empty;
         defer alternatives.deinit(self.allocator);
 
         try alternatives.append(self.allocator, try self.parseSequence(stop_at_rparen));
@@ -125,7 +125,7 @@ const Parser = struct {
     }
 
     fn parseSequence(self: *Parser, stop_at_rparen: bool) ParseError!*Node {
-        var pieces = std.ArrayListUnmanaged(*Node){};
+        var pieces: std.ArrayList(*Node) = .empty;
         defer pieces.deinit(self.allocator);
 
         self.skipSpaces();
@@ -159,11 +159,11 @@ const Parser = struct {
         self.skipSpaces();
         const ch = self.peek() orelse return .{ .child = undefined, .min = 1, .max = 1 };
         return switch (ch) {
-            types.PatternKStar => blk: {
+            types.pattern_k_star => blk: {
                 self.index += 1;
                 break :blk .{ .child = undefined, .min = 0, .max = null };
             },
-            types.PatternPlus => blk: {
+            types.pattern_plus => blk: {
                 self.index += 1;
                 break :blk .{ .child = undefined, .min = 1, .max = null };
             },
@@ -171,7 +171,7 @@ const Parser = struct {
                 const count = try self.parseCount();
                 break :blk .{ .child = undefined, .min = count, .max = count };
             },
-            types.PatternLRangeDelim => blk: {
+            types.pattern_l_range_delim => blk: {
                 self.index += 1;
                 self.skipSpaces();
                 var min_count: usize = 0;
@@ -182,7 +182,7 @@ const Parser = struct {
                     }
                 }
                 self.skipSpaces();
-                if (self.peek() != types.PatternComma) {
+                if (self.peek() != types.pattern_comma) {
                     return PatternError.InvalidPattern;
                 }
                 self.index += 1;
@@ -193,7 +193,7 @@ const Parser = struct {
                     }
                 }
                 self.skipSpaces();
-                if (self.peek() != types.PatternRRangeDelim) {
+                if (self.peek() != types.pattern_r_range_delim) {
                     return PatternError.InvalidPattern;
                 }
                 self.index += 1;
@@ -213,22 +213,22 @@ const Parser = struct {
         const ch = self.peek() orelse return PatternError.UnexpectedEnd;
 
         switch (ch) {
-            types.TpdLit => return self.parseQuotedLiteral(types.TpdLit),
-            types.TpdExact => return self.parseQuotedLiteral(types.TpdExact),
-            types.PatternLParen => {
+            types.tpd_lit => return self.parseQuotedLiteral(types.tpd_lit),
+            types.tpd_exact => return self.parseQuotedLiteral(types.tpd_exact),
+            types.pattern_l_paren => {
                 self.index += 1;
                 const expr = try self.parseExpression(true);
                 self.skipSpaces();
-                if (self.peek() != types.PatternRParen) {
+                if (self.peek() != types.pattern_r_paren) {
                     return PatternError.InvalidPattern;
                 }
                 self.index += 1;
                 return expr;
             },
-            types.PatternMark => {
+            types.pattern_mark => {
                 self.index += 1;
                 var accept: types.AcceptSet = .{};
-                patparse.setAdd(&accept, @intCast(types.PatternMarksStart + try self.parseMarkNumber()));
+                patparse.setAdd(&accept, @intCast(types.pattern_marks_start + try self.parseMarkNumber()));
                 return self.makeNode(.{
                     .token = .{
                         .kind = .positional,
@@ -236,21 +236,21 @@ const Parser = struct {
                     },
                 });
             },
-            types.PatternEquals => {
+            types.pattern_equals => {
                 self.index += 1;
                 return self.makeNode(.{
                     .token = .{
                         .kind = .positional,
-                        .accept = patparse.singletonSet(types.PatternMarksEquals),
+                        .accept = patparse.singletonSet(types.pattern_marks_equals),
                     },
                 });
             },
-            types.PatternModified => {
+            types.pattern_modified => {
                 self.index += 1;
                 return self.makeNode(.{
                     .token = .{
                         .kind = .positional,
-                        .accept = patparse.singletonSet(types.PatternMarksModified),
+                        .accept = patparse.singletonSet(types.pattern_marks_modified),
                     },
                 });
             },
@@ -258,7 +258,7 @@ const Parser = struct {
         }
 
         var negate = false;
-        if (ch == types.PatternNegate) {
+        if (ch == types.pattern_negate) {
             negate = true;
             self.index += 1;
         }
@@ -270,11 +270,11 @@ const Parser = struct {
         };
 
         switch (actual) {
-            types.PatternDefineSetU, types.PatternDefineSetL => {
+            types.pattern_define_set_u, types.pattern_define_set_l => {
                 self.index += 1;
                 token.accept = try self.parseDefineSet();
                 if (negate) {
-                    const full = patparse.rangeSet(types.PatternAlphaStart, types.MaxSetRange);
+                    const full = patparse.rangeSet(types.pattern_alpha_start, types.max_set_range);
                     token.accept = patparse.setRemove(&full, &token.accept);
                 }
             },
@@ -284,11 +284,11 @@ const Parser = struct {
                 }
                 token.kind = .positional;
                 token.accept = switch (actual) {
-                    '<' => patparse.singletonSet(types.PatternBegLine),
-                    '>' => patparse.singletonSet(types.PatternEndLine),
-                    '{' => patparse.singletonSet(types.PatternLeftMargin),
-                    '}' => patparse.singletonSet(types.PatternRightMargin),
-                    '^' => patparse.singletonSet(types.PatternDotColumn),
+                    '<' => patparse.singletonSet(types.pattern_beg_line),
+                    '>' => patparse.singletonSet(types.pattern_end_line),
+                    '{' => patparse.singletonSet(types.pattern_left_margin),
+                    '}' => patparse.singletonSet(types.pattern_right_margin),
+                    '^' => patparse.singletonSet(types.pattern_dot_column),
                     else => unreachable,
                 };
                 self.index += 1;
@@ -296,17 +296,17 @@ const Parser = struct {
             else => {
                 token.kind = .char;
                 token.accept = switch (chars.chToUpper(actual)) {
-                    'S' => patparse.spaceSet,
-                    'C' => patparse.printableSet,
-                    'A' => patparse.alphaSet,
-                    'L' => patparse.lowerSet,
-                    'U' => patparse.upperSet,
-                    'N' => patparse.numericSet,
-                    'P' => patparse.punctuationSet,
+                    'S' => patparse.space_set,
+                    'C' => patparse.printable_set,
+                    'A' => patparse.alpha_set,
+                    'L' => patparse.lower_set,
+                    'U' => patparse.upper_set,
+                    'N' => patparse.numeric_set,
+                    'P' => patparse.punctuation_set,
                     else => return PatternError.InvalidPattern,
                 };
                 if (negate) {
-                    const full = patparse.rangeSet(types.PatternAlphaStart, types.MaxSetRange);
+                    const full = patparse.rangeSet(types.pattern_alpha_start, types.max_set_range);
                     token.accept = patparse.setRemove(&full, &token.accept);
                 }
                 self.index += 1;
@@ -318,7 +318,7 @@ const Parser = struct {
 
     fn parseQuotedLiteral(self: *Parser, delimiter: u8) ParseError!*Node {
         self.index += 1;
-        var pieces = std.ArrayListUnmanaged(*Node){};
+        var pieces: std.ArrayList(*Node) = .empty;
         defer pieces.deinit(self.allocator);
 
         while (true) {
@@ -329,7 +329,7 @@ const Parser = struct {
             }
             self.index += 1;
             var accept: types.AcceptSet = .{};
-            if (delimiter == types.TpdExact or !chars.chIsLetter(ch)) {
+            if (delimiter == types.tpd_exact or !chars.chIsLetter(ch)) {
                 patparse.setAdd(&accept, ch);
             } else if (chars.chIsLower(ch)) {
                 patparse.setAdd(&accept, ch);
@@ -389,7 +389,7 @@ const Parser = struct {
 
     fn parseMarkNumber(self: *Parser) ParseError!usize {
         const value = try self.parseCount();
-        if (value < types.MinUserMarkNumber or value > types.MaxUserMarkNumber) {
+        if (value < types.min_user_mark_number or value > types.max_user_mark_number) {
             return PatternError.InvalidPattern;
         }
         return value;
@@ -413,7 +413,7 @@ const Parser = struct {
     }
 };
 
-fn appendCursorUnique(list: *std.ArrayListUnmanaged(Cursor), allocator: std.mem.Allocator, cursor: Cursor) !void {
+fn appendCursorUnique(list: *std.ArrayList(Cursor), allocator: std.mem.Allocator, cursor: Cursor) !void {
     for (list.items) |existing| {
         if (existing.event_index == cursor.event_index and existing.column == cursor.column) {
             return;
@@ -424,8 +424,8 @@ fn appendCursorUnique(list: *std.ArrayListUnmanaged(Cursor), allocator: std.mem.
 
 fn acceptSetIntersects(a: *const types.AcceptSet, b: *const types.AcceptSet) bool {
     var index: usize = 0;
-    while (index <= types.MaxSetRange) : (index += 1) {
-        if (a.Bit(index) == 1 and b.Bit(index) == 1) {
+    while (index <= types.max_set_range) : (index += 1) {
+        if (a.bit(index) == 1 and b.bit(index) == 1) {
             return true;
         }
     }
@@ -433,7 +433,7 @@ fn acceptSetIntersects(a: *const types.AcceptSet, b: *const types.AcceptSet) boo
 }
 
 fn searchableLineUsed(line: *types.LineHdrObject) isize {
-    return if (line.FLink == null) 0 else line.Used;
+    return if (line.f_link == null) 0 else line.used;
 }
 
 fn buildEvents(
@@ -441,31 +441,31 @@ fn buildEvents(
     frame: *types.FrameObject,
     line: *types.LineHdrObject,
 ) ![]Event {
-    var events = std.ArrayListUnmanaged(Event){};
+    var events: std.ArrayList(Event) = .empty;
     const used = searchableLineUsed(line);
     const final_col = used + 1;
     var col: isize = 1;
     while (col <= final_col) : (col += 1) {
         var positional: types.AcceptSet = .{};
         if (col == 1) {
-            patparse.setAdd(&positional, types.PatternBegLine);
+            patparse.setAdd(&positional, types.pattern_beg_line);
         }
         if (col > used) {
-            patparse.setAdd(&positional, types.PatternEndLine);
+            patparse.setAdd(&positional, types.pattern_end_line);
         }
-        if (col == frame.MarginLeft) {
-            patparse.setAdd(&positional, types.PatternLeftMargin);
+        if (col == frame.margin_left) {
+            patparse.setAdd(&positional, types.pattern_left_margin);
         }
-        if (col == frame.MarginRight) {
-            patparse.setAdd(&positional, types.PatternRightMargin);
+        if (col == frame.margin_right) {
+            patparse.setAdd(&positional, types.pattern_right_margin);
         }
-        if (frame.Dot != null and col == frame.Dot.?.Col) {
-            patparse.setAdd(&positional, types.PatternDotColumn);
+        if (frame.dot != null and col == frame.dot.?.col) {
+            patparse.setAdd(&positional, types.pattern_dot_column);
         }
-        for (0..types.MaxMarkNumber + 1) |mark_no| {
-            if (frame.Marks[mark_no]) |mark| {
-                if (mark.Line == line and mark.Col == col) {
-                    patparse.setAdd(&positional, @intCast(mark_no + types.PatternMarksStart));
+        for (0..types.max_mark_number + 1) |mark_no| {
+            if (frame.marks[mark_no]) |mark| {
+                if (mark.line == line and mark.col == col) {
+                    patparse.setAdd(&positional, @intCast(mark_no + types.pattern_marks_start));
                 }
             }
         }
@@ -481,7 +481,7 @@ fn buildEvents(
         if (col <= used) {
             try events.append(allocator, .{
                 .kind = .char,
-                .ch = line.Str.?.get(col),
+                .ch = line.str.?.get(col),
                 .before_col = col,
                 .after_col = col + 1,
             });
@@ -533,7 +533,7 @@ const Matcher = struct {
             return &.{};
         }
         const ok = switch (event.kind) {
-            .char => token.accept.Bit(event.ch) == 1,
+            .char => token.accept.bit(event.ch) == 1,
             .positional => acceptSetIntersects(&token.accept, &event.accept),
         };
         if (!ok) {
@@ -548,7 +548,7 @@ const Matcher = struct {
     fn matchSequence(self: *Matcher, nodes: []const *Node, cursor: Cursor) MatchError![]Cursor {
         var cursors = try self.allocator.dupe(Cursor, &.{cursor});
         for (nodes) |child| {
-            var next = std.ArrayListUnmanaged(Cursor){};
+            var next: std.ArrayList(Cursor) = .empty;
             for (cursors) |current| {
                 const results = try self.matchNode(child, current);
                 for (results) |result| {
@@ -564,7 +564,7 @@ const Matcher = struct {
     }
 
     fn matchAlternatives(self: *Matcher, nodes: []const *Node, cursor: Cursor) MatchError![]Cursor {
-        var results = std.ArrayListUnmanaged(Cursor){};
+        var results: std.ArrayList(Cursor) = .empty;
         for (nodes) |child| {
             const child_results = try self.matchNode(child, cursor);
             for (child_results) |result| {
@@ -575,7 +575,7 @@ const Matcher = struct {
     }
 
     fn matchRepeatNode(self: *Matcher, repeat_node: RepeatNode, cursor: Cursor) MatchError![]Cursor {
-        var results = std.ArrayListUnmanaged(Cursor){};
+        var results: std.ArrayList(Cursor) = .empty;
         try self.matchRepeatRecursive(repeat_node, cursor, 0, &results);
         return results.toOwnedSlice(self.allocator);
     }
@@ -585,7 +585,7 @@ const Matcher = struct {
         repeat_node: RepeatNode,
         cursor: Cursor,
         count: usize,
-        out: *std.ArrayListUnmanaged(Cursor),
+        out: *std.ArrayList(Cursor),
     ) MatchError!void {
         if (count >= repeat_node.min) {
             try appendCursorUnique(out, self.allocator, cursor);
@@ -651,10 +651,10 @@ fn matchCompiledPattern(
 }
 
 fn patternSource(definition: types.PatternDefType) []const u8 {
-    return definition.Strng.?.slice(1, definition.Length);
+    return definition.strng.?.slice(1, definition.length);
 }
 
-pub fn PatternRecognize(
+pub fn patternRecognize(
     allocator: std.mem.Allocator,
     frame: *types.FrameObject,
     dfa_table_pointer: *types.DFATableObject,
@@ -664,7 +664,7 @@ pub fn PatternRecognize(
     start_pos: *isize,
     finish_pos: *isize,
 ) !bool {
-    if (dfa_table_pointer.Definition.Strng == null or dfa_table_pointer.Definition.Length == 0) {
+    if (dfa_table_pointer.definition.strng == null or dfa_table_pointer.definition.length == 0) {
         return false;
     }
 
@@ -674,7 +674,7 @@ pub fn PatternRecognize(
 
     var parser = Parser{
         .allocator = temp,
-        .source = patternSource(dfa_table_pointer.Definition),
+        .source = patternSource(dfa_table_pointer.definition),
     };
     const compiled = parser.parse() catch return false;
     const events = try buildEvents(temp, frame, line);
@@ -716,40 +716,40 @@ test "pattern recognize matches literals classes and anchored contexts" {
     });
 
     var dfa: types.DFATableObject = .{
-        .Definition = .{
-            .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'world'"),
-            .Length = 7,
+        .definition = .{
+            .strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'world'"),
+            .length = 7,
         },
     };
     var mark_flag = false;
     var start_pos: isize = 0;
     var finish_pos: isize = 0;
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 7), start_pos);
     try std.testing.expectEqual(@as(isize, 12), finish_pos);
 
-    dfa.Definition = .{
-        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "<+a>"),
-        .Length = 4,
+    dfa.definition = .{
+        .strng = try @import("str_object.zig").newStrObjectFrom(allocator, "<+a>"),
+        .length = 4,
     };
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 4), finish_pos);
 
-    dfa.Definition = .{
-        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a','b','c'"),
-        .Length = 11,
+    dfa.definition = .{
+        .strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a','b','c'"),
+        .length = 11,
     };
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[1], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 2), start_pos);
     try std.testing.expectEqual(@as(isize, 3), finish_pos);
 
     const email_pattern = "+a'@'+a'.'+a";
-    dfa.Definition = .{
-        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, email_pattern),
-        .Length = email_pattern.len,
+    dfa.definition = .{
+        .strng = try @import("str_object.zig").newStrObjectFrom(allocator, email_pattern),
+        .length = email_pattern.len,
     };
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[2], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[2], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 12), finish_pos);
 }
@@ -760,28 +760,28 @@ test "pattern recognize handles positional marks and initial mark flag skipping"
     const allocator = arena.allocator();
 
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"abc"});
-    try @import("mark.zig").markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.Marks[1]);
-    fixture.frame.MarginLeft = 1;
+    try @import("mark.zig").markCreate(allocator, fixture.content_lines[0], 1, &fixture.frame.marks[1]);
+    fixture.frame.margin_left = 1;
 
     var dfa: types.DFATableObject = .{
-        .Definition = .{
-            .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "@1"),
-            .Length = 2,
+        .definition = .{
+            .strng = try @import("str_object.zig").newStrObjectFrom(allocator, "@1"),
+            .length = 2,
         },
     };
     var mark_flag = false;
     var start_pos: isize = 0;
     var finish_pos: isize = 0;
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 1), finish_pos);
 
-    dfa.Definition = .{
-        .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a'"),
-        .Length = 3,
+    dfa.definition = .{
+        .strng = try @import("str_object.zig").newStrObjectFrom(allocator, "'a'"),
+        .length = 3,
     };
     mark_flag = true;
-    try std.testing.expect(try PatternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
+    try std.testing.expect(try patternRecognize(allocator, fixture.frame, &dfa, fixture.content_lines[0], 1, &mark_flag, &start_pos, &finish_pos));
     try std.testing.expectEqual(@as(isize, 1), start_pos);
     try std.testing.expectEqual(@as(isize, 2), finish_pos);
 }
@@ -794,16 +794,16 @@ test "pattern recognize keeps the longest same-column repeat match" {
     const fixture = try @import("line.zig").createContentFrame(allocator, &[_][]const u8{"1234def"});
     const pattern = "[,3]N";
     var dfa: types.DFATableObject = .{
-        .Definition = .{
-            .Strng = try @import("str_object.zig").newStrObjectFrom(allocator, pattern),
-            .Length = pattern.len,
+        .definition = .{
+            .strng = try @import("str_object.zig").newStrObjectFrom(allocator, pattern),
+            .length = pattern.len,
         },
     };
     var mark_flag = false;
     var start_pos: isize = 0;
     var finish_pos: isize = 0;
 
-    try std.testing.expect(try PatternRecognize(
+    try std.testing.expect(try patternRecognize(
         allocator,
         fixture.frame,
         &dfa,

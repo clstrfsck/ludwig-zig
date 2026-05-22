@@ -68,23 +68,23 @@ fn takeBackKey(key: u8) void {
 
 fn decodeCsiFinal(final: u8) ?isize {
     return switch (final) {
-        'A' => types.TerminalKeyCodes.UpArrow,
-        'B' => types.TerminalKeyCodes.DownArrow,
-        'C' => types.TerminalKeyCodes.RightArrow,
-        'D' => types.TerminalKeyCodes.LeftArrow,
-        'H' => types.TerminalKeyCodes.Home,
-        'Z' => types.TerminalKeyCodes.BackTab,
+        'A' => types.terminal_key_codes.up_arrow,
+        'B' => types.terminal_key_codes.down_arrow,
+        'C' => types.terminal_key_codes.right_arrow,
+        'D' => types.terminal_key_codes.left_arrow,
+        'H' => types.terminal_key_codes.home,
+        'Z' => types.terminal_key_codes.back_tab,
         else => null,
     };
 }
 
 fn decodeCsiTilde(final: u8) ?isize {
     return switch (final) {
-        '1', '7' => types.TerminalKeyCodes.Home,
-        '2' => types.TerminalKeyCodes.InsertChar,
-        '3' => types.TerminalKeyCodes.DeleteChar,
-        '5' => types.TerminalKeyCodes.PageUp,
-        '6' => types.TerminalKeyCodes.PageDown,
+        '1', '7' => types.terminal_key_codes.home,
+        '2' => types.terminal_key_codes.insert_char,
+        '3' => types.terminal_key_codes.delete_char,
+        '5' => types.terminal_key_codes.page_up,
+        '6' => types.terminal_key_codes.page_down,
         else => null,
     };
 }
@@ -142,14 +142,14 @@ test "interactive io testing harness decodes common escape sequences" {
     installInput("\x1b[A\x1b[B\x1b[C\x1b[D\x1b[H\x1b[Z\x1b[2~\x1b[3~\x1b[5~\x1b[6~");
     defer clearInput();
 
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.UpArrow), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.DownArrow), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.RightArrow), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.LeftArrow), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.Home), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.BackTab), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.InsertChar), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.DeleteChar), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.PageUp), readInputKey());
-    try std.testing.expectEqual(@as(?isize, types.TerminalKeyCodes.PageDown), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.up_arrow), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.down_arrow), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.right_arrow), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.left_arrow), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.home), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.back_tab), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.insert_char), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.delete_char), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.page_up), readInputKey());
+    try std.testing.expectEqual(@as(?isize, types.terminal_key_codes.page_down), readInputKey());
 }

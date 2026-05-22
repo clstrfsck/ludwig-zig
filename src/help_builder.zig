@@ -9,15 +9,15 @@ pub const default_output_file = "ludwighlp.idx";
 pub fn buildHelpIndex(
     allocator: std.mem.Allocator,
     input: []const u8,
-    diagnostics: *std.ArrayListUnmanaged(u8),
+    diagnostics: *std.ArrayList(u8),
 ) ![]u8 {
-    var index: std.ArrayListUnmanaged(u8) = .{};
+    var index: std.ArrayList(u8) = .empty;
     defer index.deinit(allocator);
 
-    var contents: std.ArrayListUnmanaged(u8) = .{};
+    var contents: std.ArrayList(u8) = .empty;
     defer contents.deinit(allocator);
 
-    var body: std.ArrayListUnmanaged(u8) = .{};
+    var body: std.ArrayList(u8) = .empty;
     defer body.deinit(allocator);
 
     var cursor: usize = 0;
@@ -102,7 +102,7 @@ pub fn buildHelpIndex(
         }
     }
 
-    var output: std.ArrayListUnmanaged(u8) = .{};
+    var output: std.ArrayList(u8) = .empty;
     errdefer output.deinit(allocator);
 
     try appendFmt(&output, allocator, "{d} {d}\n", .{ index_lines, contents_lines });
@@ -113,29 +113,30 @@ pub fn buildHelpIndex(
     return try output.toOwnedSlice(allocator);
 }
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     const use_checked_allocator = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
     defer if (use_checked_allocator) {
         const status = gpa.deinit();
         std.debug.assert(status == .ok);
     };
     const allocator = if (use_checked_allocator) gpa.allocator() else std.heap.page_allocator;
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(allocator);
+    defer allocator.free(args);
 
     const input_path = if (args.len > 1) args[1] else default_input_file;
     const output_path = if (args.len > 2) args[2] else default_output_file;
 
-    const input = std.fs.cwd().readFileAlloc(
-        allocator,
+    const input = std.Io.Dir.cwd().readFileAlloc(
+        init.io,
         input_path,
-        std.math.maxInt(usize),
+        allocator,
+        .unlimited,
     ) catch |err| fatal("{s}: {}\n", .{ input_path, err });
     defer allocator.free(input);
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     defer diagnostics.deinit(allocator);
 
     const output = buildHelpIndex(allocator, input, &diagnostics) catch |err| {
@@ -147,18 +148,21 @@ pub fn main() !void {
         std.debug.print("{s}", .{diagnostics.items});
     }
 
-    const output_file = std.fs.cwd().createFile(output_path, .{}) catch |err| {
+    const output_file = std.Io.Dir.cwd().createFile(init.io, output_path, .{}) catch |err| {
         fatal("{s}: {}\n", .{ output_path, err });
     };
-    defer output_file.close();
+    defer output_file.close(init.io);
 
-    output_file.writeAll(output) catch |err| {
+    var buf: [4096]u8 = undefined;
+    var file_writer = output_file.writer(init.io, &buf);
+    defer file_writer.interface.flush() catch {};
+    file_writer.interface.writeAll(output) catch |err| {
         fatal("Error processing files: {}\n", .{err});
     };
 }
 
 fn appendLine(
-    list: *std.ArrayListUnmanaged(u8),
+    list: *std.ArrayList(u8),
     allocator: std.mem.Allocator,
     line: []const u8,
 ) !void {
@@ -167,7 +171,7 @@ fn appendLine(
 }
 
 fn appendFmt(
-    list: *std.ArrayListUnmanaged(u8),
+    list: *std.ArrayList(u8),
     allocator: std.mem.Allocator,
     comptime fmt: []const u8,
     args: anytype,
@@ -183,7 +187,9 @@ fn fatal(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 test "matches a representative help-builder sample" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const input =
         \\+CONTENTS
         \\\ABCD first section
@@ -209,7 +215,7 @@ test "matches a representative help-builder sample" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     defer diagnostics.deinit(allocator);
 
     const output = try buildHelpIndex(allocator, input, &diagnostics);
@@ -220,7 +226,9 @@ test "matches a representative help-builder sample" {
 }
 
 test "truncates long lines and reports the warning" {
-    const allocator = std.testing.allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
     const input =
         \\+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         \\\#
@@ -238,7 +246,7 @@ test "truncates long lines and reports the warning" {
         \\
     ;
 
-    var diagnostics: std.ArrayListUnmanaged(u8) = .{};
+    var diagnostics: std.ArrayList(u8) = .empty;
     defer diagnostics.deinit(allocator);
 
     const output = try buildHelpIndex(allocator, input, &diagnostics);

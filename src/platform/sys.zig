@@ -1,21 +1,25 @@
 const std = @import("std");
 
 pub const FileStatus = struct {
-    Valid: bool = false,
-    Mode: u16 = 0o600,
-    Mtime: i128 = -1,
-    IsDir: bool = false,
+    valid: bool = false,
+    mode: u16 = 0o600,
+    m_time: i128 = -1,
+    is_dir: bool = false,
 };
 
-pub fn getEnv(allocator: std.mem.Allocator, name: []const u8) ?[]const u8 {
-    return std.process.getEnvVarOwned(allocator, name) catch null;
+pub fn getEnv(allocator: std.mem.Allocator, env: std.process.Environ.Map, name: []const u8) ?[]const u8 {
+    const value = env.get(name) orelse return null;
+    return allocator.dupe(u8, value) catch null;
 }
 
-fn currentHomeDir(allocator: std.mem.Allocator) ?[]const u8 {
-    return getEnv(allocator, "HOME");
+fn currentHomeDir(
+    allocator: std.mem.Allocator,
+    env: std.process.Environ.Map,
+) ?[]const u8 {
+    return getEnv(allocator, env, "HOME");
 }
 
-fn expandTilde(allocator: std.mem.Allocator, filename: []const u8) !?[]const u8 {
+fn expandTilde(allocator: std.mem.Allocator, env: std.process.Environ.Map, filename: []const u8) !?[]const u8 {
     if (filename.len == 0 or filename[0] != '~') {
         const dup: []const u8 = try allocator.dupe(u8, filename);
         return dup;
@@ -27,14 +31,16 @@ fn expandTilde(allocator: std.mem.Allocator, filename: []const u8) !?[]const u8 
     const rest = if (slash_index < remainder.len) remainder[slash_index + 1 ..] else "";
 
     const home = if (user.len == 0) blk: {
-        break :blk currentHomeDir(allocator) orelse return null;
+        break :blk currentHomeDir(allocator, env) orelse return null;
     } else blk: {
-        const current_user = getEnv(allocator, "USER") orelse return null;
+        const current_user = getEnv(allocator, env, "USER") orelse return null;
+        defer allocator.free(current_user);
         if (!std.mem.eql(u8, current_user, user)) {
             return null;
         }
-        break :blk currentHomeDir(allocator) orelse return null;
+        break :blk currentHomeDir(allocator, env) orelse return null;
     };
+    defer allocator.free(home);
 
     if (rest.len == 0) {
         const dup: []const u8 = try allocator.dupe(u8, home);
@@ -44,8 +50,8 @@ fn expandTilde(allocator: std.mem.Allocator, filename: []const u8) !?[]const u8 
     return joined;
 }
 
-pub fn expandFilename(allocator: std.mem.Allocator, filename: []const u8) !?[]const u8 {
-    const expanded = (try expandTilde(allocator, filename)) orelse return null;
+pub fn expandFilename(io: std.Io, allocator: std.mem.Allocator, env: std.process.Environ.Map, filename: []const u8) !?[]const u8 {
+    const expanded = (try expandTilde(allocator, env, filename)) orelse return null;
     if (expanded.len == 0) {
         return expanded;
     }
@@ -53,7 +59,9 @@ pub fn expandFilename(allocator: std.mem.Allocator, filename: []const u8) !?[]co
         return expanded;
     }
 
-    const cwd = try std.process.getCwdAlloc(allocator);
+    defer allocator.free(expanded);
+    const cwd = try std.process.currentPathAlloc(io, allocator);
+    defer allocator.free(cwd);
     const resolved: []const u8 = try std.fs.path.resolve(allocator, &.{ cwd, expanded });
     return resolved;
 }
@@ -62,89 +70,79 @@ pub fn copyFilename(allocator: std.mem.Allocator, src_path: []const u8, dst_path
     return std.fs.path.join(allocator, &.{ dst_path, std.fs.path.basename(src_path) });
 }
 
-fn openReadOnly(path: []const u8) !std.fs.File {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.fs.openFileAbsolute(path, .{});
-    }
-    return std.fs.cwd().openFile(path, .{});
+fn openReadOnly(io: std.Io, path: []const u8) !std.Io.File {
+    return std.Io.Dir.cwd().openFile(io, path, .{});
 }
 
-fn createTruncated(path: []const u8, mode: u16) !std.fs.File {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.fs.createFileAbsolute(path, .{
-            .truncate = true,
-            .read = true,
-            .mode = mode,
-        });
-    }
-    return std.fs.cwd().createFile(path, .{
+fn createTruncated(io: std.Io, path: []const u8, mode: u16) !std.Io.File {
+    return std.Io.Dir.cwd().createFile(io, path, .{
         .truncate = true,
         .read = true,
-        .mode = mode,
+        .permissions = std.Io.File.Permissions.fromMode(mode),
     });
 }
 
-fn openWriteOnly(path: []const u8) !std.fs.File {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.fs.openFileAbsolute(path, .{ .mode = .write_only });
-    }
-    return std.fs.cwd().openFile(path, .{ .mode = .write_only });
+fn openWriteOnly(io: std.Io, path: []const u8) !std.Io.File {
+    return std.Io.Dir.cwd().openFile(io, path, .{ .mode = .write_only });
 }
 
-fn openDirIter(path: []const u8) !std.fs.Dir {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.fs.openDirAbsolute(path, .{ .iterate = true });
-    }
-    return std.fs.cwd().openDir(path, .{ .iterate = true });
+fn openDirIter(io: std.Io, path: []const u8) !std.Io.Dir {
+    return std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
 }
 
 pub fn readFileAlloc(
+    io: std.Io,
     allocator: std.mem.Allocator,
     path: []const u8,
     max_bytes: usize,
 ) ![]u8 {
-    var file = try openReadOnly(path);
-    defer file.close();
-    return file.readToEndAlloc(allocator, max_bytes);
-}
+    var file = try openReadOnly(io, path);
+    defer file.close(io);
 
-pub fn writeFile(path: []const u8, data: []const u8, mode: u16) !void {
-    var file = try createTruncated(path, mode);
-    defer file.close();
-    try file.writeAll(data);
-}
-
-pub fn renamePath(old_path: []const u8, new_path: []const u8) !void {
-    if (std.fs.path.isAbsolute(old_path) and std.fs.path.isAbsolute(new_path)) {
-        return std.fs.renameAbsolute(old_path, new_path);
-    }
-    return std.fs.cwd().rename(old_path, new_path);
-}
-
-pub fn deleteFile(path: []const u8) !void {
-    if (std.fs.path.isAbsolute(path)) {
-        return std.fs.deleteFileAbsolute(path);
-    }
-    return std.fs.cwd().deleteFile(path);
-}
-
-pub fn fileStatus(path: []const u8) FileStatus {
-    const stat = std.fs.cwd().statFile(path) catch return .{};
-    return .{
-        .Valid = true,
-        .Mode = @intCast(stat.mode & 0o777),
-        .Mtime = stat.mtime,
-        .IsDir = stat.kind == .directory,
+    var buf: [4096]u8 = undefined;
+    var reader = file.reader(io, &buf);
+    return reader.interface.allocRemaining(allocator, .limited(max_bytes)) catch |err| switch (err) {
+        error.StreamTooLong => error.FileTooBig,
+        else => |e| e,
     };
 }
 
-pub fn fileExists(path: []const u8) bool {
-    return fileStatus(path).Valid;
+pub fn writeFile(io: std.Io, path: []const u8, data: []const u8, mode: u16) !void {
+    var file = try createTruncated(io, path, mode);
+    defer file.close(io);
+
+    var buf: [4096]u8 = undefined;
+    var file_writer = file.writer(io, &buf);
+    defer file_writer.interface.flush() catch {};
+    try file_writer.interface.writeAll(data);
 }
 
-pub fn fileWritable(path: []const u8) bool {
-    var file = openWriteOnly(path) catch return false;
-    file.close();
+pub fn renamePath(io: std.Io, old_path: []const u8, new_path: []const u8) !void {
+    const cwd = std.Io.Dir.cwd();
+    return std.Io.Dir.rename(cwd, old_path, cwd, new_path, io);
+}
+
+pub fn deleteFile(io: std.Io, path: []const u8) !void {
+    return std.Io.Dir.cwd().deleteFile(io, path);
+}
+
+pub fn fileStatus(io: std.Io, path: []const u8) FileStatus {
+    const stat = std.Io.Dir.cwd().statFile(io, path, .{}) catch return .{};
+    return .{
+        .valid = true,
+        .mode = @intCast(stat.permissions.toMode() & 0o777),
+        .m_time = stat.mtime.toNanoseconds(),
+        .is_dir = stat.kind == .directory,
+    };
+}
+
+pub fn fileExists(io: std.Io, path: []const u8) bool {
+    return fileStatus(io, path).valid;
+}
+
+pub fn fileWritable(io: std.Io, path: []const u8) bool {
+    var file = openWriteOnly(io, path) catch return false;
+    file.close(io);
     return true;
 }
 
@@ -152,18 +150,19 @@ pub fn fileMask() u16 {
     return 0o666;
 }
 
-pub fn writeFilename(path: []const u8, filename: []const u8) !bool {
+pub fn writeFilename(io: std.Io, path: []const u8, filename: []const u8) !bool {
     if (path.len == 0) {
         return false;
     }
     const contents = try std.fmt.allocPrint(std.heap.page_allocator, "{s}\n", .{filename});
     defer std.heap.page_allocator.free(contents);
-    writeFile(path, contents, 0o600) catch return false;
+    writeFile(io, path, contents, 0o600) catch return false;
     return true;
 }
 
-pub fn readFilename(allocator: std.mem.Allocator, path: []const u8) !?[]const u8 {
-    const data = readFileAlloc(allocator, path, 4096) catch return null;
+pub fn readFilename(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !?[]const u8 {
+    const data = readFileAlloc(io, allocator, path, 4096) catch return null;
+    defer allocator.free(data);
     const line_end = std.mem.indexOfAny(u8, data, "\r\n") orelse data.len;
     const line = data[0..line_end];
     if (line.len == 0) {
@@ -185,17 +184,17 @@ fn sortVersions(values: []i64) void {
     }
 }
 
-pub fn listBackups(allocator: std.mem.Allocator, backup_name: []const u8) ![]i64 {
+pub fn listBackups(io: std.Io, allocator: std.mem.Allocator, backup_name: []const u8) ![]i64 {
     const dir_name = std.fs.path.dirname(backup_name) orelse ".";
     const base_name = std.fs.path.basename(backup_name);
 
-    var dir = openDirIter(dir_name) catch return allocator.alloc(i64, 0);
-    defer dir.close();
+    var dir = openDirIter(io, dir_name) catch return allocator.alloc(i64, 0);
+    defer dir.close(io);
 
-    var versions: std.ArrayListUnmanaged(i64) = .{};
+    var versions: std.ArrayList(i64) = .empty;
     errdefer versions.deinit(allocator);
     var iterator = dir.iterate();
-    while (try iterator.next()) |entry| {
+    while (try iterator.next(io)) |entry| {
         if (!std.mem.startsWith(u8, entry.name, base_name)) {
             continue;
         }
@@ -227,42 +226,70 @@ fn tmpPath(allocator: std.mem.Allocator, tmp_dir: *std.testing.TmpDir, name: []c
 test "sys expands relative and home-prefixed filenames" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    const io = std.testing.io;
     const allocator = arena.allocator();
+    var env = try std.testing.environ.createMap(allocator);
+    defer env.deinit();
 
-    const rel = (try expandFilename(allocator, "docs")) orelse return error.TestUnexpectedResult;
+    const rel = (try expandFilename(io, allocator, env, "docs")) orelse return error.TestUnexpectedResult;
     try std.testing.expect(std.fs.path.isAbsolute(rel));
 
-    const home = currentHomeDir(allocator) orelse return error.SkipZigTest;
-    const home_expanded = (try expandFilename(allocator, "~/tmp")) orelse return error.TestUnexpectedResult;
+    const home = currentHomeDir(allocator, env) orelse return error.SkipZigTest;
+    const home_expanded = (try expandFilename(io, allocator, env, "~/tmp")) orelse return error.TestUnexpectedResult;
     try std.testing.expect(std.mem.startsWith(u8, home_expanded, home));
 }
 
 test "sys writes and reads memory filenames" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    const io = std.testing.io;
     const allocator = arena.allocator();
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
     const memory_path = try tmpPath(allocator, &tmp_dir, "memory.txt");
-    try std.testing.expect(try writeFilename(memory_path, "/tmp/example.txt"));
-    const remembered = (try readFilename(allocator, memory_path)) orelse return error.TestUnexpectedResult;
+    try std.testing.expect(try writeFilename(io, memory_path, "/tmp/example.txt"));
+    const remembered = (try readFilename(io, allocator, memory_path)) orelse return error.TestUnexpectedResult;
     try std.testing.expectEqualStrings("/tmp/example.txt", remembered);
+}
+
+test "sys file helpers accept absolute paths" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const io = std.testing.io;
+    const allocator = arena.allocator();
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    const cwd = try std.process.currentPathAlloc(io, allocator);
+    const rel_path = try tmpPath(allocator, &tmp_dir, "absolute.txt");
+    const abs_path = try std.fs.path.resolve(allocator, &.{ cwd, rel_path });
+
+    try std.testing.expect(try writeFilename(io, abs_path, "/tmp/absolute.txt"));
+    try std.testing.expect(fileExists(io, abs_path));
+    try std.testing.expect(fileWritable(io, abs_path));
+
+    const remembered = (try readFilename(io, allocator, abs_path)) orelse return error.TestUnexpectedResult;
+    try std.testing.expectEqualStrings("/tmp/absolute.txt", remembered);
+
+    try deleteFile(io, abs_path);
+    try std.testing.expect(!fileExists(io, abs_path));
 }
 
 test "sys lists numeric backup suffixes in order" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    const io = std.testing.io;
     const allocator = arena.allocator();
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
-    try tmp_dir.dir.writeFile(.{ .sub_path = "sample~10", .data = "" });
-    try tmp_dir.dir.writeFile(.{ .sub_path = "sample~2", .data = "" });
-    try tmp_dir.dir.writeFile(.{ .sub_path = "sample~x", .data = "" });
+    try tmp_dir.dir.writeFile(io, .{ .sub_path = "sample~10", .data = "" });
+    try tmp_dir.dir.writeFile(io, .{ .sub_path = "sample~2", .data = "" });
+    try tmp_dir.dir.writeFile(io, .{ .sub_path = "sample~x", .data = "" });
 
     const backup_base = try tmpPath(allocator, &tmp_dir, "sample~");
-    const versions = try listBackups(allocator, backup_base);
+    const versions = try listBackups(io, allocator, backup_base);
     try std.testing.expectEqual(@as(usize, 2), versions.len);
     try std.testing.expectEqual(@as(i64, 2), versions[0]);
     try std.testing.expectEqual(@as(i64, 10), versions[1]);

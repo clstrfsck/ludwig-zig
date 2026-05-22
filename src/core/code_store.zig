@@ -6,33 +6,33 @@ pub fn codeDiscard(editor: *state.Editor, code_head: *?*types.CodeHeader) void {
         return;
     }
 
-    code_head.*.?.Ref -= 1;
-    if (code_head.*.?.Ref == 0) {
-        const start = code_head.*.?.Code;
-        const size = code_head.*.?.Len;
+    code_head.*.?.ref -= 1;
+    if (code_head.*.?.ref == 0) {
+        const start = code_head.*.?.code;
+        const size = code_head.*.?.len;
 
         var source = start;
         while (source < start + size) : (source += 1) {
-            if (editor.CompilerCode[@intCast(source)].Code != null) {
-                codeDiscard(editor, &editor.CompilerCode[@intCast(source)].Code);
+            if (editor.compiler_code[@intCast(source)].code != null) {
+                codeDiscard(editor, &editor.compiler_code[@intCast(source)].code);
             }
-            editor.CompilerCode[@intCast(source)].Tpar = null;
+            editor.compiler_code[@intCast(source)].tpar = null;
         }
 
         source = start + size;
-        while (source <= editor.CodeTop) : (source += 1) {
-            editor.CompilerCode[@intCast(source - size)] = editor.CompilerCode[@intCast(source)];
+        while (source <= editor.code_top) : (source += 1) {
+            editor.compiler_code[@intCast(source - size)] = editor.compiler_code[@intCast(source)];
         }
-        editor.CodeTop -= size;
+        editor.code_top -= size;
 
-        var link = code_head.*.?.BLink;
-        while (link != editor.CodeList) {
-            link.?.Code -= size;
-            link = link.?.BLink;
+        var link = code_head.*.?.b_link;
+        while (link != editor.code_list) {
+            link.?.code -= size;
+            link = link.?.b_link;
         }
 
-        code_head.*.?.FLink.?.BLink = code_head.*.?.BLink;
-        code_head.*.?.BLink.?.FLink = code_head.*.?.FLink;
+        code_head.*.?.f_link.?.b_link = code_head.*.?.b_link;
+        code_head.*.?.b_link.?.f_link = code_head.*.?.f_link;
         code_head.* = null;
     }
 }
